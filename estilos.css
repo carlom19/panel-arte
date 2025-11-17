@@ -1,0 +1,79 @@
+/* ====================================================== */
+/* ===== ESTILOS CSS - Panel Arte v5.0 ===== */
+/* ====================================================== */
+
+/* Control de Modales */
+body.modal-open { overflow: hidden; }
+.modal { display: flex; opacity: 0; pointer-events: none; transition: opacity 0.2s ease-in-out; }
+.modal.active { opacity: 1; pointer-events: auto; }
+.modal.active .modal-content { transform: scale(1); }
+
+/* Barra de Selección Múltiple */
+.multi-select-bar.active { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Resaltado de Filas de la Tabla */
+tr.very-late { background-color: #FEF2F2; border-left: 4px solid #EF4444; }
+tr.late { background-color: #FEF2F2; }
+tr.expiring { background-color: #FEFCE8; }
+tbody tr:hover { background-color: #F3F4F6; }
+
+/* Botones de Paginación */
+.pagination-controls button {
+    background-color: white; border: 1px solid #D1D5DB; color: #374151;
+    padding: 6px 12px; margin: 0 2px; cursor: pointer; border-radius: 6px;
+    font-weight: 500; font-size: 0.875rem; transition: all 0.2s;
+}
+.pagination-controls button:hover:not(:disabled) { background-color: #F3F4F6; }
+.pagination-controls button:disabled { background-color: #F9FAFB; color: #9CA3AF; cursor: not-allowed; }
+.pagination-controls button.active { background-color: #2563EB; color: white; border-color: #2563EB; }
+
+/* Botones de Filtro (Sidebar) */
+.filter-btn {
+    display: flex; justify-content: space-between; align-items: center; width: 100%;
+    text-align: left; padding: 8px 12px; border: 1px solid #E5E7EB;
+    background: white; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+    font-weight: 500; font-size: 0.875rem; color: #1F2937;
+}
+.filter-btn:hover { background: #F3F4F6; border-color: #D1D5DB; }
+.filter-btn.active { background: #2563EB; color: white; border-color: #2563EB; }
+.filter-btn.active span { background-color: #3B82F6; color: white; }
+
+/* Tabla de Comparación */
+#compareTableContainer table { min-width: 0; }
+#compareTableContainer th { background: #F9FAFB; color: #111827; text-transform: none; font-size: 0.9em; padding: 12px; }
+#compareTableContainer td { font-size: 0.9em; text-align: center; padding: 12px; }
+#compareTableContainer td:first-child { font-weight: 600; color: #111827; text-align: left; }
+#compareTableContainer .value-a { background: #EFF6FF; font-weight: 600; }
+#compareTableContainer .value-b { background: #FEFCE8; font-weight: 600; }
+
+/* Spinner de Carga */
+.spinner {
+    border: 4px solid #E5E7EB; border-top: 4px solid #2563EB; border-radius: 50%;
+    width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.loading-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); display: flex; align-items: center;
+    justify-content: center; z-index: 9999; flex-direction: column;
+}
+.loading-overlay .spinner { border-color: rgba(255,255,255,0.3); border-top-color: white; width: 60px; height: 60px; }
+.loading-overlay p { color: white; font-size: 1.1em; margin-top: 16px; }
+
+/* Ajustes Globales de Tamaño */
+html { font-size: 13.2px; }
+.p-4 { padding: 0.825rem !important; }
+.p-6 { padding: 1.2375rem !important; }
+.p-8 { padding: 1.65rem !important; }
+.mb-4 { margin-bottom: 0.825rem !important; }
+.mb-6 { margin-bottom: 1.2375rem !important; }
+.gap-4 { gap: 0.825rem !important; }
+.gap-6 { gap: 1.2375rem !important; }
+.text-2xl { font-size: 1.2375rem !important; }
+.text-lg { font-size: 1.03125rem !important; }
+.text-base { font-size: 0.89375rem !important; }
+.text-sm { font-size: 0.75625rem !important; }
+.text-xs { font-size: 0.6875rem !important; }
+input, select, textarea, button { font-size: 0.825rem !important; padding: 0.4125rem 0.825rem !important; }
+.grid > div { padding: 1.1rem !important; }
+table td, table th { padding: 0.55rem 1.1rem !important; font-size: 0.825rem !important; }
