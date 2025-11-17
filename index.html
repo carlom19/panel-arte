@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v5.2 (Lite)</title>
+    <title>Panel de Control - Arte v5.1 (Cloud Fixed)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -19,11 +19,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
     <link rel="stylesheet" href="estilos.css">
-    <style>
-        /* Estilos extra para asegurar el diseño */
-        body { font-family: 'Inter', sans-serif; }
-        .chart-container { position: relative; height: 300px; width: 100%; }
-    </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-900">
 
@@ -31,10 +26,9 @@
         <svg class="w-16 h-16 mx-auto text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.333-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
         </svg>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Panel de Control - Arte v5.2</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Panel de Control - Arte v5.1</h1>
         <p class="text-gray-600 mb-8">Por favor, inicia sesión con tu cuenta de Google.</p>
         <button id="loginButton" class="w-full inline-flex justify-center items-center gap-3 bg-blue-600 text-white font-medium py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-sm cursor-pointer">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/></svg>
             Iniciar Sesión con Google
         </button>
     </div>
@@ -52,11 +46,11 @@
             <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
         </div>
         <div class="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-6 text-left">
-            <h4 class="text-lg font-semibold text-gray-800 mb-4">✨ v5.2 (Lite)</h4>
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">✨ v5.1 (Cloud Fixed)</h4>
             <ul class="text-sm text-gray-600 list-disc list-inside space-y-2">
                 <li>☁️ Base de Datos en la Nube (Firebase).</li>
                 <li>⚡ Sincronización en tiempo real.</li>
-                <li>✅ Versión optimizada.</li>
+                <li>✅ Estabilidad mejorada en tablas y modales.</li>
             </ul>
         </div>
     </div>
@@ -65,7 +59,7 @@
         
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex flex-wrap justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Panel de Control - Arte v5.2</h1>
+                <h1 class="text-2xl font-bold text-gray-900">Panel de Control - Arte v5.1</h1>
                 <p class="text-sm text-gray-500 mt-1">
                     <span id="fileName"></span>
                     <span id="dbStatus" class="ml-3 font-medium text-gray-500">Conectando...</span>
@@ -74,427 +68,262 @@
                 </p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="openDesignerManager()">
-                    Gestionar Diseñadores
-                </button>
-                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-2 shadow-sm" onclick="exportToPDF()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
-                    Exportar PDF
-                </button>
+                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="openDesignerManager()">Gestionar Diseñadores</button>
+                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="openWeeklyReportModal()">Reporte Semanal</button>
+                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="showMetricsView()">Métricas Diseñador</button>
+                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="showDepartmentMetrics()">Métricas Depto.</button>
+                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="showWorkPlanView()">Plan Semanal</button>
+                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2" onclick="resetApp()">Sincronizar Excel</button>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-                <div class="text-gray-500 text-sm font-medium uppercase">Total Pedidos</div>
-                <div class="text-3xl font-bold text-gray-900 mt-2" id="kpiTotal">0</div>
+        <div id="customAlert" style="display: none;"></div>
+        <div id="summaryBox" class="bg-white rounded-lg shadow-lg p-6 mb-6 border-l-4 border-blue-600"></div>
+        <div id="alerts"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Total en P_Art</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statTotal">0</div></div><div class="bg-blue-100 text-blue-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M5 7h14"></path></svg></div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Total Cantidad</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statTotalPieces">0</div></div><div class="bg-purple-100 text-purple-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg></div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Atrasadas</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statLate">0</div></div><div class="bg-red-100 text-red-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Por Vencer</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statExpiring">0</div></div><div class="bg-yellow-100 text-yellow-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">A Tiempo</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statOnTime">0</div></div><div class="bg-green-100 text-green-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Esta Semana</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statThisWeek">0</div></div><div class="bg-orange-100 text-orange-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="lg:col-span-1 bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Clientes (Activas)</h3>
+                <div class="max-h-60 overflow-y-auto" id="clientReport"></div>
             </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-                <div class="text-gray-500 text-sm font-medium uppercase">Completados</div>
-                <div class="text-3xl font-bold text-gray-900 mt-2" id="kpiCompleted">0</div>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-                <div class="text-gray-500 text-sm font-medium uppercase">En Proceso</div>
-                <div class="text-3xl font-bold text-gray-900 mt-2" id="kpiPending">0</div>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-                <div class="text-gray-500 text-sm font-medium uppercase">Pendientes / Retrasados</div>
-                <div class="text-3xl font-bold text-gray-900 mt-2" id="kpiDelayed">0</div>
+            <div class="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-center mb-4 gap-2"><h3 class="text-lg font-semibold text-gray-900">Carga de Trabajo</h3><span class="text-sm text-gray-500 font-medium" id="workloadTotal">0 piezas</span></div>
+                <div id="workloadList" class="space-y-4"></div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Estatutos de Pedidos</h3>
-                <div class="chart-container">
-                    <canvas id="statusChart"></canvas>
-                </div>
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-6">Búsqueda y Filtros</h3>
+            <div class="mb-6">
+                <input type="text" id="searchInput" placeholder="Buscar (Ctrl+F)..." class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
             </div>
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Carga por Diseñador</h3>
-                <div class="chart-container">
-                    <canvas id="designerChart"></canvas>
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div class="filter-item"><label>Cliente:</label><select id="clientFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div class="filter-item"><label>Estilo:</label><select id="styleFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div class="filter-item"><label>Team:</label><select id="teamFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div class="filter-item"><label>Depto:</label><select id="departamentoFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div class="filter-item"><label>Diseñador:</label><select id="designerFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div class="filter-item"><label>Estado:</label><select id="customStatusFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div class="filter-item"><label>Desde:</label><input type="date" id="dateFrom" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></div>
+                <div class="filter-item"><label>Hasta:</label><input type="date" id="dateTo" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></div>
+                <div class="filter-item flex items-end"><button class="w-full py-2 px-4 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50" onclick="clearAllFilters()">Limpiar Filtros</button></div>
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg font-bold text-gray-800">Detalle de Pedidos</h3>
-                <span class="text-xs text-gray-500">Mostrando primeros 50 registros</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200" id="dataTable">
+        <div class="filters bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="mb-4"><label class="block font-semibold mb-2">Estado de Entrega:</label><div class="flex rounded-lg border border-gray-300 overflow-hidden" id="statusFilters"></div></div>
+            <div><label class="block font-semibold mb-2">Fecha:</label><div class="flex rounded-lg border border-gray-300 overflow-hidden" id="dateFilters"></div></div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+            <div class="table-container overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 data-table">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Diseñador</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                            <th class="px-6 py-3 w-12"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                            <th onclick="sortTable('status')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estado <span id="sort-status"></span></th>
+                            <th onclick="sortTable('date')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Fecha <span id="sort-date"></span></th>
+                            <th onclick="sortTable('cliente')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Cliente <span id="sort-cliente"></span></th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Código</th>
+                            <th onclick="sortTable('estilo')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estilo <span id="sort-estilo"></span></th>
+                            <th onclick="sortTable('teamName')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Team <span id="sort-teamName"></span></th>
+                            <th onclick="sortTable('departamento')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Depto <span id="sort-departamento"></span></th>
+                            <th onclick="sortTable('designer')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Diseñador <span id="sort-designer"></span></th>
+                            <th onclick="sortTable('customStatus')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estado Orden <span id="sort-customStatus"></span></th>
+                            <th onclick="sortTable('receivedDate')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Recibida <span id="sort-receivedDate"></span></th>
+                            <th onclick="sortTable('cantidad')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Cant. <span id="sort-cantidad"></span></th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Notas</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200" id="tableBody">
-                        <tr>
-                            <td colspan="6" class="px-6 py-4 text-center text-gray-500 italic">
-                                Carga un archivo Excel para visualizar los datos aquí.
-                            </td>
-                        </tr>
-                    </tbody>
+                    <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
                 </table>
             </div>
         </div>
-    </div>
 
-    <div id="designerModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 50;">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white animate-fade-in-down">
-            <div class="mt-3 text-center">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">Gestionar Diseñadores</h3>
-                <div class="mt-2 px-7 py-3">
-                    <p class="text-sm text-gray-500">Agrega o edita la lista de diseñadores activos.</p>
-                    <textarea class="w-full border border-gray-300 rounded p-2 mt-2 h-24 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ej: Juan Perez, Maria Lopez..."></textarea>
-                </div>
-                <div class="items-center px-4 py-3">
-                    <button id="closeModal" class="px-4 py-2 bg-gray-800 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                        Cerrar
-                    </button>
-                </div>
+        <div class="pagination-container bg-white rounded-lg shadow-lg p-4 flex items-center justify-between gap-4">
+            <div>
+                <label>Filas:</label>
+                <select id="rowsPerPage" onchange="changeRowsPerPage()" class="ml-2 border-gray-300 rounded-lg">
+                    <option value="25">25</option><option value="50" selected>50</option><option value="100">100</option><option value="250">250</option>
+                </select>
+            </div>
+            <div><span id="resultCount">0</span> de <span id="totalCount">0</span> | <strong><span id="resultPieces">0</span> piezas</strong> (Pág <span id="currentPage">1</span>/<span id="totalPages">1</span>)</div>
+            <div class="pagination-controls flex gap-1" id="paginationControls"></div>
+        </div>
+
+        <div id="multiSelectBar" class="multi-select-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl p-4 flex items-center gap-4 z-50">
+            <span class="font-semibold text-blue-600"><span id="selectedCount">0</span> seleccionadas</span>
+            <button class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700" onclick="openMultiAssignModal()">Asignar</button>
+            <button class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700" onclick="addSelectedToWorkPlan()">Al Plan</button>
+            <button class="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300" onclick="clearSelection()">Cancelar</button>
+        </div>
+
+    </div> 
+
+    <div id="designerMetricsView" class="p-4 md:p-6" style="display: none;">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Métricas por Diseñador</h1>
+            <button class="py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50" onclick="hideMetricsView()">Volver</button>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
+            <div class="lg:col-span-1 bg-white rounded-lg shadow-lg p-6"><h3 class="font-semibold mb-4">Seleccionar</h3><div id="metricsSidebarList" class="space-y-2"></div></div>
+            <div id="metricsDetail" class="lg:col-span-3 bg-white rounded-lg shadow-lg p-6"></div>
+        </div>
+    </div>
+    
+    <div id="departmentMetricsView" class="p-4 md:p-6" style="display: none;">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Métricas del Departamento</h1>
+            <button class="py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50" onclick="hideDepartmentMetrics()">Volver</button>
+        </div>
+        <div id="departmentMetricsContent" class="space-y-6"></div>
+    </div>
+    
+    <div id="workPlanView" class="p-4 md:p-6" style="display: none;">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Plan Semanal</h1>
+            <button class="py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50" onclick="hideWorkPlanView()">Volver</button>
+        </div>
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex gap-4 mb-4 items-end">
+                <div><label>Semana:</label><input type="week" id="view-workPlanWeekSelector" onchange="generateWorkPlan()" class="border border-gray-300 rounded-lg px-3 py-2 block"></div>
+                <button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700" onclick="loadUrgentOrdersToPlan()">Cargar Urgentes</button>
+                <span id="view-workPlanSummary" class="ml-auto text-sm text-gray-600 font-medium"></span>
+            </div>
+            <div id="view-workPlanContent" class="space-y-6 mt-6">
+                <div id="view-workPlanSpinner" class="spinner" style="display: none;"></div>
             </div>
         </div>
     </div>
 
-    <script>
-        // --- 1. CONFIGURACIÓN DE FIREBASE ---
-        // Si no tienes las claves ahora, la app funcionará en modo "Demo" (Frontend puro).
-        // Cuando tengas tu proyecto Firebase, pega las claves aquí.
-        const firebaseConfig = {
-            apiKey: "TU_API_KEY_AQUI",
-            authDomain: "tu-proyecto.firebaseapp.com",
-            projectId: "tu-proyecto",
-            storageBucket: "tu-proyecto.appspot.com",
-            messagingSenderId: "NUMERO",
-            appId: "TU_APP_ID"
-        };
+    <div id="assignModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all">
+            <div class="flex justify-between items-center p-6 border-b"><h2 class="text-2xl font-semibold">Editar Orden</h2><button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">X</button></div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border">
+                    <div><div class="text-xs text-gray-500 uppercase">Cliente</div><div id="detailCliente" class="font-semibold">-</div></div>
+                    <div><div class="text-xs text-gray-500 uppercase">Código</div><div id="detailCodigo" class="font-semibold">-</div></div>
+                    <div><div class="text-xs text-gray-500 uppercase">Estilo</div><div id="detailEstilo" class="font-semibold">-</div></div>
+                    <div><div class="text-xs text-gray-500 uppercase">Depto</div><div id="detailDepartamento" class="font-semibold">-</div></div>
+                    <div><div class="text-xs text-gray-500 uppercase">Fecha</div><div id="detailFecha" class="font-semibold">-</div></div>
+                    <div><div class="text-xs text-gray-500 uppercase">Piezas</div><div id="detailPiezas" class="font-semibold">-</div></div>
+                </div>
+                <div><label>Diseñador:</label><select id="modalDesigner" class="w-full border rounded px-3 py-2"></select></div>
+                <div><label>Estado:</label><select id="modalStatus" class="w-full border rounded px-3 py-2"><option value="">Sin estado</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option><option value="Completada">Completada</option></select></div>
+                <div><label>Fecha Recibida:</label><input type="date" id="modalReceivedDate" class="w-full border rounded px-3 py-2"></div>
+                <div><label>Notas:</label><textarea id="modalNotes" class="w-full border rounded px-3 py-2"></textarea></div>
+                <div><label>Historial:</label><div id="modalHistory" class="max-h-48 overflow-y-auto bg-gray-50 border rounded p-3 space-y-2"></div></div>
+                <div class="pt-4 border-t">
+                    <div class="flex justify-between items-center mb-2"><label>Órdenes Hijas (<span id="childOrderCount">0</span>):</label><button id="addChildOrderBtn" class="bg-green-600 text-white text-xs py-1 px-3 rounded hover:bg-green-700" onclick="openAddChildModal()">+ Hija</button></div>
+                    <div id="childOrdersList" class="max-h-56 overflow-y-auto bg-gray-50 border rounded p-3 space-y-2"></div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 p-6 bg-gray-50 border-t">
+                <button class="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300" onclick="closeModal()">Cancelar</button>
+                <button class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700" onclick="asignarmeAmi()">Asignarme a mí</button>
+                <button class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700" onclick="saveAssignment()">Guardar</button>
+            </div>
+        </div>
+    </div>
 
-        let auth, db;
-        let isFirebaseActive = false;
+    <div id="multiAssignModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-lg p-6">
+            <h2 class="text-xl font-bold mb-4">Asignar Múltiples (<span id="multiModalCount">0</span>)</h2>
+            <div id="selectedOrdersList" class="mb-4 max-h-40 overflow-y-auto bg-gray-50 p-2 border rounded"></div>
+            <label>Diseñador:</label><select id="multiModalDesigner" class="w-full border rounded mb-2 px-3 py-2"></select>
+            <label>Estado:</label><select id="multiModalStatus" class="w-full border rounded mb-2 px-3 py-2"><option value="">-</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select>
+            <label>Fecha:</label><input type="date" id="multiModalReceivedDate" class="w-full border rounded mb-2 px-3 py-2">
+            <label>Notas:</label><textarea id="multiModalNotes" class="w-full border rounded mb-4 px-3 py-2"></textarea>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeMultiModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
+                <button onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded">Guardar</button>
+            </div>
+        </div>
+    </div>
 
-        // Intentar inicializar Firebase
-        try {
-            if (firebaseConfig.apiKey !== "TU_API_KEY_AQUI") {
-                firebase.initializeApp(firebaseConfig);
-                auth = firebase.auth();
-                db = firebase.firestore();
-                isFirebaseActive = true;
-                console.log("✅ Firebase inicializado correctamente.");
-            } else {
-                console.log("⚠️ Modo Demo: Firebase no configurado (clave por defecto detectada).");
-            }
-        } catch (e) {
-            console.error("Error iniciando Firebase:", e);
-        }
+    <div id="addChildModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-lg p-6">
+            <h2 class="text-xl font-bold mb-4">Crear Orden Hija</h2>
+            <p id="parentOrderInfo" class="text-sm text-gray-600 mb-4"></p>
+            <div class="flex gap-2 mb-2"><input id="childOrderCode" readonly class="bg-gray-100 border px-2 py-1 flex-1"><input id="childOrderNumber" type="number" placeholder="#" class="border px-2 py-1 w-20" onchange="updateChildOrderCode()"></div>
+            <input id="childPieces" type="number" placeholder="Piezas" class="w-full border mb-2 px-3 py-2">
+            <input id="childDeliveryDate" type="date" class="w-full border mb-2 px-3 py-2">
+            <textarea id="childNotes" placeholder="Notas" class="w-full border mb-4 px-3 py-2"></textarea>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeAddChildModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
+                <button onclick="saveChildOrder()" class="bg-blue-600 text-white px-4 py-2 rounded">Crear</button>
+            </div>
+        </div>
+    </div>
 
-        // --- 2. VARIABLES GLOBALES ---
-        let globalData = [];
-        let charts = {}; // Almacena las instancias de los gráficos
+    <div id="designerManagerModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-bold mb-4">Gestionar Diseñadores</h2>
+            <div id="designerManagerList" class="mb-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50"></div>
+            <div class="flex gap-2">
+                <input id="newDesignerName" placeholder="Nombre" class="border px-3 py-2 flex-1 rounded">
+                <button onclick="addDesigner()" class="bg-green-600 text-white px-4 py-2 rounded">Agregar</button>
+            </div>
+            <button onclick="closeDesignerManager()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button>
+        </div>
+    </div>
 
-        // --- 3. REFERENCIAS DOM ---
-        const loginSection = document.getElementById('loginSection');
-        const uploadSection = document.getElementById('uploadSection');
-        const dashboard = document.getElementById('dashboard');
-        const fileInput = document.getElementById('fileInput');
-        const dropZone = document.getElementById('dropZone');
+    <div id="weeklyReportModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-4xl p-6 h-[90vh] flex flex-col">
+            <h2 class="text-xl font-bold mb-4">Reporte Semanal</h2>
+            <input type="week" id="weekSelector" onchange="generateWeeklyReport()" class="border px-3 py-2 mb-4 w-full rounded">
+            <div id="weeklyReportContent" class="flex-1 overflow-y-auto relative"><div id="weeklyReportSpinner" class="spinner" style="display:none;"></div></div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button onclick="closeWeeklyReportModal()" class="bg-gray-200 px-4 py-2 rounded">Cerrar</button>
+                <button onclick="exportWeeklyReportAsPDF()" class="bg-green-600 text-white px-4 py-2 rounded">Exportar PDF</button>
+            </div>
+        </div>
+    </div>
 
-        // --- 4. MANEJO DE SESIÓN (LOGIN) ---
-        document.getElementById('loginButton').addEventListener('click', () => {
-            if (isFirebaseActive) {
-                // Login Real con Google
-                const provider = new firebase.auth.GoogleAuthProvider();
-                auth.signInWithPopup(provider)
-                    .then(result => handleLoginSuccess(result.user))
-                    .catch(error => alert("Error Login: " + error.message));
-            } else {
-                // Login Simulado (Demo)
-                handleLoginSuccess({ displayName: 'Administrador (Demo)' });
-            }
-        });
+    <div id="confirmModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-sm p-6">
+            <h2 class="text-xl font-bold mb-4 text-yellow-600">Confirmar Acción</h2>
+            <p id="confirmModalMessage" class="mb-6 text-gray-700"></p>
+            <div class="flex justify-end gap-2">
+                <button id="confirmModalCancel" class="bg-gray-200 px-4 py-2 rounded" onclick="closeConfirmModal()">Cancelar</button>
+                <button id="confirmModalConfirm" class="bg-red-600 text-white px-4 py-2 rounded">Confirmar</button>
+            </div>
+        </div>
+    </div>
 
-        document.getElementById('logoutButton').addEventListener('click', () => {
-            if (isFirebaseActive) firebase.auth().signOut();
-            window.location.reload();
-        });
+    <div id="selectCompareModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-sm p-6">
+            <h2 class="text-xl font-bold mb-4">Comparar</h2>
+            <p class="mb-2">Comparar a <strong id="compareDesigner1Name" class="text-blue-600"></strong> con:</p>
+            <select id="compareDesignerSelect" class="w-full border px-3 py-2 mb-4 rounded"></select>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeCompareModals()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
+                <button onclick="startComparison()" class="bg-blue-600 text-white px-4 py-2 rounded">Comparar</button>
+            </div>
+        </div>
+    </div>
 
-        function handleLoginSuccess(user) {
-            document.getElementById('userName').textContent = user.displayName || "Usuario";
-            
-            // Transición de pantallas
-            loginSection.style.display = 'none';
-            uploadSection.style.display = 'block';
-            
-            // Actualizar indicador de estado
-            const statusElem = document.getElementById('dbStatus');
-            if(isFirebaseActive) {
-                statusElem.textContent = "🟢 Conectado a Nube";
-                statusElem.classList.replace('text-gray-500', 'text-green-600');
-            } else {
-                statusElem.textContent = "🟠 Modo Local";
-                statusElem.classList.replace('text-gray-500', 'text-orange-500');
-            }
-        }
+    <div id="compareModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-3xl h-[90vh] flex flex-col p-6">
+            <h2 class="text-xl font-bold mb-4">Resultado Comparativa</h2>
+            <div class="flex-1 overflow-y-auto space-y-4">
+                <div id="compareChartContainer" class="h-64"><canvas id="compareChartCanvas"></canvas></div>
+                <div id="compareTableContainer"></div>
+            </div>
+            <button onclick="closeCompareModals()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button>
+        </div>
+    </div>
 
-        // --- 5. LÓGICA DE ARRASTRAR Y SOLTAR (DRAG & DROP) ---
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('border-blue-500', 'bg-blue-50');
-        });
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-        });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-            const files = e.dataTransfer.files;
-            if(files.length) handleFileUpload(files[0]);
-        });
-
-        // Evento Input Tradicional
-        fileInput.addEventListener('change', (e) => {
-            if(e.target.files.length) handleFileUpload(e.target.files[0]);
-        });
-
-        // --- 6. PROCESAMIENTO DE EXCEL ---
-        function handleFileUpload(file) {
-            document.getElementById('fileName').textContent = `📂 Archivo: ${file.name}`;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                
-                // Leemos la primera hoja del Excel
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
-                // Convertimos a JSON
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
-                // Procesamos los datos para el dashboard
-                processData(jsonData);
-                
-                // Cambiamos la vista al Dashboard
-                uploadSection.style.display = 'none';
-                dashboard.style.display = 'block';
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // --- 7. ANÁLISIS DE DATOS Y RENDERIZADO ---
-        function processData(data) {
-            globalData = data;
-            
-            // Contadores Iniciales
-            let total = data.length;
-            let completed = 0;
-            let pending = 0;
-            let delayed = 0;
-            
-            // Almacenes para gráficos
-            const statusCounts = {};
-            const designerCounts = {};
-
-            data.forEach(row => {
-                // NOTA: Intentamos buscar nombres de columnas en inglés Y español
-                // para que el código sea robusto.
-                const statusRaw = row['Status'] || row['Estado'] || row['STATUS'] || 'Desconocido';
-                const designerRaw = row['Designer'] || row['Diseñador'] || row['DESIGNER'] || 'Sin Asignar';
-                
-                const status = String(statusRaw).trim();
-                const designer = String(designerRaw).trim();
-
-                // Lógica de conteo de KPIs (Puedes personalizar las palabras clave)
-                const statusLower = status.toLowerCase();
-                if(statusLower.includes('listo') || statusLower.includes('entregado') || statusLower.includes('done')) {
-                    completed++;
-                } else if (statusLower.includes('proceso') || statusLower.includes('working') || statusLower.includes('pendiente')) {
-                    pending++;
-                } else {
-                    delayed++; // Asumimos el resto como pendientes o problemas
-                }
-
-                // Agrupación para Gráficos
-                statusCounts[status] = (statusCounts[status] || 0) + 1;
-                // Filtramos diseñadores vacíos
-                if(designer && designer !== 'undefined') {
-                    designerCounts[designer] = (designerCounts[designer] || 0) + 1;
-                }
-            });
-
-            // Actualizar números en pantalla (Animación simple cambiando texto)
-            document.getElementById('kpiTotal').textContent = total;
-            document.getElementById('kpiCompleted').textContent = completed;
-            document.getElementById('kpiPending').textContent = pending;
-            document.getElementById('kpiDelayed').textContent = delayed;
-
-            // Renderizar componentes visuales
-            renderCharts(statusCounts, designerCounts);
-            renderTable(data);
-        }
-
-        // --- 8. CONFIGURACIÓN DE GRÁFICOS (CHART.JS) ---
-        function renderCharts(statusData, designerData) {
-            // Destruir gráficos previos para evitar bugs al cargar nuevo archivo
-            if(charts.status) charts.status.destroy();
-            if(charts.designer) charts.designer.destroy();
-
-            // 1. Gráfico de Dona (Estados)
-            const ctxStatus = document.getElementById('statusChart').getContext('2d');
-            charts.status = new Chart(ctxStatus, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(statusData),
-                    datasets: [{
-                        data: Object.values(statusData),
-                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#6B7280'],
-                        borderWidth: 1
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
-
-            // 2. Gráfico de Barras (Diseñadores)
-            const ctxDesigner = document.getElementById('designerChart').getContext('2d');
-            charts.designer = new Chart(ctxDesigner, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(designerData),
-                    datasets: [{
-                        label: 'Pedidos Asignados',
-                        data: Object.values(designerData),
-                        backgroundColor: '#6366F1',
-                        borderRadius: 4
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-        }
-
-        // --- 9. RENDERIZADO DE TABLA ---
-        function renderTable(data) {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-
-            // Renderizamos solo los primeros 50 para mantener el navegador rápido
-            const displayData = data.slice(0, 50);
-
-            displayData.forEach(row => {
-                const id = row['ID'] || row['Order'] || row['Orden'] || '#';
-                const client = row['Client'] || row['Cliente'] || '-';
-                const desc = row['Description'] || row['Descripción'] || row['Item'] || '-';
-                const designer = row['Designer'] || row['Diseñador'] || 'N/A';
-                const status = row['Status'] || row['Estado'] || '-';
-                
-                // Manejo de fecha de Excel (número serial) o string normal
-                let dateStr = row['Date'] || row['Fecha'] || '-';
-                if(typeof dateStr === 'number') {
-                    // Conversión básica de fecha Excel si es necesario
-                    const date = new Date((dateStr - (25567 + 2))*86400*1000); 
-                    dateStr = date.toLocaleDateString();
-                }
-
-                const tr = document.createElement('tr');
-                tr.classList.add('hover:bg-gray-50', 'transition-colors');
-                tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${client}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs" title="${desc}">${desc}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                            ${designer}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${getStatusBadge(status)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        // Helper para colores de estado en la tabla
-        function getStatusBadge(status) {
-            const s = String(status).toLowerCase();
-            let colorClass = 'bg-gray-100 text-gray-800'; // Default
-            
-            if(s.includes('listo') || s.includes('done')) colorClass = 'bg-green-100 text-green-800';
-            else if(s.includes('pendiente') || s.includes('process')) colorClass = 'bg-yellow-100 text-yellow-800';
-            else if(s.includes('error') || s.includes('retraso')) colorClass = 'bg-red-100 text-red-800';
-            
-            return `<span class="px-2 py-1 rounded-md text-xs font-medium ${colorClass}">${status}</span>`;
-        }
-
-        // --- 10. MODALES Y EXPORTACIÓN ---
-        function openDesignerManager() {
-            document.getElementById('designerModal').classList.remove('hidden');
-        }
-
-        document.getElementById('closeModal').addEventListener('click', () => {
-            document.getElementById('designerModal').classList.add('hidden');
-        });
-
-        // Cerrar modal al hacer click fuera
-        window.onclick = function(event) {
-            const modal = document.getElementById('designerModal');
-            if (event.target == modal) {
-                modal.classList.add('hidden');
-            }
-        }
-
-        function exportToPDF() {
-            if(globalData.length === 0) {
-                alert("No hay datos para exportar.");
-                return;
-            }
-            
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
-            doc.setFontSize(16);
-            doc.text("Reporte de Estado - Arte v5.2", 14, 15);
-            doc.setFontSize(10);
-            doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 22);
-
-            const headers = [['ID', 'Cliente', 'Descripción', 'Diseñador', 'Estado']];
-            
-            const tableData = globalData.map(row => [
-                String(row['ID'] || row['Order'] || ''),
-                String(row['Client'] || row['Cliente'] || ''),
-                String(row['Description'] || row['Descripción'] || '').substring(0, 20) + '...', // Cortar texto largo
-                String(row['Designer'] || row['Diseñador'] || ''),
-                String(row['Status'] || row['Estado'] || '')
-            ]);
-
-            doc.autoTable({
-                head: headers,
-                body: tableData,
-                startY: 30,
-                theme: 'grid',
-                styles: { fontSize: 8 }
-            });
-
-            doc.save('Reporte_Arte_v5.2.pdf');
-        }
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
