@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleFileSelect);
 
-    // Delegación de Eventos (Botones dinámicos)
+    // Delegación de Eventos
     document.getElementById('designerManagerList').addEventListener('click', function(e) {
         const deleteButton = e.target.closest('.btn-delete-designer');
         if (deleteButton) {
@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
     });
 
-    // Teclado (Accesibilidad)
+    // Teclado
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             closeModal(); closeMultiModal(); closeWeeklyReportModal();
@@ -204,7 +204,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 document.getElementById('searchInput').focus();
             }
         }
-        // Navegación con flechas si no hay inputs activos
         const targetNode = e.target.nodeName.toLowerCase();
         if (targetNode !== 'input' && targetNode !== 'textarea' && targetNode !== 'select') {
             if (document.getElementById('dashboard').style.display === 'block') {
@@ -238,22 +237,18 @@ function conectarDatosDeFirebase() {
     dbStatus.textContent = '● Conectando...';
     dbStatus.className = "ml-3 font-medium text-yellow-600";
     
-    // 1. Asignaciones
     db_firestore.collection('assignments').onSnapshot((snapshot) => {
         firebaseAssignmentsMap.clear();
         snapshot.forEach((doc) => { firebaseAssignmentsMap.set(doc.id, doc.data()); });
         console.log(`Sync: ${firebaseAssignmentsMap.size} asignaciones.`);
         if(isExcelLoaded) mergeYActualizar();
-        
         dbStatus.textContent = '● En Línea';
         dbStatus.className = "ml-3 font-medium text-green-600";
     }, (err) => {
-        console.error(err);
         dbStatus.textContent = '● Error Conexión';
         dbStatus.className = "ml-3 font-medium text-red-600";
     });
 
-    // 2. Historial
     db_firestore.collection('history').onSnapshot((snapshot) => {
         firebaseHistoryMap.clear();
         snapshot.forEach((doc) => {
@@ -263,7 +258,6 @@ function conectarDatosDeFirebase() {
         });
     });
 
-    // 3. Hijas
     db_firestore.collection('childOrders').onSnapshot((snapshot) => {
         firebaseChildOrdersMap.clear();
         snapshot.forEach((doc) => {
@@ -275,7 +269,6 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded) mergeYActualizar();
     });
     
-    // 4. Diseñadores
     db_firestore.collection('designers').orderBy('name').onSnapshot((snapshot) => {
         firebaseDesignersMap.clear();
         let newDesignerList = [];
@@ -290,7 +283,6 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded) generateWorkloadReport();
     });
 
-    // 5. Plan Semanal
     db_firestore.collection('weeklyPlan').onSnapshot((snapshot) => {
         firebaseWeeklyPlanMap.clear();
         snapshot.forEach((doc) => {
@@ -304,7 +296,6 @@ function conectarDatosDeFirebase() {
 
 function mergeYActualizar() {
     if (!isExcelLoaded) return;
-    console.log("Fusionando datos...");
     recalculateChildPieces(); 
 
     for (let i = 0; i < allOrders.length; i++) {
@@ -325,9 +316,7 @@ function mergeYActualizar() {
             order.completedDate = null;
         }
 
-        // Auto-completado si sale de producción a otro depto
-        if (fbData && 
-            ['Bandeja','Producción','Auditoría'].includes(fbData.customStatus) &&
+        if (fbData && ['Bandeja','Producción','Auditoría'].includes(fbData.customStatus) &&
             order.departamento !== 'P_Art' && order.departamento !== 'Sin Departamento') 
         {
             const newCompletedDate = new Date().toISOString();
@@ -349,38 +338,28 @@ function mergeYActualizar() {
 async function saveAssignmentToDB_Firestore(orderId, dataToSave, historyChanges = []) {
     if (!usuarioActual) throw new Error("No estás autenticado.");
     const batch = db_firestore.batch();
-    
-    // Guardar asignación
     dataToSave.lastModified = new Date().toISOString();
     if (dataToSave.designer === undefined) dataToSave.designer = '';
     const assignmentRef = db_firestore.collection('assignments').doc(orderId);
     batch.set(assignmentRef, dataToSave, { merge: true });
 
-    // Guardar historial
     if (historyChanges.length > 0) {
         const user = usuarioActual.displayName || usuarioActual.email;
         historyChanges.forEach(change => {
             const historyRef = db_firestore.collection('history').doc();
-            batch.set(historyRef, {
-                orderId, change, user, timestamp: new Date().toISOString()
-            });
+            batch.set(historyRef, { orderId, change, user, timestamp: new Date().toISOString() });
         });
     }
     return await batch.commit();
 }
 
-/**
- * (MEJORADO) Guarda múltiples asignaciones dividiendo en lotes (chunks)
- */
 async function saveMultiAssignment() {
     if (selectedOrders.size === 0) return;
-    
     try {
         const newDesigner = document.getElementById('multiModalDesigner').value;
         const newStatus = document.getElementById('multiModalStatus').value;
         const newReceivedDate = document.getElementById('multiModalReceivedDate').value;
         const newNotes = document.getElementById('multiModalNotes').value;
-        
         let changesCount = 0;
         const user = usuarioActual.displayName || usuarioActual.email;
 
@@ -407,9 +386,7 @@ async function saveMultiAssignment() {
                 if (newStatus === 'Completada' && oldAssignment.customStatus !== 'Completada') {
                     dataToSave.completedDate = new Date().toISOString();
                     changes.push(`Completada el: ${new Date().toLocaleDateString('es-ES')}`);
-                } else if (newStatus !== 'Completada') {
-                    dataToSave.completedDate = null; 
-                }
+                } else if (newStatus !== 'Completada') dataToSave.completedDate = null; 
             }
             if (newReceivedDate && oldAssignment.receivedDate !== newReceivedDate) {
                 const formattedDate = new Date(newReceivedDate + 'T00:00:00Z').toLocaleDateString('es-ES');
@@ -423,22 +400,13 @@ async function saveMultiAssignment() {
             
             if (changes.length > 0) {
                 dataToSave.lastModified = new Date().toISOString();
-                
-                // Op 1: Update Assignment
                 const assignmentRef = db_firestore.collection('assignments').doc(orderId);
                 currentBatch.set(assignmentRef, dataToSave, { merge: true });
                 operationCount++;
                 
-                // Op 2: Create History
                 const historyRef = db_firestore.collection('history').doc();
-                currentBatch.set(historyRef, {
-                    orderId: orderId,
-                    change: `Asignación múltiple: ${changes.join(', ')}`,
-                    user: user,
-                    timestamp: new Date().toISOString()
-                });
+                currentBatch.set(historyRef, { orderId, change: `Masivo: ${changes.join(', ')}`, user, timestamp: new Date().toISOString() });
                 operationCount++;
-                
                 changesCount++;
 
                 if (operationCount >= BATCH_LIMIT) {
@@ -450,26 +418,19 @@ async function saveMultiAssignment() {
         }
         
         if (operationCount > 0) commitPromises.push(currentBatch.commit());
-        
-        showLoading('Guardando cambios masivos...');
+        showLoading('Guardando cambios...');
         await Promise.all(commitPromises);
         hideLoading();
-        
-        closeMultiModal();
-        clearSelection();
-        showCustomAlert(`Se han actualizado ${changesCount} órdenes.`, 'success');
-
+        closeMultiModal(); clearSelection();
+        showCustomAlert(`Actualizadas ${changesCount} órdenes.`, 'success');
     } catch (error) {
-        console.error('Error saveMultiAssignment:', error);
-        hideLoading();
-        showCustomAlert(`Error: ${error.message}`, 'error');
+        hideLoading(); showCustomAlert(`Error: ${error.message}`, 'error');
     }
 }
 
 async function saveChildOrderToDB(childOrder) {
     return await db_firestore.collection('childOrders').doc(childOrder.childOrderId).set(childOrder);
 }
-
 async function deleteChildOrderFromDB(childOrderId) {
     return await db_firestore.collection('childOrders').doc(childOrderId).delete();
 }
@@ -478,48 +439,34 @@ async function addDesigner() {
     const input = document.getElementById('newDesignerName');
     const name = input.value.trim();
     if (!name) return;
-    if (designerList.map(d => d.toLowerCase()).includes(name.toLowerCase())) {
-        showCustomAlert(`El diseñador "${name}" ya existe.`, 'error');
-        return;
-    }
+    if (designerList.map(d => d.toLowerCase()).includes(name.toLowerCase())) { showCustomAlert('Ya existe.', 'error'); return; }
     try {
         await db_firestore.collection('designers').add({ name: name });
-        input.value = '';
-        showCustomAlert(`Diseñador "${name}" agregado.`, 'success');
-    } catch (error) {
-        showCustomAlert(`Error: ${error.message}`, 'error');
-    }
+        input.value = ''; showCustomAlert(`Agregado: ${name}`, 'success');
+    } catch (e) { showCustomAlert(e.message, 'error'); }
 }
 
-/**
- * (MEJORADO) Elimina diseñador y desasigna órdenes en lotes seguros.
- */
 async function deleteDesigner(docId, name) {
-    const assignedOrders = allOrders.filter(o => o.designer === name && o.departamento === 'P_Art');
-    let message = `¿Estás seguro de eliminar a "${name}"?`;
-    if (assignedOrders.length > 0) {
-        message = `⚠️ ADVERTENCIA: "${name}" tiene ${assignedOrders.length} órdenes activas. Se desasignarán. ¿Continuar?`;
-    }
+    const assigned = allOrders.filter(o => o.designer === name && o.departamento === 'P_Art');
+    let msg = `¿Eliminar a "${name}"?`;
+    if (assigned.length) msg = `⚠️ "${name}" tiene ${assigned.length} órdenes. Se desasignarán. ¿Continuar?`;
 
-    showConfirmModal(message, async () => {
+    showConfirmModal(msg, async () => {
         try {
-            showLoading(`Eliminando a ${name}...`);
-
+            showLoading(`Eliminando ${name}...`);
             await db_firestore.collection('designers').doc(docId).delete();
             
             const BATCH_LIMIT = 450;
             let currentBatch = db_firestore.batch();
             let operationCount = 0;
             const commitPromises = [];
-            let ordersUpdated = 0;
+            let updated = 0;
 
             for (const [orderId, data] of firebaseAssignmentsMap.entries()) {
                 if (data.designer === name) {
                     const docRef = db_firestore.collection('assignments').doc(orderId);
                     currentBatch.update(docRef, { designer: '' });
-                    operationCount++;
-                    ordersUpdated++;
-
+                    operationCount++; updated++;
                     if (operationCount >= BATCH_LIMIT) {
                         commitPromises.push(currentBatch.commit());
                         currentBatch = db_firestore.batch();
@@ -531,11 +478,8 @@ async function deleteDesigner(docId, name) {
 
             await Promise.all(commitPromises);
             hideLoading();
-            showCustomAlert(`Eliminado. ${ordersUpdated} órdenes desasignadas.`, 'success');
-        } catch (error) {
-            hideLoading();
-            showCustomAlert(`Error: ${error.message}`, 'error');
-        }
+            showCustomAlert(`Eliminado. ${updated} órdenes desasignadas.`, 'success');
+        } catch (e) { hideLoading(); showCustomAlert(e.message, 'error'); }
     });
 }
 
@@ -559,7 +503,6 @@ async function addOrderToWorkPlanDB(order, weekIdentifier) {
 async function getWorkPlanForWeek(weekIdentifier) {
     return firebaseWeeklyPlanMap.get(weekIdentifier) || [];
 }
-
 async function removeOrderFromWorkPlanDB(planEntryId) {
     return await db_firestore.collection('weeklyPlan').doc(planEntryId).delete();
 }
@@ -569,24 +512,18 @@ async function removeOrderFromWorkPlanDB(planEntryId) {
 // ======================================================
 
 function preventDefaults(e){ e.preventDefault(); e.stopPropagation(); }
-
 function escapeHTML(str) {
     if (str === null || typeof str === 'undefined') return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-
 function showCustomAlert(message, type = 'info') {
     const alertDiv = document.getElementById('customAlert');
-    let alertClass = 'bg-blue-100 border-blue-500 text-blue-800';
-    if (type === 'error') alertClass = 'bg-red-100 border-red-500 text-red-800';
-    if (type === 'success') alertClass = 'bg-green-100 border-green-500 text-green-800';
-    
+    let alertClass = type==='error' ? 'bg-red-100 border-red-500 text-red-800' : type==='success' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-blue-100 border-blue-500 text-blue-800';
     alertDiv.className = `p-4 mb-4 rounded-lg border-l-4 ${alertClass}`;
     alertDiv.innerHTML = `<strong class="font-semibold">${escapeHTML(message)}</strong>`;
     alertDiv.style.display = 'block';
     setTimeout(() => { alertDiv.style.display = 'none'; }, type === 'error' ? 10000 : 5000);
 }
-
 let confirmCallback = null;
 function showConfirmModal(message, onConfirmCallback) {
     document.getElementById('confirmModalMessage').textContent = message;
@@ -606,20 +543,14 @@ function closeConfirmModal() {
     document.body.classList.remove('modal-open');
     confirmCallback = null;
 }
-
 function showLoading(message = 'Cargando...') {
     if (document.getElementById('loadingOverlay')) return;
     const overlay = document.createElement('div');
-    overlay.id = 'loadingOverlay';
-    overlay.className = 'loading-overlay'; 
+    overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay'; 
     overlay.innerHTML = `<div class="spinner"></div><p>${escapeHTML(message)}</p>`;
     document.body.appendChild(overlay);
 }
-function hideLoading() {
-    const overlay = document.getElementById('loadingOverlay');
-    if (overlay) overlay.remove();
-}
-
+function hideLoading() { const o = document.getElementById('loadingOverlay'); if (o) o.remove(); }
 function debounce(func, delay) {
     let debounceTimer;
     return function() {
@@ -627,6 +558,34 @@ function debounce(func, delay) {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => func.apply(context, args), delay);
     }
+}
+
+// ======================================================
+// ===== CÁLCULOS Y ESTADÍSTICAS =====
+// ======================================================
+
+function calculateStats(ordersToStat) {
+    const total = ordersToStat.length;
+    const late = ordersToStat.filter(o => o.isLate).length;
+    const veryLate = ordersToStat.filter(o => o.isVeryLate).length;
+    const aboutToExpire = ordersToStat.filter(o => o.isAboutToExpire).length;
+    const onTime = ordersToStat.filter(o => !o.isLate && !o.isAboutToExpire).length;
+    let totalPieces = ordersToStat.reduce((sum, order) => sum + (order.cantidad || 0) + (order.childPieces || 0), 0);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const thisWeekEnd = new Date(today); thisWeekEnd.setDate(today.getDate()+7);
+    const thisWeek = ordersToStat.filter(o => o.fechaDespacho && o.fechaDespacho >= today && o.fechaDespacho <= thisWeekEnd).length;
+    return { total, late, veryLate, aboutToExpire, onTime, thisWeek, totalPieces };
+}
+
+async function generateSummary() {
+    const artOrders = allOrders.filter(o => o.departamento === 'P_Art');
+    const stats = calculateStats(artOrders);
+    const summaryBox = document.getElementById('summaryBox');
+    let text = `Resumen: ${stats.total} órdenes activas en P_Art (${stats.totalPieces.toLocaleString()} piezas).`;
+    if (stats.veryLate > 0) text += ` ⚠️ ${stats.veryLate} muy atrasadas.`;
+    if (stats.aboutToExpire > 0) text += ` ⚠️ ${stats.aboutToExpire} por vencer.`;
+    if (stats.late === 0 && stats.aboutToExpire === 0) text += ` ✅ Todo al día.`;
+    summaryBox.innerHTML = `<h3 class="text-lg font-semibold mb-2">Estado Actual</h3><p>${escapeHTML(text)}</p>`;
 }
 
 // ======================================================
@@ -648,23 +607,15 @@ async function processFile(file) {
         const workbook = XLSX.read(data);
         const sheetName = workbook.SheetNames.find(n => /working\s*pro[c]{1,2}ess\s*all/i.test(n));
 
-        if (!sheetName) {
-            showCustomAlert('No se encontró "Working Process All".', 'error');
-            hideLoading(); return;
-        }
+        if (!sheetName) { showCustomAlert('No se encontró "Working Process All".', 'error'); hideLoading(); return; }
         
         const arr = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
         let headerIndex = -1;
         for (let i = 0; i < Math.min(arr.length, 12); i++) {
             const row = arr[i].map(c => String(c).toLowerCase());
-            if (row.some(c => c.includes('fecha')) && row.some(c => c.includes('cliente'))) {
-                headerIndex = i; break;
-            }
+            if (row.some(c => c.includes('fecha')) && row.some(c => c.includes('cliente'))) { headerIndex = i; break; }
         }
-        if (headerIndex === -1) {
-             showCustomAlert('Error: No se detectaron encabezados.', 'error');
-            hideLoading(); return;
-        }
+        if (headerIndex === -1) { showCustomAlert('Error: Sin encabezados.', 'error'); hideLoading(); return; }
         
         const headers = arr[headerIndex].map(h => String(h).trim().replace(/,/g, '').toLowerCase());
         const rows = arr.slice(headerIndex + 1);
@@ -675,18 +626,12 @@ async function processFile(file) {
             estilo: headers.findIndex(h => h.includes('estilo')),
             team: headers.findIndex(h => h.includes('team')),
         };
-
         const departmentPatterns = [
-            { pattern: /p[_\s]*order[_\s]*entry/i, name: 'P_Order_Entry' },
-            { pattern: /p[_\s]*art/i, name: 'P_Art' },
-            { pattern: /p[_\s]*printing/i, name: 'P_Printing' },
-            { pattern: /p[_\s]*press/i, name: 'P_Press' },
-            { pattern: /p[_\s]*cut/i, name: 'P_Cut' },
-            { pattern: /p[_\s]*r[_\s]*to[_\s]*sew/i, name: 'P_R_to_Sew' },
-            { pattern: /p[_\s]*sew/i, name: 'P_Sew' },
-            { pattern: /sum[_\s]*of[_\s]*twill/i, name: 'Sum of TWILL' },
-            { pattern: /p[_\s]*packing/i, name: 'P_Packing' },
-            { pattern: /p[_\s]*shipping/i, name: 'P_Shipping' }
+            { pattern: /p[_\s]*order[_\s]*entry/i, name: 'P_Order_Entry' }, { pattern: /p[_\s]*art/i, name: 'P_Art' },
+            { pattern: /p[_\s]*printing/i, name: 'P_Printing' }, { pattern: /p[_\s]*press/i, name: 'P_Press' },
+            { pattern: /p[_\s]*cut/i, name: 'P_Cut' }, { pattern: /p[_\s]*r[_\s]*to[_\s]*sew/i, name: 'P_R_to_Sew' },
+            { pattern: /p[_\s]*sew/i, name: 'P_Sew' }, { pattern: /sum[_\s]*of[_\s]*twill/i, name: 'Sum of TWILL' },
+            { pattern: /p[_\s]*packing/i, name: 'P_Packing' }, { pattern: /p[_\s]*shipping/i, name: 'P_Shipping' }
         ];
         const departmentIndices = [];
         headers.forEach((header, index) => {
@@ -695,7 +640,7 @@ async function processFile(file) {
         });
         
         let processedOrders = [];
-        let currentDate = null, currentClient = "", currentContrato = "", currentStyle = "", currentTeam = "";
+        let currentDate = null;
         
         for (const row of rows) {
             if (!row || row.length === 0 || row.every(c => c === "" || c === null)) continue;
@@ -707,6 +652,7 @@ async function processFile(file) {
                 let deliveryDate = typeof rawFecha === 'number' ? new Date((rawFecha - 25569) * 86400 * 1000) : new Date(rawFecha);
                 if (!isNaN(deliveryDate)) currentDate = new Date(Date.UTC(deliveryDate.getFullYear(), deliveryDate.getMonth(), deliveryDate.getDate()));
             }
+            let currentClient = "", currentContrato = "", currentStyle = "", currentTeam = "";
             if (colIndices.cliente >= 0 && row[colIndices.cliente]) currentClient = String(row[colIndices.cliente]).trim();
             if (colIndices.codigo >= 0 && row[colIndices.codigo]) currentContrato = String(row[colIndices.codigo]).trim();
             if (colIndices.estilo >= 0 && row[colIndices.estilo]) currentStyle = String(row[colIndices.estilo]).trim();
@@ -721,14 +667,9 @@ async function processFile(file) {
                 const rawValue = row[col.index];
                 if (rawValue) {
                     const n = Number(String(rawValue).replace(/,|\s/g, ''));
-                    if (!isNaN(n) && n > 0) {
-                        orderCantidad = n;
-                        orderDepartamento = col.name;
-                        break; 
-                    }
+                    if (!isNaN(n) && n > 0) { orderCantidad = n; orderDepartamento = col.name; break; }
                 }
             }
-            if (orderCantidad <= 0) { orderCantidad = 0; orderDepartamento = "Sin Departamento"; }
 
             const fechaDespacho = currentDate ? new Date(currentDate) : null;
             const orderId = `${currentClient}_${currentContrato}_${fechaDespacho ? fechaDespacho.getTime() : 'nodate'}_${currentStyle}`;
@@ -843,7 +784,6 @@ async function deleteChildOrder(childOrderId, childCode) {
 
 async function loadChildOrders() {
     if (!currentEditingOrderId) return;
-    const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
     const childOrders = firebaseChildOrdersMap.get(currentEditingOrderId) || [];
     document.getElementById('childOrderCount').textContent = childOrders.length;
     const list = document.getElementById('childOrdersList');
@@ -1072,7 +1012,6 @@ function getWeekIdentifier(d) {
 }
 
 async function updateTable() {
-    // Filtros
     let res = allOrders.filter(o => {
         if(currentSearch) {
             const s = currentSearch.toLowerCase();
@@ -1090,18 +1029,22 @@ async function updateTable() {
         if(currentFilter === 'late' && !o.isLate) return false;
         if(currentFilter === 'veryLate' && !o.isVeryLate) return false;
         if(currentFilter === 'aboutToExpire' && !o.isAboutToExpire) return false;
+        if(currentFilter === 'onTime' && (o.isLate || o.isAboutToExpire)) return false;
         
+        if (currentDateFilter === 'thisWeek') {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const next = new Date(today); next.setDate(today.getDate()+7);
+            if (!o.fechaDespacho || o.fechaDespacho < today || o.fechaDespacho > next) return false;
+        }
         return true;
     });
 
-    // Ordenar
     res.sort((a,b) => {
         let valA = a[sortConfig.key], valB = b[sortConfig.key];
         if(sortConfig.key==='date') { valA = a.fechaDespacho||0; valB = b.fechaDespacho||0; }
         return (valA < valB ? -1 : 1) * (sortConfig.direction==='asc'?1:-1);
     });
 
-    // Actualizar Stats
     document.getElementById('resultCount').textContent = res.length;
     document.getElementById('totalCount').textContent = allOrders.length;
     document.getElementById('resultPieces').textContent = res.reduce((s,o)=>s+(o.cantidad||0)+(o.childPieces||0),0).toLocaleString();
@@ -1131,104 +1074,29 @@ async function updateTable() {
     `).join('');
     updateCheckboxes();
 }
-
-function sortTable(key) {
-    sortConfig.direction = (sortConfig.key === key && sortConfig.direction === 'asc') ? 'desc' : 'asc';
-    sortConfig.key = key;
-    updateTable();
-}
+function sortTable(key) { sortConfig.direction = (sortConfig.key === key && sortConfig.direction === 'asc') ? 'desc' : 'asc'; sortConfig.key = key; updateTable(); }
+function setFilter(f) { currentFilter = f; currentDateFilter = 'all'; currentPage = 1; updateDashboard(); }
+function setDateFilter(f) { currentDateFilter = f; currentFilter = 'all'; currentPage = 1; updateDashboard(); }
 function clearAllFilters() {
-    currentSearch = ''; currentClientFilter = ''; currentStyleFilter = '';
+    currentSearch = ''; currentClientFilter = ''; currentStyleFilter = ''; currentTeamFilter = '';
+    currentDepartamentoFilter = ''; currentDesignerFilter = ''; currentCustomStatusFilter = '';
+    currentDateFrom = ''; currentDateTo = ''; currentFilter = 'all'; currentDateFilter = 'all';
+    
     document.getElementById('searchInput').value = '';
     document.getElementById('clientFilter').value = '';
-    // ... reset other inputs ...
-    updateTable();
+    document.getElementById('styleFilter').value = '';
+    document.getElementById('teamFilter').value = '';
+    document.getElementById('departamentoFilter').value = '';
+    document.getElementById('designerFilter').value = '';
+    document.getElementById('customStatusFilter').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    
+    updateDashboard();
 }
 
 // ======================================================
-// ===== DASHBOARD & STATS =====
-// ======================================================
-
-async function updateDashboard() {
-    if (!isExcelLoaded) return;
-    if (needsRecalculation) recalculateChildPieces();
-    
-    const pArt = allOrders.filter(o => o.departamento === 'P_Art');
-    const stats = {
-        total: pArt.length,
-        late: pArt.filter(o => o.isLate).length,
-        veryLate: pArt.filter(o => o.isVeryLate).length,
-        expiring: pArt.filter(o => o.isAboutToExpire).length,
-        onTime: pArt.filter(o => !o.isLate && !o.isAboutToExpire).length,
-        week: pArt.filter(o => o.fechaDespacho && o.fechaDespacho >= new Date() && o.fechaDespacho <= new Date(new Date().setDate(new Date().getDate()+7))).length,
-        pieces: pArt.reduce((s,o) => s + o.cantidad + o.childPieces, 0)
-    };
-    
-    document.getElementById('statTotal').textContent = stats.total;
-    document.getElementById('statTotalPieces').textContent = stats.pieces.toLocaleString();
-    document.getElementById('statLate').textContent = stats.late;
-    document.getElementById('statExpiring').textContent = stats.expiring;
-    document.getElementById('statOnTime').textContent = stats.onTime;
-    document.getElementById('statThisWeek').textContent = stats.week;
-    
-    generateReports();
-    populateFilterDropdowns();
-    updateTable();
-    updateAllDesignerDropdowns();
-}
-
-function populateFilterDropdowns() {
-    const fill = (id, list) => {
-        const sel = document.getElementById(id);
-        const val = sel.value;
-        sel.innerHTML = '<option value="">Todos</option>' + [...new Set(list)].sort().map(x => `<option value="${x}">${x}</option>`).join('');
-        sel.value = val;
-    };
-    fill('clientFilter', allOrders.map(o=>o.cliente));
-    fill('styleFilter', allOrders.map(o=>o.estilo));
-    fill('teamFilter', allOrders.map(o=>o.teamName));
-    fill('departamentoFilter', allOrders.map(o=>o.departamento));
-    fill('customStatusFilter', CUSTOM_STATUS_OPTIONS);
-}
-
-function generateReports() {
-    // Top Clientes
-    const counts = {};
-    allOrders.forEach(o => counts[o.cliente] = (counts[o.cliente]||0)+1);
-    const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    document.getElementById('clientReport').innerHTML = sorted.map(([k,v]) => 
-        `<div class="flex justify-between text-sm border-b py-1"><span>${k}</span><b>${v}</b></div>`
-    ).join('');
-    generateWorkloadReport();
-}
-
-function generateWorkloadReport() {
-    const stats = {};
-    designerList.forEach(d => stats[d] = {count:0, pieces:0});
-    let totalP = 0;
-    allOrders.filter(o=>o.departamento==='P_Art'&&o.designer&&stats[o.designer]).forEach(o => {
-        stats[o.designer].count++;
-        const p = o.cantidad + o.childPieces;
-        stats[o.designer].pieces += p;
-        totalP += p;
-    });
-    document.getElementById('workloadTotal').textContent = totalP.toLocaleString() + ' pzs';
-    document.getElementById('workloadList').innerHTML = designerList.map(d => {
-        const s = stats[d];
-        const pct = totalP ? ((s.pieces/totalP)*100).toFixed(1) : 0;
-        return `
-            <div class="mb-2">
-                <div class="flex justify-between text-xs mb-1">
-                    <strong>${d}</strong> <span>${s.count} ord | ${s.pieces} pzs | ${pct}%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full" style="width: ${pct}%"></div></div>
-            </div>
-        `;
-    }).join('');
-}
-
-// ======================================================
-// ===== REPORTES & MÉTRICAS AVANZADAS =====
+// ===== REPORTES & MÉTRICAS =====
 // ======================================================
 
 function openWeeklyReportModal() {
@@ -1288,15 +1156,24 @@ function generateDesignerMetrics(name) {
             <div class="bg-white p-4 shadow rounded"><h3>Completadas</h3><p class="text-2xl">${completed.length}</p></div>
             <div class="bg-white p-4 shadow rounded"><h3>Cumplimiento</h3><p class="text-2xl text-${rate>80?'green':'red'}-600">${rate}%</p></div>
         </div>
-        <canvas id="designerChart"></canvas>
     `;
-    // Chart rendering would go here
 }
 
 function showDepartmentMetrics() {
     document.getElementById('dashboard').style.display='none'; document.getElementById('departmentMetricsView').style.display='block';
-    // Calculation logic here
-    document.getElementById('departmentMetricsContent').innerHTML = '<p>Métricas del departamento (Implementación pendiente de visuales)</p>';
+    const pArt = allOrders.filter(o => o.departamento === 'P_Art');
+    const total = pArt.length;
+    const late = pArt.filter(o => o.isLate).length;
+    const capacity = pArt.reduce((s,o) => s + o.cantidad, 0);
+
+    document.getElementById('departmentMetricsContent').innerHTML = `
+        <h2 class="text-2xl font-bold mb-4">Departamento</h2>
+        <div class="grid grid-cols-3 gap-4">
+            <div class="bg-white p-4 shadow rounded"><h3>Total Órdenes</h3><p class="text-3xl">${total}</p></div>
+            <div class="bg-white p-4 shadow rounded"><h3>Atrasadas</h3><p class="text-3xl text-red-600">${late}</p></div>
+            <div class="bg-white p-4 shadow rounded"><h3>Carga Total</h3><p class="text-3xl text-blue-600">${capacity.toLocaleString()}</p></div>
+        </div>
+    `;
 }
 function hideDepartmentMetrics() { document.getElementById('departmentMetricsView').style.display='none'; document.getElementById('dashboard').style.display='block'; }
 
@@ -1320,6 +1197,34 @@ async function loadUrgentOrdersToPlan() {
     const urgent = allOrders.filter(o => o.departamento==='P_Art' && (o.isLate||o.isAboutToExpire) && o.designer);
     for (const o of urgent) await addOrderToWorkPlanDB(o, w);
     generateWorkPlan();
+}
+
+// --- Comparación ---
+function openCompareModal(name) {
+    currentCompareDesigner1 = name;
+    document.getElementById('compareDesigner1Name').textContent = name;
+    document.getElementById('compareDesignerSelect').innerHTML = '<option value="">Seleccionar...</option>' + designerList.filter(d=>d!==name).map(d=>`<option>${d}</option>`).join('');
+    document.getElementById('selectCompareModal').classList.add('active');
+}
+function closeCompareModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); }
+function startComparison() {
+    const name2 = document.getElementById('compareDesignerSelect').value;
+    if (!name2) return;
+    const d1 = allOrders.filter(o => o.designer===currentCompareDesigner1 && o.departamento==='P_Art');
+    const d2 = allOrders.filter(o => o.designer===name2 && o.departamento==='P_Art');
+    
+    document.getElementById('compareTableContainer').innerHTML = `
+        <table class="w-full text-center border">
+            <thead><tr class="bg-gray-100"><th>Métrica</th><th>${currentCompareDesigner1}</th><th>${name2}</th></tr></thead>
+            <tbody>
+                <tr><td>Total Órdenes</td><td>${d1.length}</td><td>${d2.length}</td></tr>
+                <tr><td>Piezas Totales</td><td>${d1.reduce((s,o)=>s+o.cantidad,0).toLocaleString()}</td><td>${d2.reduce((s,o)=>s+o.cantidad,0).toLocaleString()}</td></tr>
+                <tr><td>Atrasadas</td><td class="text-red-600">${d1.filter(o=>o.isLate).length}</td><td class="text-red-600">${d2.filter(o=>o.isLate).length}</td></tr>
+            </tbody>
+        </table>
+    `;
+    document.getElementById('selectCompareModal').classList.remove('active');
+    document.getElementById('compareModal').classList.add('active');
 }
 
 // Reset
