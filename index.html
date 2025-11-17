@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v5.0 (Cloud)</title>
+    <title>Panel de Control - Arte v5.1 (Cloud Fixed)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -26,7 +26,7 @@
         <svg class="w-16 h-16 mx-auto text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.333-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
         </svg>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Panel de Control - Arte v5.0 (Cloud)</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Panel de Control - Arte v5.1</h1>
         <p class="text-gray-600 mb-8">Por favor, inicia sesión con tu cuenta de Google.</p>
         <button id="loginButton" class="w-full inline-flex justify-center items-center gap-3 bg-blue-600 text-white font-medium py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-sm cursor-pointer">
             Iniciar Sesión con Google
@@ -46,19 +46,20 @@
             <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
         </div>
         <div class="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-6 text-left">
-            <h4 class="text-lg font-semibold text-gray-800 mb-4">✨ v5.0 (Cloud)</h4>
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">✨ v5.1 (Cloud Fixed)</h4>
             <ul class="text-sm text-gray-600 list-disc list-inside space-y-2">
                 <li>☁️ Base de Datos en la Nube (Firebase).</li>
                 <li>⚡ Sincronización en tiempo real.</li>
-                <li>🙋 Botón "Asignarme a mí".</li>
+                <li>✅ Estabilidad mejorada en tablas y modales.</li>
             </ul>
         </div>
     </div>
 
     <div id="dashboard" class="container mx-auto px-4 py-8" style="display: none;">
+        
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex flex-wrap justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Panel de Control - Arte v5.0</h1>
+                <h1 class="text-2xl font-bold text-gray-900">Panel de Control - Arte v5.1</h1>
                 <p class="text-sm text-gray-500 mt-1">
                     <span id="fileName"></span>
                     <span id="dbStatus" class="ml-3 font-medium text-gray-500">Conectando...</span>
@@ -125,7 +126,7 @@
 
         <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
             <div class="table-container overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="min-w-full divide-y divide-gray-200 data-table">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 w-12"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
@@ -167,7 +168,9 @@
             <button class="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300" onclick="clearSelection()">Cancelar</button>
         </div>
 
-    </div> <div id="designerMetricsView" class="p-4 md:p-6" style="display: none;">
+    </div> 
+
+    <div id="designerMetricsView" class="p-4 md:p-6" style="display: none;">
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex justify-between items-center">
             <h1 class="text-2xl font-bold">Métricas por Diseñador</h1>
             <button class="py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50" onclick="hideMetricsView()">Volver</button>
@@ -204,7 +207,7 @@
     </div>
 
     <div id="assignModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform scale-95 transition-all">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all">
             <div class="flex justify-between items-center p-6 border-b"><h2 class="text-2xl font-semibold">Editar Orden</h2><button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">X</button></div>
             <div class="p-6 space-y-4">
                 <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border">
@@ -232,13 +235,94 @@
             </div>
         </div>
     </div>
-    <div id="multiAssignModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"><div class="modal-content bg-white rounded-lg w-full max-w-lg p-6"><h2 class="text-xl font-bold mb-4">Asignar Múltiples</h2><div id="selectedOrdersList" class="mb-4 max-h-40 overflow-y-auto bg-gray-50 p-2 border rounded"></div><label>Diseñador:</label><select id="multiModalDesigner" class="w-full border rounded mb-2 px-3 py-2"></select><label>Estado:</label><select id="multiModalStatus" class="w-full border rounded mb-2 px-3 py-2"><option value="">-</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select><label>Fecha:</label><input type="date" id="multiModalReceivedDate" class="w-full border rounded mb-2 px-3 py-2"><label>Notas:</label><textarea id="multiModalNotes" class="w-full border rounded mb-4 px-3 py-2"></textarea><div class="flex justify-end gap-2"><button onclick="closeMultiModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button><button onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded">Guardar</button></div></div></div>
-    <div id="addChildModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"><div class="modal-content bg-white rounded-lg w-full max-w-lg p-6"><h2 class="text-xl font-bold mb-4">Crear Orden Hija</h2><p id="parentOrderInfo" class="text-sm text-gray-600 mb-4"></p><div class="flex gap-2 mb-2"><input id="childOrderCode" readonly class="bg-gray-100 border px-2 py-1 flex-1"><input id="childOrderNumber" type="number" placeholder="#" class="border px-2 py-1 w-20" onchange="updateChildOrderCode()"></div><input id="childPieces" type="number" placeholder="Piezas" class="w-full border mb-2 px-3 py-2"><input id="childDeliveryDate" type="date" class="w-full border mb-2 px-3 py-2"><textarea id="childNotes" placeholder="Notas" class="w-full border mb-4 px-3 py-2"></textarea><div class="flex justify-end gap-2"><button onclick="closeAddChildModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button><button onclick="saveChildOrder()" class="bg-blue-600 text-white px-4 py-2 rounded">Crear</button></div></div></div>
-    <div id="designerManagerModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"><div class="modal-content bg-white rounded-lg w-full max-w-md p-6"><h2 class="text-xl font-bold mb-4">Gestionar Diseñadores</h2><div id="designerManagerList" class="mb-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50"></div><div class="flex gap-2"><input id="newDesignerName" placeholder="Nombre" class="border px-3 py-2 flex-1 rounded"><button onclick="addDesigner()" class="bg-green-600 text-white px-4 py-2 rounded">Agregar</button></div><button onclick="closeDesignerManager()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button></div></div>
-    <div id="weeklyReportModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"><div class="modal-content bg-white rounded-lg w-full max-w-4xl p-6 h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Reporte Semanal</h2><input type="week" id="weekSelector" onchange="generateWeeklyReport()" class="border px-3 py-2 mb-4 w-full rounded"><div id="weeklyReportContent" class="flex-1 overflow-y-auto relative"><div id="weeklyReportSpinner" class="spinner" style="display:none;"></div></div><div class="flex justify-end gap-2 mt-4"><button onclick="closeWeeklyReportModal()" class="bg-gray-200 px-4 py-2 rounded">Cerrar</button><button onclick="exportWeeklyReportAsPDF()" class="bg-green-600 text-white px-4 py-2 rounded">Exportar PDF</button></div></div></div>
-    <div id="confirmModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"><div class="modal-content bg-white rounded-lg w-full max-w-sm p-6"><h2 class="text-xl font-bold mb-4 text-yellow-600">Confirmar Acción</h2><p id="confirmModalMessage" class="mb-6 text-gray-700"></p><div class="flex justify-end gap-2"><button id="confirmModalCancel" class="bg-gray-200 px-4 py-2 rounded" onclick="closeConfirmModal()">Cancelar</button><button id="confirmModalConfirm" class="bg-red-600 text-white px-4 py-2 rounded">Confirmar</button></div></div></div>
-    <div id="selectCompareModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"><div class="modal-content bg-white rounded-lg w-full max-w-sm p-6"><h2 class="text-xl font-bold mb-4">Comparar</h2><p class="mb-2">Comparar a <strong id="compareDesigner1Name" class="text-blue-600"></strong> con:</p><select id="compareDesignerSelect" class="w-full border px-3 py-2 mb-4 rounded"></select><div class="flex justify-end gap-2"><button onclick="closeCompareModals()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button><button onclick="startComparison()" class="bg-blue-600 text-white px-4 py-2 rounded">Comparar</button></div></div></div>
-    <div id="compareModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"><div class="modal-content bg-white rounded-lg w-full max-w-3xl h-[90vh] flex flex-col p-6"><h2 class="text-xl font-bold mb-4">Resultado Comparativa</h2><div class="flex-1 overflow-y-auto space-y-4"><div id="compareChartContainer" class="h-64"><canvas id="compareChartCanvas"></canvas></div><div id="compareTableContainer"></div></div><button onclick="closeCompareModals()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button></div></div>
+
+    <div id="multiAssignModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-lg p-6">
+            <h2 class="text-xl font-bold mb-4">Asignar Múltiples (<span id="multiModalCount">0</span>)</h2>
+            <div id="selectedOrdersList" class="mb-4 max-h-40 overflow-y-auto bg-gray-50 p-2 border rounded"></div>
+            <label>Diseñador:</label><select id="multiModalDesigner" class="w-full border rounded mb-2 px-3 py-2"></select>
+            <label>Estado:</label><select id="multiModalStatus" class="w-full border rounded mb-2 px-3 py-2"><option value="">-</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select>
+            <label>Fecha:</label><input type="date" id="multiModalReceivedDate" class="w-full border rounded mb-2 px-3 py-2">
+            <label>Notas:</label><textarea id="multiModalNotes" class="w-full border rounded mb-4 px-3 py-2"></textarea>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeMultiModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
+                <button onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addChildModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-lg p-6">
+            <h2 class="text-xl font-bold mb-4">Crear Orden Hija</h2>
+            <p id="parentOrderInfo" class="text-sm text-gray-600 mb-4"></p>
+            <div class="flex gap-2 mb-2"><input id="childOrderCode" readonly class="bg-gray-100 border px-2 py-1 flex-1"><input id="childOrderNumber" type="number" placeholder="#" class="border px-2 py-1 w-20" onchange="updateChildOrderCode()"></div>
+            <input id="childPieces" type="number" placeholder="Piezas" class="w-full border mb-2 px-3 py-2">
+            <input id="childDeliveryDate" type="date" class="w-full border mb-2 px-3 py-2">
+            <textarea id="childNotes" placeholder="Notas" class="w-full border mb-4 px-3 py-2"></textarea>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeAddChildModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
+                <button onclick="saveChildOrder()" class="bg-blue-600 text-white px-4 py-2 rounded">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="designerManagerModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-bold mb-4">Gestionar Diseñadores</h2>
+            <div id="designerManagerList" class="mb-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50"></div>
+            <div class="flex gap-2">
+                <input id="newDesignerName" placeholder="Nombre" class="border px-3 py-2 flex-1 rounded">
+                <button onclick="addDesigner()" class="bg-green-600 text-white px-4 py-2 rounded">Agregar</button>
+            </div>
+            <button onclick="closeDesignerManager()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="weeklyReportModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-4xl p-6 h-[90vh] flex flex-col">
+            <h2 class="text-xl font-bold mb-4">Reporte Semanal</h2>
+            <input type="week" id="weekSelector" onchange="generateWeeklyReport()" class="border px-3 py-2 mb-4 w-full rounded">
+            <div id="weeklyReportContent" class="flex-1 overflow-y-auto relative"><div id="weeklyReportSpinner" class="spinner" style="display:none;"></div></div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button onclick="closeWeeklyReportModal()" class="bg-gray-200 px-4 py-2 rounded">Cerrar</button>
+                <button onclick="exportWeeklyReportAsPDF()" class="bg-green-600 text-white px-4 py-2 rounded">Exportar PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-sm p-6">
+            <h2 class="text-xl font-bold mb-4 text-yellow-600">Confirmar Acción</h2>
+            <p id="confirmModalMessage" class="mb-6 text-gray-700"></p>
+            <div class="flex justify-end gap-2">
+                <button id="confirmModalCancel" class="bg-gray-200 px-4 py-2 rounded" onclick="closeConfirmModal()">Cancelar</button>
+                <button id="confirmModalConfirm" class="bg-red-600 text-white px-4 py-2 rounded">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="selectCompareModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-sm p-6">
+            <h2 class="text-xl font-bold mb-4">Comparar</h2>
+            <p class="mb-2">Comparar a <strong id="compareDesigner1Name" class="text-blue-600"></strong> con:</p>
+            <select id="compareDesignerSelect" class="w-full border px-3 py-2 mb-4 rounded"></select>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeCompareModals()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
+                <button onclick="startComparison()" class="bg-blue-600 text-white px-4 py-2 rounded">Comparar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="compareModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="modal-content bg-white rounded-lg w-full max-w-3xl h-[90vh] flex flex-col p-6">
+            <h2 class="text-xl font-bold mb-4">Resultado Comparativa</h2>
+            <div class="flex-1 overflow-y-auto space-y-4">
+                <div id="compareChartContainer" class="h-64"><canvas id="compareChartCanvas"></canvas></div>
+                <div id="compareTableContainer"></div>
+            </div>
+            <button onclick="closeCompareModals()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
