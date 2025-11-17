@@ -3,99 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Producción v5.1</title>
+    <title>Panel de Producción v5.2</title>
     
     <script src="https://cdn.tailwindcss.com?_VERSION=3.4.1"></script>
-    
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     
-    <style>
-        /* Clases de Badges (definidas en app.js) */
-        .badge { @apply px-2 py-0.5 rounded-full text-xs font-medium; }
-        .badge-art { @apply bg-blue-100 text-blue-800; }
-        .badge-entry { @apply bg-gray-100 text-gray-800; }
-        .badge-printing { @apply bg-indigo-100 text-indigo-800; }
-        .badge-press { @apply bg-purple-100 text-purple-800; }
-        .badge-cut { @apply bg-pink-100 text-pink-800; }
-        .badge-sew { @apply bg-cyan-100 text-cyan-800; }
-        .badge-packing { @apply bg-teal-100 text-teal-800; }
-        .badge-shipping { @apply bg-green-100 text-green-800; }
-        .badge-default { @apply bg-gray-100 text-gray-700; }
-        
-        /* Badges de Estado (definidos en app.js) */
-        .badge-bandeja { @apply bg-amber-100 text-amber-800; }
-        .badge-produccion { @apply bg-purple-100 text-purple-800; }
-        .badge-auditoria { @apply bg-blue-100 text-blue-800; }
-        .badge-completada { @apply bg-green-100 text-green-800; }
-        
-        /* Estilos de Modales */
-        .modal, .full-modal-view {
-            display: none;
-            position: fixed;
-            z-index: 50;
-            left: 0; top: 0;
-            width: 100%; height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.6);
-            align-items: center;
-            justify-content: center;
-        }
-        .modal.active, .full-modal-view.active { display: flex; }
-        .modal-content {
-            @apply bg-gray-100 rounded-lg shadow-xl w-full;
-            max-width: 900px;
-            max-height: 90vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        .full-modal-view .modal-content {
-            max-width: 95vw;
-            width: 95vw;
-            height: 95vh;
-            max-height: 95vh;
-        }
-        .modal-body { overflow-y: auto; }
-        body.modal-open { overflow: hidden; }
+    <link rel="stylesheet" href="estilos.css">
 
-        /* Estilos de Tabla */
-        .table-cell { @apply px-4 py-3 text-sm text-gray-700 whitespace-nowrap; }
-        .table-header { @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider; }
-        tr.selected-row { @apply bg-blue-100; }
-
-        /* Overlay de Carga */
-        .loading-overlay {
-            position: fixed;
-            z-index: 100;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            width: 36px; height: 36px;
-            border-radius: 50%;
-            border-left-color: #09f;
-            animation: spin 1s ease infinite;
-        }
-        .loading-overlay p { @apply text-lg font-medium text-gray-800 mt-4; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Botón de Paginación */
-        .pagination-btn { @apply mx-1 px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50; }
-        .pagination-btn.active { @apply bg-blue-500 text-white border-blue-500; }
-        .pagination-btn.disabled { @apply opacity-50 cursor-not-allowed; }
-    </style>
 </head>
 <body class="bg-gray-100 font-sans">
 
@@ -228,19 +146,19 @@
                     </div>
                 </div>
 
-                <div id="selectionBar" class="hidden fixed bottom-0 left-0 w-full bg-blue-600 text-white p-4 shadow-lg z-40 flex justify-between items-center">
+                <div id="selectionBar" class="multi-select-bar">
                     <div>
-                        <span id="selectionCount" class="font-medium">0 órdenes seleccionadas</span>
-                        <button onclick="clearSelection()" class="ml-4 text-sm font-medium text-blue-100 hover:text-white">Limpiar</button>
+                        <span id="selectionCount" class="font-medium text-gray-800">0 órdenes</span>
+                        <button onclick="clearSelection()" class="ml-4 text-sm font-medium text-blue-600 hover:text-blue-800">Limpiar</button>
                     </div>
                     <div>
-                        <button onclick="openMultiAssignModal()" class="px-4 py-2 bg-white text-blue-600 font-medium rounded-md shadow-sm hover:bg-blue-50">Asignar en Masa</button>
+                        <button onclick="openMultiAssignModal()" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-full shadow-sm hover:bg-blue-700">Asignar en Masa</button>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
+                        <table class="data-table min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="table-header w-12">
@@ -267,7 +185,7 @@
 
                 <div class="flex justify-between items-center mt-4">
                     <div id="tableSummary" class="text-sm text-gray-700"></div>
-                    <div id="paginationControls" class="flex"></div>
+                    <div id="paginationControls" class="pagination-controls flex"></div>
                 </div>
             </div>
 
@@ -283,7 +201,7 @@
     </main>
 
     <div id="assignModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content bg-gray-100 rounded-lg shadow-xl w-full max-w-4xl">
             <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center rounded-t-lg">
                 <h2 class="text-lg font-semibold text-gray-900">Detalles de la Orden</h2>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
@@ -375,7 +293,7 @@
     </div>
 
     <div id="multiAssignModal" class="modal">
-        <div class="modal-content max-w-lg">
+        <div class="modal-content max-w-lg bg-white">
             <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
                 <h2 class="text-lg font-semibold text-gray-900">Asignación Múltiple (<span id="multiModalCount">0</span>)</h2>
                 <button onclick="closeMultiModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
@@ -414,7 +332,7 @@
         </div>
     </div>
 
-    <div id="addChildModal" class="modal z-[51]"> <div class="modal-content max-w-md">
+    <div id="addChildModal" class="modal z-[51]"> <div class="modal-content max-w-md bg-white">
             <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
                 <h2 class="text-lg font-semibold text-gray-900">Agregar Orden Hija</h2>
                 <button onclick="closeAddChildModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
@@ -453,7 +371,7 @@
     </div>
 
     <div id="confirmModal" class="modal z-[52]">
-        <div class="modal-content max-w-sm">
+        <div class="modal-content max-w-sm bg-white">
             <div class="p-6">
                 <h3 class="text-lg font-medium text-gray-900">Confirmación</h3>
                 <p id="confirmModalMessage" class="mt-2 text-sm text-gray-600 whitespace-pre-wrap">¿Estás seguro?</p>
@@ -466,7 +384,7 @@
     </div>
 
     <div id="designerManagerModal" class="modal">
-        <div class="modal-content max-w-md">
+        <div class="modal-content max-w-md bg-white">
             <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
                 <h2 class="text-lg font-semibold text-gray-900">Administrar Diseñadores</h2>
                 <button onclick="closeDesignerManager()" class="text-gray-400 hover:text-gray-600">&times;</button>
@@ -492,7 +410,7 @@
     </div>
 
     <div id="compareModal" class="modal">
-        <div class="modal-content max-w-3xl">
+        <div class="modal-content max-w-3xl bg-white">
             <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
                 <h2 class="text-lg font-semibold text-gray-900">Comparar Diseñadores</h2>
                 <button onclick="closeCompareModals()" class="text-gray-400 hover:text-gray-600">&times;</button>
@@ -519,7 +437,7 @@
     </div>
 
     <div id="metricsView" class="full-modal-view">
-        <div class="modal-content">
+        <div class="modal-content bg-gray-100">
             <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
                 <h2 class="text-xl font-semibold text-gray-900">Métricas: <span id="designerMetricsName" class="text-blue-600"></span></h2>
                 <button onclick="hideMetricsView()" class="text-gray-400 hover:text-gray-600">&times;</button>
@@ -541,7 +459,7 @@
                 <div class="bg-white p-4 rounded-lg border shadow-sm mb-6"><h3 class="font-medium text-center mb-2">Actividad (Completadas últ. 30 días)</h3><div class="relative h-64"><canvas id="designerActivityChart"></canvas></div></div>
                 
                 <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table class="data-table min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="table-header">Código</th>
@@ -559,3 +477,8 @@
             </div>
         </div>
     </div>
+    
+    <script src="app.js"></script>
+    
+</body>
+</html>
