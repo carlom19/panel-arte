@@ -63,7 +63,6 @@ let firebaseAssignmentsMap = new Map();
 let firebaseHistoryMap = new Map();
 let firebaseChildOrdersMap = new Map();
 let firebaseDesignersMap = new Map(); 
-// ELIMINADO: firebaseWeeklyPlanMap
 
 // --- Variables de Lista y Estado ---
 let designerList = []; 
@@ -76,25 +75,16 @@ let designerBarChart = null;
 let designerActivityChart = null; 
 let currentDesignerTableFilter = { search: '', cliente: '', estado: '', fechaDesde: '', fechaHasta: '' };
 let compareChart = null;
-// ELIMINADO: Gráficos de Depto.
-// ELIMINADO: currentWorkPlanWeek
-let currentCompareDesigner1 = ''; // Variable faltante corregida
+let currentCompareDesigner1 = '';
 
 // ======================================================
-// ===== FUNCIONES AUXILIARES DE SEGURIDAD (FIXED) =====
+// ===== FUNCIONES AUXILIARES DE SEGURIDAD =====
 // ======================================================
 
-/**
- * (NUEVO) Agrega un event listener solo si el elemento existe.
- * Evita que la app se rompa si falta un botón en el HTML.
- */
 function safeAddEventListener(id, event, handler) {
     const element = document.getElementById(id);
     if (element) {
         element.addEventListener(event, handler);
-    } else {
-        // Solo advertencia en consola, no rompe el flujo
-        // console.warn(`Elemento '${id}' no encontrado para evento '${event}'.`); 
     }
 }
 
@@ -103,9 +93,9 @@ function safeAddEventListener(id, event, handler) {
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM cargado. Inicializando App v5.1...');
+    console.log('DOM cargado. Inicializando App v5.2 (Lite)...');
     
-    // --- Listeners de Autenticación (Usando Safe Listeners) ---
+    // --- Listeners de Autenticación ---
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
 
@@ -116,7 +106,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const dashboard = document.getElementById('dashboard');
 
         if (user) {
-            // Usuario ha iniciado sesión
             usuarioActual = user;
             console.log("Usuario conectado:", usuarioActual.displayName);
             document.getElementById('userName').textContent = usuarioActual.displayName;
@@ -127,17 +116,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
             } else {
                 dashboard.style.display = 'block'; 
             }
-            
-            // Conectar a los datos de Firebase en tiempo real
             conectarDatosDeFirebase();
-
         } else {
-            // Usuario ha cerrado sesión
             usuarioActual = null;
             isExcelLoaded = false;
             allOrders = []; 
-            console.log("Usuario desconectado.");
-
             loginSection.style.display = 'block';
             uploadSection.style.display = 'none';
             dashboard.style.display = 'none';
@@ -158,7 +141,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     filters.forEach(id => {
         safeAddEventListener(id, 'change', (e) => {
-            // Mapeo dinámico de variables globales según el ID
             if(id === 'clientFilter') currentClientFilter = e.target.value;
             if(id === 'styleFilter') currentStyleFilter = e.target.value;
             if(id === 'teamFilter') currentTeamFilter = e.target.value;
@@ -191,7 +173,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         fileInput.addEventListener('change', handleFileSelect);
     }
 
-    // --- Listeners de Delegación (Listas dinámicas) ---
+    // --- Listeners de Delegación ---
     const designerManagerList = document.getElementById('designerManagerList');
     if(designerManagerList) {
         designerManagerList.addEventListener('click', function(e) {
@@ -199,9 +181,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             if (deleteButton) {
                 const name = deleteButton.dataset.name;
                 const docId = deleteButton.dataset.id; 
-                if (name && docId) {
-                    deleteDesigner(docId, name);
-                }
+                if (name && docId) deleteDesigner(docId, name);
             }
         });
     }
@@ -212,9 +192,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             const metricsButton = e.target.closest('.filter-btn'); 
             if (metricsButton) {
                 const name = metricsButton.dataset.designer;
-                if (name) {
-                    generateDesignerMetrics(name);
-                }
+                if (name) generateDesignerMetrics(name);
             }
         });
     }
@@ -227,25 +205,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 e.stopPropagation(); 
                 const childId = deleteButton.dataset.childId;
                 const childCode = deleteButton.dataset.childCode;
-                if (childId && childCode) {
-                    deleteChildOrder(childId, childCode);
-                }
+                if (childId && childCode) deleteChildOrder(childId, childCode);
              }
         });
     }
-    
-    // ELIMINADO: Listener de 'viewWorkPlanContent'
 
     // --- Listeners de Atajos de Teclado ---
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             closeModal();
             closeMultiModal();
-            // ELIMINADO: closeWeeklyReportModal()
-            // ELIMINADO: hideWorkPlanView()
             closeDesignerManager();
             hideMetricsView(); 
-            // ELIMINADO: hideDepartmentMetrics()
             closeConfirmModal(); 
             closeCompareModals(); 
             closeAddChildModal();
@@ -370,8 +341,6 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded) generateWorkloadReport();
 
     }, (error) => console.error("Error de Firestore (designers):", error));
-
-    // --- 5. ELIMINADO: Sincronizar Plan Semanal ---
 }
 
 function mergeYActualizar() {
@@ -511,10 +480,6 @@ async function deleteDesigner(docId, name) {
         }
     });
 }
-
-// ELIMINADO: addOrderToWorkPlanDB
-// ELIMINADO: getWorkPlanForWeek
-// ELIMINADO: removeOrderFromWorkPlanDB
 
 // ======================================================
 // ===== FUNCIONES BÁSICAS (Auxiliares) =====
@@ -831,7 +796,6 @@ async function recalculateChildPieces() {
     }
     
     needsRecalculation = false;
-    console.log('Caché de piezas hijas reconstruido desde Firebase.');
 }
 
 async function saveChildOrder() {
@@ -985,7 +949,6 @@ function openAddChildModal() {
 }
 function closeAddChildModal() {
     document.getElementById('addChildModal').classList.remove('active');
-    // Si no hay otros modales abiertos, quitar la clase del body
     if(!document.getElementById('assignModal').classList.contains('active')) {
         document.body.classList.remove('modal-open');
     }
@@ -993,10 +956,8 @@ function closeAddChildModal() {
 function updateChildOrderCode() {
     if (!currentEditingOrderId) return;
     const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
-    if (!parentOrder) {
-        console.error('No se encontró la orden padre');
-        return;
-    }
+    if (!parentOrder) return;
+
     const childNumber = document.getElementById('childOrderNumber').value;
     const childCodeInput = document.getElementById('childOrderCode');
     
@@ -1354,663 +1315,1090 @@ function populateDesignerManagerModal() {
                         data-id="${escapeHTML(docId)}">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                       <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.518.149.022a.75.75 0 1 0 .23-1.482A41.03 41.03 0 0 0 14 4.193v-.443A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75a1.25 1.25 0 0 0-1.25-1.25h-2.5A1.25 1.25 0 0 0 7.5 3.75v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clip-rule="evenodd" />
-                    </svg>
-                    <span>Eliminar</span>
-                </button>
-            </div>
-        `;
-    });
+                    </svg>
+                    Eliminar
+                </button>
+            </div>
+        `;
+    });
 }
 
 function openDesignerManager() {
-    document.getElementById('designerManagerModal').classList.add('active');
-    document.body.classList.add('modal-open');
+    populateDesignerManagerModal(); 
+    document.getElementById('designerManagerModal').classList.add('active');
+    document.body.classList.add('modal-open');
 }
 function closeDesignerManager() {
-    document.getElementById('designerManagerModal').classList.remove('active');
-    document.body.classList.remove('modal-open');
+    document.getElementById('designerManagerModal').classList.remove('active');
+    document.body.classList.remove('modal-open');
 }
 
-// ======================================================
-// ===== LÓGICA DE UI (ACTUALIZACIÓN DEL DASHBOARD) =====
-// ======================================================
-
-/**
- * Función principal para actualizar toda la UI después de un cambio.
- */
-async function updateDashboard() {
-    if (!isExcelLoaded) return;
-    console.log("Actualizando dashboard completo...");
-    
-    // 1. Actualizar la tabla principal (esto incluye filtrado, paginación)
-    updateTable();
-    
-    // 2. Actualizar el reporte de carga de trabajo (sidebar)
-    generateWorkloadReport();
-    
-    // 3. Actualizar los resúmenes (cards superiores)
-    generateSummary();
+// --- Lógica de Selección Múltiple ---
+function toggleOrderSelection(orderId) {
+    if (selectedOrders.has(orderId)) {
+        selectedOrders.delete(orderId);
+    } else {
+        selectedOrders.add(orderId);
+    }
+    updateMultiSelectBar();
+    updateCheckboxes();
 }
-
-/**
-* Filtra y ordena el array principal 'allOrders' basado en los filtros globales.
-*/
-function filterAndSortOrders() {
-    const searchLower = currentSearch.toLowerCase();
-    
-    // 1. Filtrar
-    const filtered = allOrders.filter(order => {
-        // Filtro de Búsqueda
-        if (currentSearch) {
-            const inClient = order.cliente.toLowerCase().includes(searchLower);
-            const inCode = order.codigoContrato.toLowerCase().includes(searchLower);
-            const inStyle = order.estilo.toLowerCase().includes(searchLower);
-            if (!inClient && !inCode && !inStyle) return false;
-        }
-        
-        // Filtros de Dropdown
-        if (currentClientFilter && order.cliente !== currentClientFilter) return false;
-        if (currentStyleFilter && order.estilo !== currentStyleFilter) return false;
-        if (currentTeamFilter && order.teamName !== currentTeamFilter) return false;
-        if (currentDepartamentoFilter && order.departamento !== currentDepartamentoFilter) return false;
-        if (currentDesignerFilter && order.designer !== currentDesignerFilter) return false;
-        if (currentCustomStatusFilter && order.customStatus !== currentCustomStatusFilter) return false;
-
-        // Filtros de Fecha
-        if (currentDateFrom && order.fechaDespacho) {
-            const fromDate = new Date(currentDateFrom + 'T00:00:00Z');
-            if (order.fechaDespacho < fromDate) return false;
-        }
-        if (currentDateTo && order.fechaDespacho) {
-            const toDate = new Date(currentDateTo + 'T23:59:59Z');
-            if (order.fechaDespacho > toDate) return false;
-        }
-
-        return true;
-    });
-
-    // 2. Ordenar
-    const { key, direction } = sortConfig;
-    filtered.sort((a, b) => {
-        let valA = a[key];
-        let valB = b[key];
-
-        if (valA === valB) return 0;
-        if (valA === null || valA === undefined || valA === '') return 1;
-        if (valB === null || valB === undefined || valB === '') return -1;
-        
-        // Ordenamiento específico para fechas
-        if (key === 'fechaDespacho') {
-            valA = a.fechaDespacho ? a.fechaDespacho.getTime() : 0;
-            valB = b.fechaDespacho ? b.fechaDespacho.getTime() : 0;
-        }
-
-        if (direction === 'asc') {
-            return valA > valB ? 1 : -1;
-        } else {
-            return valA < valB ? 1 : -1;
-        }
-    });
-
-    return filtered;
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const ordersOnPage = paginatedOrders
+        .filter(o => o.departamento === 'P_Art')
+        .map(o => o.orderId);
+    
+    if (selectAllCheckbox.checked) {
+        ordersOnPage.forEach(id => selectedOrders.add(id));
+    } else {
+        ordersOnPage.forEach(id => selectedOrders.delete(id));
+    }
+    updateMultiSelectBar();
+    updateCheckboxes();
 }
-
-/**
- * Renderiza la tabla principal con los datos filtrados y paginados.
- */
-function updateTable() {
-    const tbody = document.getElementById('ordersTableBody');
-    const summary = document.getElementById('tableSummary');
-    if (!tbody || !summary) return;
-
-    const filteredOrders = filterAndSortOrders();
-    const totalRows = filteredOrders.length;
-    
-    // Paginación
-    const totalPages = Math.ceil(totalRows / rowsPerPage);
-    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-    if (currentPage < 1) currentPage = 1;
-    
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    paginatedOrders = filteredOrders.slice(start, end);
-
-    // Actualizar resumen
-    summary.textContent = `Mostrando ${start + 1} - ${Math.min(end, totalRows)} de ${totalRows} órdenes`;
-    
-    let tableHTML = '';
-    
-    if (paginatedOrders.length === 0) {
-        tableHTML = '<tr><td colspan="11" class="text-center text-gray-500 py-10">No se encontraron órdenes que coincidan con los filtros.</td></tr>';
-    } else {
-        paginatedOrders.forEach(order => {
-            const isSelected = selectedOrders.has(order.orderId);
-            const safeOrderId = escapeHTML(order.orderId);
-            const isPArt = order.departamento === 'P_Art';
-
-            let rowClass = 'bg-white hover:bg-gray-50';
-            if (order.isVeryLate) rowClass = 'bg-red-100 hover:bg-red-200';
-            else if (order.isLate) rowClass = 'bg-red-50 hover:bg-red-100';
-            else if (order.isAboutToExpire) rowClass = 'bg-yellow-50 hover:bg-yellow-100';
-
-            tableHTML += `
-                <tr class="${rowClass} cursor-pointer" id="row-${safeOrderId}">
-                    <td class="table-cell checkbox-cell">
-                        <input type="checkbox" class="form-checkbox" 
-                            ${isSelected ? 'checked' : ''} 
-                            onclick="toggleRowSelection('${safeOrderId}', this)">
-                    </td>
-                    <td class="table-cell" onclick="openAssignModal('${safeOrderId}')">
-                        ${formatDate(order.fechaDespacho)}
-                    </td>
-                    <td class="table-cell" onclick="openAssignModal('${safeOrderId}')">${escapeHTML(order.cliente)}</td>
-                    <td class="table-cell" onclick="openAssignModal('${safeOrderId}')">${escapeHTML(order.codigoContrato)}</td>
-                    <td class="table-cell" onclick="openAssignModal('${safeOrderId}')">${escapeHTML(order.estilo)}</td>
-                    <td class="table-cell" onclick="openAssignModal('${safeOrderId}')">${escapeHTML(order.teamName)}</td>
-                    <td class="table-cell" onclick="openAssignModal('${safeOrderId}')">
-                        <span class="badge ${getBadgeClass(order.departamento)}">${escapeHTML(order.departamento)}</span>
-model-output/javascript
-                    </td>
-                    <td class="table-cell" onclick="openAssignModal('${safeOrderId}')">
-                        ${isPArt ? `<span class="badge ${getStatusClass(order.customStatus)}">${escapeHTML(order.customStatus || 'Bandeja')}</span>` : 'N/A'}
-        _            </td>
-                    <td class="table-cell" onclick="openAssignModal('${safeOrderId}')">
-                        ${isPArt ? (escapeHTML(order.designer) || '<em class="text-gray-400">Sin asignar</em>') : 'N/A'}
-                    </td>
-                    <td class="table-cell text-right" onclick="openAssignModal('${safeOrderId}')">
-                        ${order.cantidad.toLocaleString()}
-                    </td>
-                    <td class="table-cell text-right" onclick="openAssignModal('${safeOrderId}')">
-                        ${order.childPieces > 0 ? order.childPieces.toLocaleString() : '-'}
-                    </td>
-                </tr>
-            `;
-        });
-    }
-
-    tbody.innerHTML = tableHTML;
-    updatePagination(totalRows, totalPages);
-}
-
-// ======================================================
-// ===== LÓGICA DE SELECCIÓN DE TABLA =====
-// ======================================================
-
-function toggleRowSelection(orderId, checkbox) {
-    checkbox.checked ? selectedOrders.add(orderId) : selectedOrders.delete(orderId);
-    document.getElementById(`row-${orderId}`).classList.toggle('selected-row', checkbox.checked);
-    updateSelectionUI();
-}
-
-function toggleSelectAll(masterCheckbox) {
-    const isChecked = masterCheckbox.checked;
-    selectedOrders.clear();
-    
-    paginatedOrders.forEach(order => {
-        const checkbox = document.querySelector(`#row-${order.orderId} input[type="checkbox"]`);
-        if (checkbox) checkbox.checked = isChecked;
-        document.getElementById(`row-${order.orderId}`).classList.toggle('selected-row', isChecked);
-        if (isChecked) selectedOrders.add(order.orderId);
-    });
-    
-    updateSelectionUI();
-}
-
 function clearSelection() {
-    selectedOrders.clear();
-    document.querySelectorAll('#ordersTableBody tr').forEach(row => {
-        row.classList.remove('selected-row');
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        if (checkbox) checkbox.checked = false;
-    });
-    const masterCheckbox = document.getElementById('selectAllCheckbox');
-    if (masterCheckbox) masterCheckbox.checked = false;
-    updateSelectionUI();
+    selectedOrders.clear();
+    const bar = document.getElementById('multiSelectBar');
+    if (bar) bar.classList.remove('active');
+    
+    updateMultiSelectBar();
+    updateCheckboxes();
+}
+function updateMultiSelectBar() {
+    const bar = document.getElementById('multiSelectBar');
+    const count = document.getElementById('selectedCount');
+    if (selectedOrders.size > 0) {
+        bar.classList.add('active'); 
+        count.textContent = selectedOrders.size;
+    } else {
+        bar.classList.remove('active');
+    }
+}
+function updateCheckboxes() {
+    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    checkboxes.forEach((checkbox) => {
+        const orderId = checkbox.dataset.orderId;
+        if (orderId) {
+            checkbox.checked = selectedOrders.has(orderId);
+        }
+    });
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const pArtOrdersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art');
+    const allOnPageSelected = pArtOrdersOnPage.length > 0 && pArtOrdersOnPage.every(order => selectedOrders.has(order.orderId));
+    if(selectAllCheckbox) selectAllCheckbox.checked = allOnPageSelected;
 }
 
-function updateSelectionUI() {
-    const selectionBar = document.getElementById('selectionBar');
-    const selectionCount = document.getElementById('selectionCount');
-    if (!selectionBar || !selectionCount) return;
-    
-    const count = selectedOrders.size;
-    if (count > 0) {
-        selectionCount.textContent = `${count} ${count === 1 ? 'orden seleccionada' : 'órdenes seleccionadas'}`;
-        selectionBar.classList.remove('hidden');
-    } else {
-        selectionBar.classList.add('hidden');
-    }
+// --- Lógica de Paginación ---
+function setupPagination(filteredOrders) {
+    const totalItems = filteredOrders.length;
+    const totalPages = Math.ceil(totalItems / rowsPerPage);
+    if (currentPage > totalPages) { currentPage = totalPages; }
+    if (currentPage < 1) { currentPage = 1; }
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    paginatedOrders = filteredOrders.slice(start, end);
+    document.getElementById('currentPage').textContent = totalPages === 0 ? 0 : currentPage;
+    document.getElementById('totalPages').textContent = totalPages || 1;
+    renderPaginationControls(totalPages);
+}
+function renderPaginationControls(totalPages) {
+    const controlsDiv = document.getElementById('paginationControls');
+    if (!controlsDiv) return;
+
+    controlsDiv.innerHTML = '';
+    controlsDiv.innerHTML += `<button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&laquo; Anterior</button>`;
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+    if (endPage - startPage + 1 < maxPagesToShow) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    if (startPage > 1) {
+        controlsDiv.innerHTML += `<button onclick="changePage(1)">1</button>`;
+        if (startPage > 2) {
+            controlsDiv.innerHTML += `<button disabled>...</button>`;
+        }
+    }
+    for (let i = startPage; i <= endPage; i++) {
+        controlsDiv.innerHTML += `<button onclick="changePage(${i})" class="${i === currentPage ? 'active' : ''}">${i}</button>`;
+    }
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            controlsDiv.innerHTML += `<button disabled>...</button>`;
+        }
+        controlsDiv.innerHTML += `<button onclick="changePage(${totalPages})">${totalPages}</button>`;
+    }
+    controlsDiv.innerHTML += `<button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}>Siguiente &raquo;</button>`;
+}
+window.changePage = function(page) {
+    const totalPages = Math.ceil(getFilteredOrders(false).length / rowsPerPage);
+    if (page < 1 || page > totalPages) return;
+    currentPage = page;
+    updateTable();
+}
+window.changeRowsPerPage = function() {
+    rowsPerPage = parseInt(document.getElementById('rowsPerPage').value, 10);
+    currentPage = 1; 
+    updateTable();
 }
 
-// ======================================================
-// ===== LÓGICA DE PAGINACIÓN =====
-// ======================================================
-
-function updatePagination(totalRows, totalPages) {
-    const paginationControls = document.getElementById('paginationControls');
-    if (!paginationControls) return;
-
-    if (totalPages <= 1) {
-        paginationControls.innerHTML = '';
-        return;
-    }
-
-    let html = '';
-    
-    // Botón "Anterior"
-    html += `<button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&laquo; Ant</button>`;
-
-    // Números de Página
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, currentPage + 2);
-
-    if (currentPage - 2 > 1) html += `<button class="pagination-btn" onclick="changePage(1)">1</button><span class="px-3">...</span>`;
-
-    for (let i = startPage; i <= endPage; i++) {
-        html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
-    }
-
-    if (currentPage + 2 < totalPages) html += `<span class="px-3">...</span><button class="pagination-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
-    
-    // Botón "Siguiente"
-    html += `<button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Sig &raquo;</button>`;
-
-    paginationControls.innerHTML = html;
+// --- Lógica de UI y Actualización ---
+function populateFilterDropdowns() {
+    const clients = [...new Set(allOrders.map(o => o.cliente))].filter(Boolean).sort();
+    const styles = [...new Set(allOrders.map(o => o.estilo))].filter(Boolean).sort();
+    const teams = [...new Set(allOrders.map(o => o.teamName))].filter(Boolean).sort();
+    const departamentos = [...new Set(allOrders.map(o => o.departamento))].filter(Boolean).sort();
+    const designers = designerList; 
+    const statuses = [...new Set(allOrders.map(o => o.customStatus))].filter(Boolean).sort();
+    CUSTOM_STATUS_OPTIONS.forEach(opt => {
+        if (!statuses.includes(opt)) statuses.push(opt);
+    });
+    populateSelect('clientFilter', clients, currentClientFilter);
+    populateSelect('styleFilter', styles, currentStyleFilter);
+    populateSelect('teamFilter', teams, currentTeamFilter);
+    populateSelect('departamentoFilter', departamentos, currentDepartamentoFilter);
+    populateSelect('designerFilter', designers, currentDesignerFilter);
+    populateSelect('customStatusFilter', statuses, currentCustomStatusFilter);
+    updateAllDesignerDropdowns(); 
+}
+function populateSelect(elementId, options, selectedValue) {
+    const select = document.getElementById(elementId);
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">Todos</option>';
+    options.forEach(option => {
+        const safeOption = escapeHTML(option);
+        select.innerHTML += `<option value="${safeOption}">${safeOption}</option>`;
+    });
+    select.value = selectedValue;
 }
 
-function changePage(page) {
-    if (page < 1 || page > Math.ceil(filterAndSortOrders().length / rowsPerPage)) return;
-    currentPage = page;
-    updateTable();
+async function generateSummary() {
+    const artOrders = allOrders.filter(o => o.departamento === 'P_Art');
+    const stats = calculateStats(artOrders);
+    const summaryBox = document.getElementById('summaryBox');
+    let summaryText = `Resumen: Tienes ${stats.total} órdenes activas en P_Art con ${stats.totalPieces.toLocaleString()} piezas totales (incluyendo hijas).`;
+    if (stats.veryLate > 0) { summaryText += ` ${stats.veryLate} órdenes están muy atrasadas (más de 7 días).`; }
+    if (stats.aboutToExpire > 0) { summaryText += ` ${stats.aboutToExpire} órdenes vencen en 1-2 días.`; }
+    if (stats.thisWeek > 0) { summaryText += ` Tienes ${stats.thisWeek} órdenes para esta semana.`; }
+    if (stats.late === 0 && stats.aboutToExpire === 0) { summaryText += ` No tienes órdenes atrasadas en P_Art.`; }
+    summaryBox.innerHTML = `<h3 class="text-lg font-semibold text-gray-900 mb-2">Estado Actual (P_Art)</h3><p class="text-gray-700 leading-relaxed">${escapeHTML(summaryText)}</p>`;
 }
 
-// ======================================================
-// ===== LÓGICA DE MÉTRICAS DEL DASHBOARD =====
-// ======================================================
-
-function generateSummary() {
-    const pArtOrders = allOrders.filter(o => o.departamento === 'P_Art');
-    const inBandeja = pArtOrders.filter(o => o.customStatus === 'Bandeja').length;
-    const inProduccion = pArtOrders.filter(o => o.customStatus === 'Producción').length;
-    const inAuditoria = pArtOrders.filter(o => o.customStatus === 'Auditoría').length;
-    const lateOrders = allOrders.filter(o => o.isLate).length;
-
-    document.getElementById('summaryTotal').textContent = allOrders.length.toLocaleString();
-    document.getElementById('summaryPArt').textContent = pArtOrders.length.toLocaleString();
-    document.getElementById('summaryBandeja').textContent = inBandeja.toLocaleString();
-    document.getElementById('summaryProduccion').textContent = inProduccion.toLocaleString();
-    document.getElementById('summaryAuditoria').textContent = inAuditoria.toLocaleString();
-    document.getElementById('summaryAtrasadas').textContent = lateOrders.toLocaleString();
+function generateReports() {
+    const clientCounts = {};
+    allOrders.filter(o => o.cantidad > 0).forEach(o => {
+        if (o.cliente) {
+            clientCounts[o.cliente] = (clientCounts[o.cliente] || 0) + 1;
+        }
+    });
+    const sortedClients = Object.entries(clientCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+    const clientReport = document.getElementById('clientReport');
+    clientReport.innerHTML = sortedClients.map(([client, count]) => 
+        `<div class="report-item flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 text-sm">
+            <span class="text-gray-700">${escapeHTML(client)}</span>
+            <strong class="font-medium text-gray-900">${count}</strong>
+        </div>`
+    ).join('') || '<div class="report-item text-gray-500 text-center py-4">No hay datos</div>';
+    generateWorkloadReport();
 }
 
 function generateWorkloadReport() {
-    const pArtOrders = allOrders.filter(o => o.departamento === 'P_Art');
-    let workload = new Map();
-
-    // Inicializar a todos los diseñadores de la lista
-    designerList.forEach(designer => {
-        workload.set(designer, { total: 0, bandeja: 0, produccion: 0, auditoria: 0, piezas: 0 });
-    });
-    // Añadir "Sin asignar"
-    workload.set("Sin asignar", { total: 0, bandeja: 0, produccion: 0, auditoria: 0, piezas: 0 });
-
-    pArtOrders.forEach(order => {
-        const designerName = order.designer || "Sin asignar";
-        if (!workload.has(designerName)) {
-            workload.set(designerName, { total: 0, bandeja: 0, produccion: 0, auditoria: 0, piezas: 0 });
-        }
-        
-        const stats = workload.get(designerName);
-        stats.total++;
-        stats.piezas += order.cantidad;
-        if (order.customStatus === 'Bandeja') stats.bandeja++;
-        else if (order.customStatus === 'Producción') stats.produccion++;
-        else if (order.customStatus === 'Auditoría') stats.auditoria++;
-    });
-
-    const listDiv = document.getElementById('metricsSidebarList');
-    listDiv.innerHTML = '';
-    
-    // Ordenar por nombre, pero poner "Sin asignar" al final
-    const sortedWorkload = [...workload.entries()].sort((a, b) => {
-        if (a[0] === "Sin asignar") return 1;
-        if (b[0] === "Sin asignar") return -1;
-        return a[0].localeCompare(b[0]);
-    });
-
-    sortedWorkload.forEach(([designer, stats]) => {
-        if (stats.total === 0 && designer !== "Sin asignar") return; // Ocultar diseñadores sin carga
-        
-        const safeName = escapeHTML(designer);
-        listDiv.innerHTML += `
-            <div class="filter-btn" data-designer="${safeName}">
-                <div class="flex justify-between items-center w-full">
-                    <span class="font-semibold text-sm ${designer === "Sin asignar" ? 'text-gray-500 italic' : 'text-gray-800'}">${safeName}</span>
-                    <span class="font-bold text-sm text-blue-600">${stats.total}</span>
-                </div>
-                <div class="text-xs text-gray-500 mt-1.5 flex justify-between">
-                    <span>B: <strong class="text-amber-600">${stats.bandeja}</strong></span>
-                    <span>P: <strong class="text-purple-600">${stats.produccion}</strong></span>
-                    <span>A: <strong class="text-blue-500">${stats.auditoria}</strong></span>
-                    <span>Piezas: <strong class="text-gray-700">${stats.piezas.toLocaleString()}</strong></span>
-                </div>
-            </div>
-        `;
-    });
+    const designerStats = {};
+    designerList.forEach(designer => {
+        designerStats[designer] = { orders: 0, pieces: 0 };
+    });
+    let totalPiecesInPArt = 0;
+    allOrders.forEach(order => {
+        if (order.departamento === 'P_Art' && order.designer && designerStats.hasOwnProperty(order.designer)) {
+            designerStats[order.designer].orders++;
+            const totalOrderPieces = (order.cantidad || 0) + (order.childPieces || 0);
+            designerStats[order.designer].pieces += totalOrderPieces;
+            if (order.designer !== 'Magdali Fernadez') { 
+                totalPiecesInPArt += totalOrderPieces;
+            }
+        }
+    });
+    document.getElementById('workloadTotal').textContent = 
+        `${totalPiecesInPArt.toLocaleString()} piezas (en P_Art, sin Magdali F.)`;
+    const workloadList = document.getElementById('workloadList');
+    let html = '';
+    designerList.forEach(designer => {
+        const stats = designerStats[designer];
+        const percentage = totalPiecesInPArt > 0 && designer !== 'Magdali Fernadez'
+            ? ((stats.pieces / totalPiecesInPArt) * 100).toFixed(1)
+            : 0;
+        const displayPercentage = designer === 'Magdali Fernadez' ? '-' : `${percentage}%`;
+        html += `
+            <div class="workload-item">
+                <div class="workload-header flex justify-between items-center mb-1.5">
+                    <span class="designer-name font-semibold text-gray-800">${escapeHTML(designer)}</span>
+                    <span class="workload-stats text-xs text-gray-500">
+                        ${stats.orders} órdenes | ${stats.pieces.toLocaleString()} pzs | ${displayPercentage}
+                    </span>
+                </div>
+                <div class="progress-bar w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div class="progress-fill h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300" style="width: ${designer === 'Magdali Fernadez' ? 0 : percentage}%"></div>
+                </div>
+            </div>
+        `;
+    });
+    workloadList.innerHTML = html;
 }
 
-// ======================================================
-// ===== LÓGICA DE MÉTRICAS DE DISEÑADOR (VISTA) =====
-// ======================================================
+function clearAllFilters() {
+    currentClientFilter = '';
+    currentStyleFilter = '';
+    currentTeamFilter = '';
+    currentDepartamentoFilter = '';
+    currentDesignerFilter = '';
+    currentCustomStatusFilter = '';
+    currentDateFrom = '';
+    currentDateTo = '';
+    currentSearch = '';
+    currentFilter = 'all';
+    currentDateFilter = 'all';
+    document.getElementById('clientFilter').value = '';
+    document.getElementById('styleFilter').value = '';
+    document.getElementById('teamFilter').value = '';
+    document.getElementById('departamentoFilter').value = '';
+    document.getElementById('designerFilter').value = '';
+    document.getElementById('customStatusFilter').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    document.getElementById('searchInput').value = '';
+    currentPage = 1; 
+    updateDashboard();
+}
 
+async function updateDashboard() {
+    if (!isExcelLoaded) return; 
+    
+    if (needsRecalculation) {
+        recalculateChildPieces(); 
+    }
+    
+    const artOrders = allOrders.filter(o => o.departamento === 'P_Art');
+    const stats = calculateStats(artOrders);
+    
+    updateStats(stats);
+    updateAlerts(stats);
+    updateFilters(stats);
+    
+    generateReports();
+    populateFilterDropdowns();
+    updateTable(); 
+    updateAllDesignerDropdowns(); 
+}
+
+function calculateStats(ordersToStat) {
+    const total = ordersToStat.length;
+    const late = ordersToStat.filter(o => o.isLate).length;
+    const veryLate = ordersToStat.filter(o => o.isVeryLate).length;
+    const aboutToExpire = ordersToStat.filter(o => o.isAboutToExpire).length;
+    const onTime = ordersToStat.filter(o => !o.isLate && !o.isAboutToExpire).length;
+    let totalPieces = ordersToStat.reduce((sum, order) => {
+        return sum + (order.cantidad || 0) + (order.childPieces || 0);
+    }, 0);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const thisWeekEnd = new Date(today); 
+    thisWeekEnd.setDate(today.getDate()+7);
+    const thisWeek = ordersToStat.filter(o => o.fechaDespacho && o.fechaDespacho >= today && o.fechaDespacho <= thisWeekEnd).length;
+    return { total, late, veryLate, aboutToExpire, onTime, thisWeek, totalPieces };
+}
+
+function updateStats(stats) {
+    document.getElementById('statTotal').textContent = stats.total;
+    document.getElementById('statTotalPieces').textContent = (stats.totalPieces || 0).toLocaleString();
+    document.getElementById('statLate').textContent = stats.late;
+    document.getElementById('statExpiring').textContent = stats.aboutToExpire;
+    document.getElementById('statOnTime').textContent = stats.onTime;
+    document.getElementById('statThisWeek').textContent = stats.thisWeek;
+}
+
+function updateAlerts(stats) {
+    const alertsDiv = document.getElementById('alerts');
+    alertsDiv.innerHTML = '';
+    const baseClasses = "p-4 mb-4 rounded-lg border-l-4 cursor-pointer transition-colors";
+    const hoverDanger = "hover:bg-red-200";
+    const hoverWarning = "hover:bg-yellow-200";
+    const hoverInfo = "hover:bg-blue-200";
+    if (stats.veryLate > 0) {
+        alertsDiv.innerHTML += `<div class="alert ${baseClasses} bg-red-100 border-red-500 text-red-800 ${hoverDanger}" onclick="setFilter('veryLate')" title="Haz clic para ver estas órdenes"><strong class="font-semibold">URGENTE (P_Art):</strong> ${stats.veryLate} órdenes con más de 7 días de atraso</div>`;
+    }
+    if (stats.aboutToExpire > 0) {
+        alertsDiv.innerHTML += `<div class="alert ${baseClasses} bg-yellow-100 border-yellow-500 text-yellow-800 ${hoverWarning}" onclick="setFilter('aboutToExpire')" title="Haz clic para ver estas órdenes"><strong class="font-semibold">ATENCIÓN (P_Art):</strong> ${stats.aboutToExpire} órdenes vencen en 1-2 días</div>`;
+    }
+    if (stats.thisWeek > 0 && stats.late === 0) {
+        alertsDiv.innerHTML += `<div class="alert ${baseClasses} bg-blue-100 border-blue-500 text-blue-800 ${hoverInfo}" onclick="setDateFilter('thisWeek')" title="Haz clic para ver estas órdenes"><strong class="font-semibold">Esta Semana (P_Art):</strong> ${stats.thisWeek} órdenes deben despacharse en 7 días</div>`;
+    }
+    if (stats.late === 0 && stats.aboutToExpire === 0) {
+        alertsDiv.innerHTML += `<div class="alert ${baseClasses} bg-green-100 border-green-500 text-green-800 !cursor-default"><strong class="font-semibold">Perfecto:</strong> No tienes órdenes atrasadas ni por vencer en P_Art</div>`;
+    }
+}
+
+function updateFilters(stats) {
+    const statusFilters = document.getElementById('statusFilters');
+    const btnBase = "flex-1 font-medium py-2 px-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50";
+    const btnInactive = "bg-white text-gray-700 hover:bg-gray-100 border-l border-gray-300 first:border-l-0";
+    const btnActive = "bg-blue-600 text-white shadow-inner";
+   statusFilters.innerHTML = `
+        <button class="${btnBase} ${currentFilter==='all'?btnActive:btnInactive}" onclick="setFilter('all')">Todas (${stats.total})</button>
+        <button class="${btnBase} ${currentFilter==='late'?btnActive:btnInactive}" onclick="setFilter('late')">Atrasadas (${stats.late})</button>
+        <button class="${btnBase} ${currentFilter==='veryLate'?btnActive:btnInactive}" onclick="setFilter('veryLate')">Muy Atrasadas (${stats.veryLate})</button>
+        <button class="${btnBase} ${currentFilter==='aboutToExpire'?btnActive:btnInactive}" onclick="setFilter('aboutToExpire')">Por Vencer (${stats.aboutToExpire})</button>
+        <button class="${btnBase} ${currentFilter==='onTime'?btnActive:btnInactive}" onclick="setFilter('onTime')">A Tiempo (${stats.onTime})</button>
+    `;
+    const dateFilters = document.getElementById('dateFilters');
+    dateFilters.innerHTML = `
+        <button class="${btnBase} ${currentDateFilter==='all'?btnActive:btnInactive}" onclick="setDateFilter('all')">Todas</button>
+        <button class="${btnBase} ${currentDateFilter==='thisWeek'?btnActive:btnInactive}" onclick="setDateFilter('thisWeek')">Esta Semana</button>
+        <button class="${btnBase} ${currentDateFilter==='thisMonth'?btnActive:btnInactive}" onclick="setDateFilter('thisMonth')">Este Mes</button>
+        <button class="${btnBase} ${currentDateFilter==='nextWeek'?btnActive:btnInactive}" onclick="setDateFilter('nextWeek')">Próxima Semana</button>
+    `;
+}
+
+async function updateTable() {
+    const partFilters = document.querySelectorAll('.filters');
+    if (currentDepartamentoFilter && currentDepartamentoFilter !== 'P_Art') {
+        partFilters.forEach(f => f.style.display = 'none');
+    } else {
+        partFilters.forEach(f => f.style.display = 'block');
+    }
+
+    const filtered = getFilteredOrders(false); 
+    const tableBody = document.getElementById('tableBody');
+    
+    const filteredPieces = filtered.reduce((sum, order) => {
+        return sum + (order.cantidad || 0) + (order.childPieces || 0);
+    }, 0);
+    
+    setupPagination(filtered); 
+    
+    if (paginatedOrders.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="14" class="px-6 py-12 text-center text-gray-500">No hay órdenes que coincidan</td></tr>';
+    } else {
+        let tableRowsHTML = '';
+        for (const order of paginatedOrders) {
+            const hasNotes = order.notes && order.notes.trim().length > 0;
+            const receivedDateFormatted = order.receivedDate ? new Date(order.receivedDate + 'T00:00:00Z').toLocaleDateString('es-ES') : '-';
+            const hasChildren = order.childPieces > 0;
+            
+            const safeCliente = escapeHTML(order.cliente || '-');
+            const safeCodigo = escapeHTML(order.codigoContrato || 'S/C');
+            const safeEstilo = escapeHTML(order.estilo || '-');
+            const safeTeam = escapeHTML(order.teamName || '-');
+            const safeDepartamento = escapeHTML(order.departamento || 'Sin Depto');
+            const safeDesigner = escapeHTML(order.designer || ''); 
+            const safeCantidad = (order.cantidad || 0).toLocaleString();
+
+            let fechaTexto = '-';
+            if (order.fechaDespacho && !isNaN(new Date(order.fechaDespacho))) {
+                fechaTexto = formatDate(order.fechaDespacho);
+            }
+
+            tableRowsHTML += `
+            <tr class="cursor-pointer ${order.isVeryLate?'very-late':order.isLate?'late':order.isAboutToExpire?'expiring':''}" onclick="openAssignModal('${order.orderId}')">
+                <td class="px-6 py-4 whitespace-nowrap" onclick="event.stopPropagation()">
+                    ${order.departamento === 'P_Art' ? 
+                    `<input type="checkbox" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')" aria-label="Seleccionar orden ${safeCodigo}"
+                            class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer">` :
+                    ''}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">${getStatusBadge(order)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fechaTexto}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${safeCliente}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${safeCodigo}
+                    ${hasChildren ? `<br><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-medium mt-1 inline-block flex items-center gap-1 w-fit">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                        </svg>
+                        con hijas
+                    </span>` : ''}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${safeEstilo}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${safeTeam}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${safeDepartamento !== 'Sin Depto' ? `<span class="bg-gray-100 text-gray-800 px-2.5 py-0.5 rounded-full text-xs font-medium">${safeDepartamento}</span>` : '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${safeDesigner ? `<span class="bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full text-xs font-medium">${safeDesigner}</span>` : '<span class="text-gray-400 text-sm italic">Sin asignar</span>'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${getCustomStatusBadge(order.customStatus)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${receivedDateFormatted}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-bold">${safeCantidad}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${hasNotes ? `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-500">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 0 1 9 9v.375M10.125 2.25A3.375 3.375 0 0 1 13.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 0 1 3.375 3.375M9 15l2.25 2.25L15 12" />
+                    </svg>
+                    ` : '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm" onclick="event.stopPropagation()">
+                    <button class="font-medium py-1 px-3 rounded-lg text-xs transition-colors shadow-sm bg-blue-600 text-white hover:bg-blue-700" onclick="openAssignModal('${order.orderId}')">Ver</button>
+                </td>
+            </tr>
+            `;
+        }
+        tableBody.innerHTML = tableRowsHTML;
+    }
+
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const hasPArtOnPage = paginatedOrders.some(o => o.departamento === 'P_Art');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.disabled = !hasPArtOnPage;
+        if (!hasPArtOnPage) {
+            selectAllCheckbox.checked = false;
+        }
+    }
+    
+    document.getElementById('resultCount').textContent = filtered.length;
+    document.getElementById('totalCount').textContent = allOrders.length;
+    document.getElementById('resultPieces').textContent = filteredPieces.toLocaleString();
+    
+    updateCheckboxes();
+}
+
+function getCustomStatusBadge(status) {
+    const base = "px-2.5 py-0.5 rounded-full text-xs font-medium";
+    if (!status) return `<span class="text-gray-400 text-sm italic">Sin estado</span>`;
+    const safeStatus = escapeHTML(status);
+    if (status === 'Completada') return `<span class="${base} bg-gray-100 text-gray-800 border border-gray-300">${safeStatus}</span>`;
+    if (status === 'Bandeja') return `<span class="${base} bg-yellow-100 text-yellow-800">${safeStatus}</span>`;
+    if (status === 'Producción') return `<span class="${base} bg-purple-100 text-purple-800">${safeStatus}</span>`;
+    if (status === 'Auditoría') return `<span class="${base} bg-cyan-100 text-cyan-800">${safeStatus}</span>`;
+    return `<span class="${base} bg-gray-100 text-gray-800">${safeStatus}</span>`;
+}
+
+function getStatusBadge(order) {
+    const base = "px-2.5 py-0.5 rounded-full text-xs font-medium inline-block";
+    if (order.isVeryLate) return `<span class="${base} bg-red-100 text-red-800">MUY ATRASADA</span><br><small class="text-red-600 text-xs mt-1 block">${order.daysLate}d</small>`;
+    if (order.isLate) return `<span class="${base} bg-red-100 text-red-800">Atrasada</span><br><small class="text-red-500 text-xs mt-1 block">${order.daysLate}d</small>`;
+    if (order.isAboutToExpire) return `<span class="${base} bg-yellow-100 text-yellow-800">Por Vencer</span>`;
+    return `<span class="${base} bg-green-100 text-green-800">A Tiempo</span>`;
+}
+
+function formatDate(date) {
+    if (!date) return '-';
+    return date.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric', timeZone: 'UTC' });
+}
+
+function applySearchFilter(orders, searchText, searchFields = null) {
+    if (!searchText || searchText.trim() === '') return orders;
+    const s = searchText.toLowerCase().trim();
+    const defaultFields = ['cliente', 'codigoContrato', 'estilo', 'teamName', 'departamento', 'designer', 'customStatus', 'notes'];
+    const fields = searchFields || defaultFields;
+    return orders.filter(order =>
+         fields.some(field =>
+            (order[field] || '').toString().toLowerCase().includes(s)
+        )
+    );
+}
+
+function applyMultipleFilters(orders, filters) {
+    let result = [...orders];
+    if (filters.cliente) result = result.filter(o => o.cliente === filters.cliente);
+    if (filters.estilo) result = result.filter(o => o.estilo === filters.estilo);
+    if (filters.teamName) result = result.filter(o => o.teamName === filters.teamName);
+    if (filters.departamento) result = result.filter(o => o.departamento === filters.departamento);
+    if (filters.designer) result = result.filter(o => o.designer === filters.designer);
+    if (filters.customStatus) result = result.filter(o => o.customStatus === filters.customStatus);
+    if (filters.dateFrom) {
+        const fromDate = new Date(filters.dateFrom + 'T00:00:00Z');
+        result = result.filter(o => o.fechaDespacho && o.fechaDespacho >= fromDate);
+    }
+    if (filters.dateTo) {
+        const toDate = new Date(filters.dateTo + 'T23:59:59Z');
+        result = result.filter(o => o.fechaDespacho && o.fechaDespacho <= toDate);
+    }
+    return result;
+}
+
+function getFilteredOrders(applyPagination = true) {
+    let filtered = [...allOrders];
+    filtered = applySearchFilter(filtered, currentSearch);
+    filtered = applyMultipleFilters(filtered, {
+        cliente: currentClientFilter,
+        estilo: currentStyleFilter,
+        teamName: currentTeamFilter,
+        departamento: currentDepartamentoFilter,
+        designer: currentDesignerFilter,
+        customStatus: currentCustomStatusFilter,
+        dateFrom: currentDateFrom,
+        dateTo: currentDateTo
+    });
+    const artOrders = filtered.filter(o => o.departamento === 'P_Art');
+    const otherOrders = filtered.filter(o => o.departamento !== 'P_Art');
+    let filteredArtOrders = artOrders;
+    if (currentFilter === 'late') filteredArtOrders = artOrders.filter(o => o.isLate);
+    if (currentFilter === 'veryLate') filteredArtOrders = artOrders.filter(o => o.isVeryLate);
+    if (currentFilter === 'aboutToExpire') filteredArtOrders = artOrders.filter(o => o.isAboutToExpire);
+    if (currentFilter === 'onTime') filteredArtOrders = artOrders.filter(o => !o.isLate && !o.isAboutToExpire);
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (currentDateFilter === 'thisWeek') {
+        const weekEnd = new Date(today); 
+        weekEnd.setDate(today.getDate()+7);
+        filteredArtOrders = filteredArtOrders.filter(o => o.fechaDespacho && o.fechaDespacho >= today && o.fechaDespacho <= weekEnd);
+    } else if (currentDateFilter === 'thisMonth') {
+        const monthEnd = new Date(today.getFullYear(), today.getMonth()+1, 0);
+        filteredArtOrders = filteredArtOrders.filter(o => o.fechaDespacho && o.fechaDespacho >= today && o.fechaDespacho <= monthEnd);
+    } else if (currentDateFilter === 'nextWeek') {
+        const nextWeekStart = new Date(today);
+        nextWeekStart.setDate(today.getDate() + 7);
+        const nextWeekEnd = new Date(today);
+        nextWeekEnd.setDate(today.getDate() + 14);
+        filteredArtOrders = filteredArtOrders.filter(o => o.fechaDespacho && o.fechaDespacho >= nextWeekStart && o.fechaDespacho <= nextWeekEnd);
+    }
+    if (currentFilter !== 'all' || currentDateFilter !== 'all' || currentDepartamentoFilter === 'P_Art') {
+        filtered = filteredArtOrders;
+    } 
+    else if (currentDepartamentoFilter && currentDepartamentoFilter !== 'P_Art') {
+        filtered = otherOrders;
+    }
+    else {
+        filtered = [...filteredArtOrders, ...otherOrders];
+    }
+    if (sortConfig.key) {
+        filtered.sort((a,b) => {
+            let aVal,bVal;
+            switch (sortConfig.key) {
+                case 'date': aVal = a.fechaDespacho? a.fechaDespacho.getTime():0; bVal = b.fechaDespacho? b.fechaDespacho.getTime():0; break;
+                case 'cliente': aVal = a.cliente; bVal = a.cliente; break;
+                case 'estilo': aVal = a.estilo; bVal = a.estilo; break;
+                case 'teamName': aVal = a.teamName; bVal = a.teamName; break;
+                case 'departamento': aVal = a.departamento; bVal = a.departamento; break;
+                case 'designer': aVal = a.designer || ''; bVal = b.designer || ''; break;
+                case 'customStatus': aVal = a.customStatus || ''; bVal = b.customStatus || ''; break;
+                case 'receivedDate': aVal = a.receivedDate ? new Date(a.receivedDate + 'T00:00:00Z').getTime() : 0; bVal = b.receivedDate ? new Date(b.receivedDate + 'T00:00:00Z').getTime() : 0; break;
+                case 'cantidad': aVal = a.cantidad; bVal = a.cantidad; break;
+                case 'status': aVal = a.isVeryLate?4: a.isLate?3: a.isAboutToExpire?2:1; bVal = b.isVeryLate?4: b.isLate?3: b.isAboutToExpire?2:1; break;
+            }
+            if (aVal < bVal) return sortConfig.direction==='asc' ? -1:1;
+            if (aVal > bVal) return sortConfig.direction==='asc' ? 1:-1;
+            return 0;
+        });
+    }
+    if (applyPagination) {
+        return paginatedOrders;
+    } else {
+        return filtered;
+    }
+}
+
+function setFilter(f) { 
+    currentFilter = f;
+    currentDateFilter = 'all'; 
+    currentPage = 1; 
+    updateDashboard(); 
+}
+function setDateFilter(f) { 
+    currentDateFilter = f;
+    currentFilter = 'all'; 
+    currentPage = 1; 
+    updateDashboard(); 
+}
+function sortTable(key) {
+    if (sortConfig.key === key) {
+        sortConfig.direction = sortConfig.direction==='asc' ? 'desc':'asc';
+    } else { 
+        sortConfig.key = key; 
+        sortConfig.direction='asc'; 
+    }
+    document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent='');
+    const indicator = document.getElementById(`sort-${key}`);
+    if (indicator) indicator.textContent = sortConfig.direction==='asc' ? '↑':'↓';
+    currentPage = 1; 
+    updateTable();
+}
+
+// --- Lógica de Reportes y Exportación ---
+function resetApp() {
+    showConfirmModal("¿Estás seguro de que quieres subir un nuevo archivo de Excel? Los datos de la nube permanecerán, pero la lista se refrescará.", () => {
+        allOrders = [];
+        isExcelLoaded = false;
+        selectedOrders.clear();
+        currentFilter = 'all';
+        currentDateFilter = 'all';
+        currentSearch = '';
+        currentClientFilter = '';
+        currentStyleFilter = '';
+        currentTeamFilter = '';
+        currentDepartamentoFilter = '';
+        currentDesignerFilter = '';
+        currentCustomStatusFilter = '';
+        currentDateFrom = '';
+        currentDateTo = '';
+        sortConfig = { key: 'date', direction: 'asc' };
+        currentPage = 1;
+        needsRecalculation = true;
+        
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('designerMetricsView').style.display = 'none';
+        document.getElementById('uploadSection').style.display = 'block';
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileName').textContent = '';
+        updateMultiSelectBar();
+    }); 
+}
+
+let debounceTimer;
+function debounce(func, delay) {
+    return function() {
+        const context = this;
+        const args = arguments;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => func.apply(context, args), delay);
+    }
+}
+
+// --- Lógica de Métricas de Diseñador ---
 function showMetricsView() {
-    document.getElementById('metricsView').classList.add('active');
-    document.body.classList.add('modal-open');
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('designerMetricsView').style.display = 'block';
+    populateMetricsSidebar();
+    document.getElementById('metricsDetail').innerHTML = `<p class="text-gray-500 text-center py-12">← Selecciona un diseñador de la lista para ver sus estadísticas.</p>`;
+    document.getElementById('multiSelectBar').classList.remove('active'); 
 }
 function hideMetricsView() {
-    document.getElementById('metricsView').classList.remove('active');
-    document.body.classList.remove('modal-open');
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('designerMetricsView').style.display = 'none';
+    destroyDesignerCharts();
+    closeCompareModals(); 
 }
-
-function generateDesignerMetrics(designerName) {
-    document.getElementById('designerMetricsName').textContent = designerName;
-    showMetricsView();
-    
-    // Filtrar órdenes para este diseñador (incluyendo completadas de Firebase)
-    let designerOrders = [];
-    
-    if (designerName === 'Sin asignar') {
-        designerOrders = allOrders.filter(o => o.departamento === 'P_Art' && !o.designer);
-    } else {
-        designerOrders = allOrders.filter(o => o.designer === designerName);
-    }
-
-    // Calcular estadísticas
-    const totalActivas = designerOrders.filter(o => o.departamento === 'P_Art').length;
-    const stats = {
-        bandeja: designerOrders.filter(o => o.customStatus === 'Bandeja').length,
-        produccion: designerOrders.filter(o => o.customStatus === 'Producción').length,
-        auditoria: designerOrders.filter(o => o.customStatus === 'Auditoría').length
-    };
-    const totalCompletadas = designerOrders.filter(o => o.customStatus === 'Completada').length;
-    const totalPiezas = designerOrders.reduce((sum, o) => sum + o.cantidad, 0);
-
-    // Actualizar Stats
-    document.getElementById('designerStatTotal').textContent = totalActivas.toLocaleString();
-    document.getElementById('designerStatBandeja').textContent = stats.bandeja.toLocaleString();
-    document.getElementById('designerStatProduccion').textContent = stats.produccion.toLocaleString();
-    document.getElementById('designerStatAuditoria').textContent = stats.auditoria.toLocaleString();
-    document.getElementById('designerStatCompletadas').textContent = totalCompletadas.toLocaleString();
-    document.getElementById('designerStatPiezas').textContent = totalPiezas.toLocaleString();
-
-    // Generar Gráficos
-    createDesignerDoughnutChart(stats);
-    createDesignerBarChart(designerOrders);
-    createDesignerActivityChart(designerOrders);
-    
-    // Generar Tabla
-    updateDesignerTable(designerOrders);
+function populateMetricsSidebar() {
+    const listDiv = document.getElementById('metricsSidebarList');
+    listDiv.innerHTML = ''; 
+    const pArtOrders = allOrders.filter(o => o.departamento === 'P_Art');
+    const unassignedCount = pArtOrders.filter(o => !o.designer).length;
+    let html = '';
+    const badgeClasses = "bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs font-medium";
+    if (unassignedCount > 0) {
+         html += `<button class="filter-btn" id="btn-metric-Sin-asignar" data-designer="Sin asignar">
+                    Sin asignar <span class="${badgeClasses}">${unassignedCount}</span>
+                 </button>`;
+    }
+    designerList.forEach(name => {
+        const count = pArtOrders.filter(o => o.designer === name).length;
+        if (count > 0) {
+            const safeName = escapeHTML(name);
+            const btnId = `btn-metric-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            html += `<button class="filter-btn" id="${btnId}" data-designer="${safeName}">
+                        ${safeName} <span class="${badgeClasses}">${count}</span>
+                     </button>`;
+        }
+    });
+    listDiv.innerHTML = html;
 }
-
-function updateDesignerTable(designerOrders) {
-    const tbody = document.getElementById('designerMetricsTableBody');
-    tbody.innerHTML = '';
-    
-    if (designerOrders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500 py-6">No hay órdenes para este diseñador.</td></tr>';
-        return;
-    }
-
-    const sorted = designerOrders.sort((a, b) => (b.fechaDespacho ? b.fechaDespacho.getTime() : 0) - (a.fechaDespacho ? a.fechaDespacho.getTime() : 0));
-    
-    sorted.forEach(order => {
-        let rowClass = 'bg-white';
-        if (order.isVeryLate) rowClass = 'bg-red-100';
-        else if (order.isLate) rowClass = 'bg-red-50';
-        
-        tbody.innerHTML += `
-            <tr class="${rowClass}">
-                <td class="table-cell">${escapeHTML(order.codigoContrato)}</td>
-                <td class="table-cell">${escapeHTML(order.cliente)}</td>
-                <td class="table-cell">${escapeHTML(order.estilo)}</td>
-                <td class="table-cell">${formatDate(order.fechaDespacho)}</td>
-                <td class="table-cell">
-                    <span class="badge ${getStatusClass(order.customStatus)}">${escapeHTML(order.customStatus || 'Bandeja')}</span>
-                </td>
-                <td class="table-cell text-right">${order.cantidad.toLocaleString()}</td>
-            </tr>
-        `;
-    });
+function destroyDesignerCharts() {
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+    if (designerActivityChart) { designerActivityChart.destroy(); designerActivityChart = null; }
 }
+async function generateDesignerMetrics(designerName) {
+    showLoading('Generando métricas...');
+    try {
+        const contentDiv = document.getElementById('metricsDetail');
+        contentDiv.innerHTML = '<div class="spinner-container"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto my-12"></div></div><p style="text-align: center;">Cargando métricas...</p>';
+        destroyDesignerCharts();
+        currentDesignerTableFilter = { search: '', cliente: '', estado: '', fechaDesde: '', fechaHasta: '' };
+        document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const btnId = `btn-metric-${designerName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        const activeBtn = document.getElementById(btnId);
+        if (activeBtn) activeBtn.classList.add('active');
+        const pArtOrders = allOrders.filter(o => o.departamento === 'P_Art');
+        const isUnassigned = designerName === 'Sin asignar';
+        const designerOrders = pArtOrders.filter(o => {
+            const matchesDesigner = isUnassigned ? (o.designer === '' || !o.designer) : (o.designer === designerName);
+            return matchesDesigner && o.customStatus !== 'Completada';
+        });
+        const allDesignerOrders = allOrders.filter(o => isUnassigned ? !o.designer : o.designer === designerName);
+        if (allDesignerOrders.length === 0) {
+            contentDiv.innerHTML = '<p class="text-gray-500 text-center py-12">Este diseñador no tiene órdenes asignadas.</p>';
+            hideLoading();
+            return;
+        }
+        const completadas = allDesignerOrders.filter(o => o.customStatus === 'Completada');
+        const completadasATiempo = completadas.filter(o => !o.isLate); 
+        let complianceRate = 0;
+        if (completadas.length > 0) {
+            complianceRate = (completadasATiempo.length / completadas.length) * 100;
+        }
+        let complianceClass = 'text-green-600';
+        if (complianceRate < 90) complianceClass = 'text-yellow-600';
+        if (complianceRate < 70) complianceClass = 'text-red-600';
+        const completadasConTiempo = completadas.filter(o => o.receivedDate && o.completedDate);
+        let avgCompletionSpeed = 0;
+        if (completadasConTiempo.length > 0) {
+            const totalDays = completadasConTiempo.reduce((sum, o) => {
+                try {
+                    const start = new Date(o.receivedDate + 'T00:00:00Z');
+                    const end = new Date(o.completedDate);
+                    const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                    return sum + Math.max(0, diffDays);
+                } catch(e) { console.warn("Error parseando fecha en Velocidad:", e); return sum; }
+            }, 0);
+            avgCompletionSpeed = totalDays / completadasConTiempo.length;
+        }
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
+        const completadasRecientes = completadas.filter(o => {
+            if (!o.completedDate) return false;
+            try { const completedDate = new Date(o.completedDate); return completedDate >= last30Days; } catch (e) { return false; }
+        });
+        const weeklyThroughput = (completadasRecientes.length / 4.2857).toFixed(1);
+        const currentActivePieces = designerOrders.reduce((sum, o) => sum + (o.cantidad || 0) + (o.childPieces || 0), 0);
+        const piezasCompletadasRecientes = completadasRecientes.reduce((sum, o) => sum + (o.cantidad || 0) + (o.childPieces || 0), 0);
+        const weeklyCapacityPieces = (piezasCompletadasRecientes / 4.2857);
+        const estimatedCapacity = weeklyCapacityPieces > 0 ? weeklyCapacityPieces : (weeklyThroughput > 0 ? (weeklyThroughput * 25) : 100);
+        const capacityUsed = estimatedCapacity > 0 ? (currentActivePieces / estimatedCapacity) * 100 : 0;
+        let capacityClass = 'text-green-600';
+        if (capacityUsed > 100) capacityClass = 'text-red-600';
+        else if (capacityUsed > 80) capacityClass = 'text-yellow-600';
+        const clientPieces = {};
+        const stylePieces = {};
+        designerOrders.forEach(o => {
+            const totalOrderPieces = (o.cantidad || 0) + (o.childPieces || 0);
+            clientPieces[o.cliente] = (clientPieces[o.cliente] || 0) + totalOrderPieces;
+            stylePieces[o.estilo] = (stylePieces[o.estilo] || 0) + totalOrderPieces;
+        });
+        const topClient = Object.entries(clientPieces).sort((a,b) => b[1] - a[1])[0];
+        const top5Styles = Object.entries(stylePieces).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const today = new Date();
+        const startOfThisWeek = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1)));
+        startOfThisWeek.setHours(0,0,0,0);
+        const startOfLastWeek = new Date(startOfThisWeek);
+        startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+        const receivedThisWeek = allDesignerOrders.filter(o => o.receivedDate && new Date(o.receivedDate + 'T00:00:00Z') >= startOfThisWeek).length;
+        const receivedLastWeek = allDesignerOrders.filter(o => o.receivedDate && new Date(o.receivedDate + 'T00:00:00Z') >= startOfLastWeek && new Date(o.receivedDate + 'T00:00:00Z') < startOfThisWeek).length;
+        let trendArrow = '→';
+        let trendClass = 'text-gray-500';
+        if (receivedThisWeek > receivedLastWeek) { trendArrow = '↑'; trendClass = 'text-green-600'; }
+        if (receivedThisWeek < receivedLastWeek) { trendArrow = '↓'; trendClass = 'text-red-600'; }
+        const safeDesignerName = escapeHTML(designerName);
+        const btnBase = "font-medium py-2 px-4 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2";
+        const btnSuccess = "bg-green-600 text-white hover:bg-green-700";
+        const btnInfo = "bg-cyan-500 text-white hover:bg-cyan-600";
+        const btnOutline = "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50";
+        contentDiv.innerHTML = `
+            <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">${safeDesignerName}</h2>
+                <div class="flex flex-wrap gap-2">
+                    <button class="${btnBase} ${btnSuccess}" onclick="exportDesignerMetricsPDF('${safeDesignerName.replace(/'/g, "\\'")}')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>Exportar PDF</button>
+                    <button class="${btnBase} ${btnInfo}" onclick="exportDesignerMetricsExcel('${safeDesignerName.replace(/'/g, "\\'")}')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0 1 9.75 19.875V8.625ZM16.5 3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v16.5c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0 1 16.5 19.875V3.375Z" /></svg>Exportar Excel</button>
+                    <button class="font-medium py-2 px-4 rounded-lg text-sm bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-2 shadow-sm" onclick="exportToPDF()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Exportar PDF
+                </button>
+            </div>
+        </div>
 
-// ======================================================
-// ===== LÓGICA DE GRÁFICOS (Chart.js) =====
-// ======================================================
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+                <div class="text-gray-500 text-sm font-medium uppercase">Total Pedidos</div>
+                <div class="text-3xl font-bold text-gray-900 mt-2" id="kpiTotal">0</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+                <div class="text-gray-500 text-sm font-medium uppercase">Completados</div>
+                <div class="text-3xl font-bold text-gray-900 mt-2" id="kpiCompleted">0</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+                <div class="text-gray-500 text-sm font-medium uppercase">En Proceso</div>
+                <div class="text-3xl font-bold text-gray-900 mt-2" id="kpiPending">0</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
+                <div class="text-gray-500 text-sm font-medium uppercase">Pendientes / Retrasados</div>
+                <div class="text-3xl font-bold text-gray-900 mt-2" id="kpiDelayed">0</div>
+            </div>
+        </div>
 
-function createDesignerDoughnutChart(stats) {
-    const ctx = document.getElementById('designerDoughnutChart');
-    if (designerDoughnutChart) designerDoughnutChart.destroy();
-    
-    const total = stats.bandeja + stats.produccion + stats.auditoria;
-    const data = (total === 0) ? [1] : [stats.bandeja, stats.produccion, stats.auditoria];
-    const labels = (total === 0) ? ['Sin órdenes'] : ['Bandeja', 'Producción', 'Auditoría'];
-    const colors = (total === 0) ? ['#E5E7EB'] : [tailwind.config.theme.extend.colors['chart-bandeja'], tailwind.config.theme.extend.colors['chart-produccion'], tailwind.config.theme.extend.colors['chart-auditoria']];
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Estatutos de Pedidos</h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Carga por Diseñador</h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="designerChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-    designerDoughnutChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                hoverOffset: 4
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-    });
-}
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-bold text-gray-800">Detalle de Pedidos</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="dataTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Diseñador</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="tableBody">
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">Carga un archivo para ver datos</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-function createDesignerBarChart(orders) {
-    const ctx = document.getElementById('designerBarChart');
-    if (designerBarChart) designerBarChart.destroy();
-    
-    let clientData = new Map();
-    orders.forEach(o => {
-        const pieces = clientData.get(o.cliente) || 0;
-        clientData.set(o.cliente, pieces + o.cantidad);
-    });
-    
-    const sortedClients = [...clientData.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
-    const labels = sortedClients.map(c => c[0]);
-    const data = sortedClients.map(c => c[1]);
+    <div id="designerModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 50;">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Gestionar Diseñadores</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500">Funcionalidad para agregar o editar lista de diseñadores.</p>
+                    <textarea class="w-full border rounded p-2 mt-2" placeholder="Lista de diseñadores..."></textarea>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="closeModal" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    designerBarChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Piezas por Cliente',
-                data: data,
-                backgroundColor: '#3B82F6',
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-}
+    <script>
+        // --- 1. CONFIGURACIÓN DE FIREBASE ---
+        // IMPORTANTE: Reemplaza esto con tu configuración real de Firebase Console
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "tu-proyecto.firebaseapp.com",
+            projectId: "tu-proyecto",
+            storageBucket: "tu-proyecto.appspot.com",
+            messagingSenderId: "TU_ID",
+            appId: "TU_APP_ID"
+        };
 
-function createDesignerActivityChart(orders) {
-    const ctx = document.getElementById('designerActivityChart');
-    if (designerActivityChart) designerActivityChart.destroy();
-    
-    let completedData = new Map();
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        // Inicializar Firebase (Try/Catch para evitar errores si no hay config)
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+            console.log("Firebase inicializado");
+        } catch (e) {
+            console.error("Error iniciando Firebase. Revisa la config.", e);
+        }
 
-    orders.forEach(o => {
-        if (o.customStatus === 'Completada' && o.completedDate) {
-            const d = new Date(o.completedDate);
-            if (d >= thirtyDaysAgo) {
-                const day = d.toISOString().split('T')[0];
-                const count = completedData.get(day) || 0;
-                completedData.set(day, count + 1);
-            }
-        }
-    });
-    
-    const sortedData = [...completedData.entries()].sort((a, b) => new Date(a[0]) - new Date(b[0]));
-    const labels = sortedData.map(d => d[0]);
-    const data = sortedData.map(d => d[1]);
+        // --- 2. VARIABLES GLOBALES ---
+        let globalData = [];
+        let charts = {};
 
-    designerActivityChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Órdenes Completadas (Últimos 30 días)',
-                data: data,
-                borderColor: '#10B981',
-                tension: 0.1
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-}
+        // --- 3. MANEJO DE DOM Y EVENTOS ---
+        const loginSection = document.getElementById('loginSection');
+        const uploadSection = document.getElementById('uploadSection');
+        const dashboard = document.getElementById('dashboard');
+        const fileInput = document.getElementById('fileInput');
+        
+        // Evento Login (Simulado para demostración si no hay Firebase configurado)
+        document.getElementById('loginButton').addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            // Si tienes Firebase configurado, descomenta la siguiente línea:
+            // firebase.auth().signInWithPopup(provider).then(result => handleLoginSuccess(result.user)).catch(error => alert(error.message));
+            
+            // Simulación de login exitoso para probar la UI:
+            handleLoginSuccess({ displayName: 'Administrador Demo' });
+        });
 
-// ======================================================
-// ===== LÓGICA DE COMPARACIÓN (MODAL Y GRÁFICO) =====
-// ======================================================
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            // firebase.auth().signOut();
+            window.location.reload();
+        });
 
-function openCompareModal() {
-    const options = designerList.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
-    document.getElementById('compareDesigner1').innerHTML = `<option value="">Seleccionar...</option>${options}`;
-    document.getElementById('compareDesigner2').innerHTML = `<option value="">Seleccionar...</option>${options}`;
-    
-    document.getElementById('compareModal').classList.add('active');
-    document.body.classList.add('modal-open');
-    
-    // Limpiar gráfico anterior
-    if (compareChart) compareChart.destroy();
-    document.getElementById('compareChartContainer').style.display = 'none';
-}
+        function handleLoginSuccess(user) {
+            document.getElementById('userName').textContent = user.displayName || "Usuario";
+            loginSection.style.display = 'none';
+            uploadSection.style.display = 'block';
+            document.getElementById('dbStatus').textContent = "🟢 Conectado";
+            document.getElementById('dbStatus').classList.replace('text-gray-500', 'text-green-600');
+        }
 
-function closeCompareModals() {
-    document.getElementById('compareModal').classList.remove('active');
-    document.body.classList.remove('modal-open');
-}
+        // Evento Carga de Archivo
+        fileInput.addEventListener('change', handleFileUpload);
 
-function generateCompareChart() {
-    const d1_name = document.getElementById('compareDesigner1').value;
-    const d2_name = document.getElementById('compareDesigner2').value;
-  if (!d1_name || !d2_name) {
-        showCustomAlert("Debes seleccionar dos diseñadores", "error");
-        return;
-    }
-    if (d1_name === d2_name) {
-        showCustomAlert("Debes seleccionar dos diseñadores diferentes", "error");
-        return;
-    }
+        // --- 4. LÓGICA DE EXCEL ---
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-    const getStats = (name) => {
-        const orders = allOrders.filter(o => o.designer === name);
-        const activas = orders.filter(o => o.departamento === 'P_Art' && o.customStatus !== 'Completada').length;
-        const completadas = orders.filter(o => o.customStatus === 'Completada').length;
-        const piezas = orders.reduce((sum, o) => sum + o.cantidad, 0);
-        return { activas, completadas, piezas };
-    };
+            document.getElementById('fileName').textContent = `Archivo: ${file.name}`;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                
+                // Asumimos que los datos están en la primera hoja
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convertir a JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                processData(jsonData);
+                
+                // Cambiar vista
+                uploadSection.style.display = 'none';
+                dashboard.style.display = 'block';
+            };
+            reader.readAsArrayBuffer(file);
+        }
 
-    const d1_stats = getStats(d1_name);
-    const d2_stats = getStats(d2_name);
+        // --- 5. PROCESAMIENTO DE DATOS ---
+        function processData(data) {
+            globalData = data;
+            
+            // Nota: Aquí asumo nombres de columnas comunes en Excel. 
+            // Ajusta 'Estado', 'Diseñador', 'Cliente' según tu Excel real.
+            
+            // Contadores
+            let total = data.length;
+            let completed = 0;
+            let pending = 0;
+            let delayed = 0;
+            
+            // Mapeos para gráficos
+            const statusCounts = {};
+            const designerCounts = {};
 
-    const labels = ['Órdenes Activas', 'Órdenes Completadas', 'Total Piezas'];
-    
-    const ctx = document.getElementById('compareChart');
-    if (compareChart) compareChart.destroy();
+            data.forEach(row => {
+                // Normalizar claves (ajusta estas claves según las columnas de tu Excel)
+                const status = row['Status'] || row['Estado'] || 'Desconocido';
+                const designer = row['Designer'] || row['Diseñador'] || 'Sin Asignar';
+                
+                // KPIs
+                if(String(status).toLowerCase().includes('listo') || String(status).toLowerCase().includes('entregado')) {
+                    completed++;
+                } else if (String(status).toLowerCase().includes('pendiente')) {
+                    pending++;
+                } else {
+                    delayed++;
+                }
 
-    document.getElementById('compareChartContainer').style.display = 'block';
+                // Datos Gráficos
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+                designerCounts[designer] = (designerCounts[designer] || 0) + 1;
+            });
 
-    compareChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: d1_name,
-                    data: [d1_stats.activas, d1_stats.completadas, d1_stats.piezas],
-                    backgroundColor: 'rgba(59, 130, 246, 0.7)', // Blue
-                },
-                {
-                    label: d2_name,
-                    data: [d2_stats.activas, d2_stats.completadas, d2_stats.piezas],
-                    backgroundColor: 'rgba(245, 158, 11, 0.7)', // Amber
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } },
-            plugins: { legend: { position: 'top' } }
-        }
-    });
-}
+            // Actualizar DOM KPIs
+            document.getElementById('kpiTotal').textContent = total;
+            document.getElementById('kpiCompleted').textContent = completed;
+            document.getElementById('kpiPending').textContent = pending;
+            document.getElementById('kpiDelayed').textContent = delayed;
 
+            renderCharts(statusCounts, designerCounts);
+            renderTable(data);
+        }
 
-// ======================================================
-// ===== FUNCIONES UTILITARIAS (Formato, Helpers) =====
-// ======================================================
+        // --- 6. GRÁFICOS (CHART.JS) ---
+        function renderCharts(statusData, designerData) {
+            // Destruir gráficos anteriores si existen para evitar superposición
+            if(charts.status) charts.status.destroy();
+            if(charts.designer) charts.designer.destroy();
 
-/**
- * Formatea un objeto Date a 'dd/MM/yyyy'.
- */
-function formatDate(date) {
-    if (!date || !(date instanceof Date) || isNaN(date)) {
-        return '-';
-    }
-    // Asegurarse de que estamos tratando con UTC para evitar problemas de zona horaria
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const year = date.getUTCFullYear();
-    return `${day}/${month}/${year}`;
-}
+            // Gráfico de Estado (Pie)
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            charts.status = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusData),
+                    datasets: [{
+                        data: Object.values(statusData),
+                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6B7280'],
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
 
-/**
- * Devuelve la clase de Tailwind para un badge de departamento.
- */
-function getBadgeClass(dept) {
-    switch (dept) {
-        case 'P_Art': return 'badge-art';
-        case 'P_Order_Entry': return 'badge-entry';
-        case 'P_Printing': return 'badge-printing';
-        case 'P_Press': return 'badge-press';
-        case 'P_Cut': return 'badge-cut';
-        case 'P_Sew': return 'badge-sew';
-        case 'P_Packing': return 'badge-packing';
-        case 'P_Shipping': return 'badge-shipping';
-        default: return 'badge-default';
-    }
-}
+            // Gráfico de Diseñadores (Bar)
+            const ctxDesigner = document.getElementById('designerChart').getContext('2d');
+            charts.designer = new Chart(ctxDesigner, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(designerData),
+                    datasets: [{
+                        label: 'Pedidos Asignados',
+                        data: Object.values(designerData),
+                        backgroundColor: '#6366F1',
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
 
-/**
- * Devuelve la clase de Tailwind para un badge de estado.
- */
-function getStatusClass(status) {
-    switch (status) {
-        case 'Bandeja': return 'badge-bandeja';
-        case 'Producción': return 'badge-produccion';
-        case 'Auditoría': return 'badge-auditoria';
-        case 'Completada': return 'badge-completada';
-        default: return 'badge-default';
-    }
-}
+        // --- 7. TABLA ---
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
 
-/**
- * Función Debounce para listeners de input (como la búsqueda).
- */
-function debounce(func, delay) {
-    let timeout;
-    return function(...args) {
-        const context = this;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), delay);
-    };
-}
+            // Mostramos solo los primeros 50 para no saturar el DOM
+            data.slice(0, 50).forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${row['ID'] || row['Order'] || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${row['Client'] || row['Cliente'] || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${row['Description'] || row['Descripción'] || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                            ${row['Designer'] || row['Diseñador'] || 'N/A'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${row['Status'] || row['Estado'] || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${row['Date'] || row['Fecha'] || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
+        // --- 8. UTILIDADES Y MODALES ---
+        function openDesignerManager() {
+            document.getElementById('designerModal').classList.remove('hidden');
+        }
+
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('designerModal').classList.add('hidden');
+        });
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.text("Reporte de Arte v5.2", 14, 15);
+            doc.setFontSize(10);
+            doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 22);
+
+            // Usando autoTable plugin
+            const headers = [['ID', 'Cliente', 'Diseñador', 'Estado']];
+            const data = globalData.map(row => [
+                row['ID'] || row['Order'] || '',
+                row['Client'] || row['Cliente'] || '',
+                row['Designer'] || row['Diseñador'] || '',
+                row['Status'] || row['Estado'] || ''
+            ]);
+
+            doc.autoTable({
+                head: headers,
+                body: data,
+                startY: 30,
+            });
+
+            doc.save('reporte-arte.pdf');
+        }
+    </script>
+</body>
+</html>
