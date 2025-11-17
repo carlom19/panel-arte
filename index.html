@@ -3,286 +3,559 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v5.1 (Cloud Fixed)</title>
+    <title>Panel de Producción v5.1</title>
+    
+    <script src="https://cdn.tailwindcss.com?_VERSION=3.4.1"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <style>
+        /* Clases de Badges (definidas en app.js) */
+        .badge { @apply px-2 py-0.5 rounded-full text-xs font-medium; }
+        .badge-art { @apply bg-blue-100 text-blue-800; }
+        .badge-entry { @apply bg-gray-100 text-gray-800; }
+        .badge-printing { @apply bg-indigo-100 text-indigo-800; }
+        .badge-press { @apply bg-purple-100 text-purple-800; }
+        .badge-cut { @apply bg-pink-100 text-pink-800; }
+        .badge-sew { @apply bg-cyan-100 text-cyan-800; }
+        .badge-packing { @apply bg-teal-100 text-teal-800; }
+        .badge-shipping { @apply bg-green-100 text-green-800; }
+        .badge-default { @apply bg-gray-100 text-gray-700; }
+        
+        /* Badges de Estado (definidos en app.js) */
+        .badge-bandeja { @apply bg-amber-100 text-amber-800; }
+        .badge-produccion { @apply bg-purple-100 text-purple-800; }
+        .badge-auditoria { @apply bg-blue-100 text-blue-800; }
+        .badge-completada { @apply bg-green-100 text-green-800; }
+        
+        /* Estilos de Modales */
+        .modal, .full-modal-view {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active, .full-modal-view.active { display: flex; }
+        .modal-content {
+            @apply bg-gray-100 rounded-lg shadow-xl w-full;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .full-modal-view .modal-content {
+            max-width: 95vw;
+            width: 95vw;
+            height: 95vh;
+            max-height: 95vh;
+        }
+        .modal-body { overflow-y: auto; }
+        body.modal-open { overflow: hidden; }
 
-    <link rel="stylesheet" href="estilos.css">
+        /* Estilos de Tabla */
+        .table-cell { @apply px-4 py-3 text-sm text-gray-700 whitespace-nowrap; }
+        .table-header { @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider; }
+        tr.selected-row { @apply bg-blue-100; }
+
+        /* Overlay de Carga */
+        .loading-overlay {
+            position: fixed;
+            z-index: 100;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s ease infinite;
+        }
+        .loading-overlay p { @apply text-lg font-medium text-gray-800 mt-4; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Botón de Paginación */
+        .pagination-btn { @apply mx-1 px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50; }
+        .pagination-btn.active { @apply bg-blue-500 text-white border-blue-500; }
+        .pagination-btn.disabled { @apply opacity-50 cursor-not-allowed; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans text-gray-900">
+<body class="bg-gray-100 font-sans">
 
-    <div id="loginSection" class="max-w-md mx-auto my-20 bg-white rounded-lg shadow-xl p-8 text-center">
-        <svg class="w-16 h-16 mx-auto text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.333-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-        </svg>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Panel de Control - Arte v5.1</h1>
-        <p class="text-gray-600 mb-8">Por favor, inicia sesión con tu cuenta de Google.</p>
-        <button id="loginButton" class="w-full inline-flex justify-center items-center gap-3 bg-blue-600 text-white font-medium py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-sm cursor-pointer">
-            Iniciar Sesión con Google
-        </button>
-    </div>
+    <div id="customAlert" style="display: none;" class="fixed top-5 right-5 z-[101] max-w-md shadow-lg"></div>
 
-    <div id="uploadSection" class="max-w-3xl mx-auto my-12 bg-white rounded-lg shadow-xl p-8 text-center" style="display: none;">
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Paso 2: Cargar Archivo Excel</h1>
-        <p class="text-gray-600 mb-8">Sube tu archivo Excel "Working Process All" para sincronizar.</p>
-        
-        <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-lg p-12 cursor-pointer bg-gray-50 hover:bg-gray-100 hover:border-blue-500 transition-colors">
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Arrastra tu archivo aquí</h3>
-            <p class="text-sm text-gray-500 mb-4">o</p>
-            <label for="fileInput">
-                <span class="mt-4 inline-block bg-indigo-600 text-white font-medium py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer">Seleccionar Archivo</span>
-            </label>
-            <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+
+    <section id="loginSection" class="flex items-center justify-center min-h-screen">
+        <div class="p-8 bg-white rounded-lg shadow-md text-center">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">Panel de Producción</h1>
+            <button id="loginButton" class="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48px" height="48px"><path fill="#fbc02d" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12	s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20	s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#e53935" d="M6.306,14.691l6.012,4.631C12.63,15.141,12.962,12.99,13.656,11l-5.657-5.657C6.801,6.669,6,8.258,6,10	C6,11.956,6.195,13.805,6.306,14.691z"/><path fill="#4caf50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-4.79C29.211,35.091,26.715,36,24,36	c-5.202,0-9.619-3.317-11.283-7.946l-6.012,4.631C8.718,38.632,15.81,44,24,44z"/><path fill="#1565c0" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571	c0.001-0.001,0.002-0.001,0.003-0.002l6.19,4.79c-3.51,3.226-8.243,5.192-13.409,5.192c-8.19,0-15.282-5.368-18.194-12.831	l6.012-4.631C9.619,20.317,14.002,24,20,24c2.671,0,5.127-0.912,7.039-2.498l5.657,5.657C34.046,29.947,29.268,32,24,32	c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4	C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+                Iniciar sesión con Google
+            </button>
         </div>
-        <div class="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-6 text-left">
-            <h4 class="text-lg font-semibold text-gray-800 mb-4">✨ v5.1 (Cloud Fixed)</h4>
-            <ul class="text-sm text-gray-600 list-disc list-inside space-y-2">
-                <li>☁️ Base de Datos en la Nube (Firebase).</li>
-                <li>⚡ Sincronización en tiempo real.</li>
-                <li>✅ Estabilidad mejorada en tablas y modales.</li>
-            </ul>
-        </div>
-    </div>
+    </section>
 
-    <div id="dashboard" class="container mx-auto px-4 py-8" style="display: none;">
-        
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex flex-wrap justify-between items-center gap-4">
+    <section id="uploadSection" class="min-h-screen p-8" style="display: none;">
+        <div class="max-w-7xl mx-auto py-4 flex justify-between items-center">
+            <h2 class="text-2xl font-semibold text-gray-800">Panel de Producción</h2>
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Panel de Control - Arte v5.1</h1>
-                <p class="text-sm text-gray-500 mt-1">
-                    <span id="fileName"></span>
-                    <span id="dbStatus" class="ml-3 font-medium text-gray-500">Conectando...</span>
-                    <span class="ml-3">Hola, <span id="userName" class="font-bold text-gray-900">Usuario</span></span>
-                    <button id="logoutButton" class="ml-4 text-xs font-medium text-red-600 hover:underline cursor-pointer">(Cerrar Sesión)</button>
-                </p>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="openDesignerManager()">Gestionar Diseñadores</button>
-                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="showMetricsView()">Métricas Diseñador</button>
-                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2" onclick="resetApp()">Sincronizar Excel</button>
+                <span id="userName" class="mr-4 font-medium text-gray-700"></span>
+                <button id="logoutButton" class="text-sm font-medium text-blue-600 hover:text-blue-800">Cerrar sesión</button>
             </div>
         </div>
-
-        <div id="customAlert" style="display: none;"></div>
-        <div id="summaryBox" class="bg-white rounded-lg shadow-lg p-6 mb-6 border-l-4 border-blue-600"></div>
-        <div id="alerts"></div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Total en P_Art</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statTotal">0</div></div><div class="bg-blue-100 text-blue-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M5 7h14"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Total Cantidad</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statTotalPieces">0</div></div><div class="bg-purple-100 text-purple-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Atrasadas</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statLate">0</div></div><div class="bg-red-100 text-red-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Por Vencer</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statExpiring">0</div></div><div class="bg-yellow-100 text-yellow-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">A Tiempo</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statOnTime">0</div></div><div class="bg-green-100 text-green-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Esta Semana</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statThisWeek">0</div></div><div class="bg-orange-100 text-orange-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div></div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div class="lg:col-span-1 bg-white rounded-lg shadow-lg p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Clientes (Activas)</h3>
-                <div class="max-h-60 overflow-y-auto" id="clientReport"></div>
-            </div>
-            <div class="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
-                <div class="flex justify-between items-center mb-4 gap-2"><h3 class="text-lg font-semibold text-gray-900">Carga de Trabajo</h3><span class="text-sm text-gray-500 font-medium" id="workloadTotal">0 piezas</span></div>
-                <div id="workloadList" class="space-y-4"></div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-6">Búsqueda y Filtros</h3>
-            <div class="mb-6">
-                <input type="text" id="searchInput" placeholder="Buscar (Ctrl+F)..." class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div class="filter-item"><label>Cliente:</label><select id="clientFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
-                <div class="filter-item"><label>Estilo:</label><select id="styleFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
-                <div class="filter-item"><label>Team:</label><select id="teamFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
-                <div class="filter-item"><label>Depto:</label><select id="departamentoFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
-                <div class="filter-item"><label>Diseñador:</label><select id="designerFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
-                <div class="filter-item"><label>Estado:</label><select id="customStatusFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
-                <div class="filter-item"><label>Desde:</label><input type="date" id="dateFrom" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></div>
-                <div class="filter-item"><label>Hasta:</label><input type="date" id="dateTo" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></div>
-                <div class="filter-item flex items-end"><button class="w-full py-2 px-4 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50" onclick="clearAllFilters()">Limpiar Filtros</button></div>
-            </div>
-        </div>
-
-        <div class="filters bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div class="mb-4"><label class="block font-semibold mb-2">Estado de Entrega:</label><div class="flex rounded-lg border border-gray-300 overflow-hidden" id="statusFilters"></div></div>
-            <div><label class="block font-semibold mb-2">Fecha:</label><div class="flex rounded-lg border border-gray-300 overflow-hidden" id="dateFilters"></div></div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-            <div class="table-container overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 data-table">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 w-12"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
-                            <th onclick="sortTable('status')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estado <span id="sort-status"></span></th>
-                            <th onclick="sortTable('date')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Fecha <span id="sort-date"></span></th>
-                            <th onclick="sortTable('cliente')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Cliente <span id="sort-cliente"></span></th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Código</th>
-                            <th onclick="sortTable('estilo')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estilo <span id="sort-estilo"></span></th>
-                            <th onclick="sortTable('teamName')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Team <span id="sort-teamName"></span></th>
-                            <th onclick="sortTable('departamento')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Depto <span id="sort-departamento"></span></th>
-                            <th onclick="sortTable('designer')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Diseñador <span id="sort-designer"></span></th>
-                            <th onclick="sortTable('customStatus')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estado Orden <span id="sort-customStatus"></span></th>
-                            <th onclick="sortTable('receivedDate')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Recibida <span id="sort-receivedDate"></span></th>
-                            <th onclick="sortTable('cantidad')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Cant. <span id="sort-cantidad"></span></th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Notas</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="pagination-container bg-white rounded-lg shadow-lg p-4 flex items-center justify-between gap-4">
-            <div>
-                <label>Filas:</label>
-                <select id="rowsPerPage" onchange="changeRowsPerPage()" class="ml-2 border-gray-300 rounded-lg">
-                    <option value="25">25</option><option value="50" selected>50</option><option value="100">100</option><option value="250">250</option>
-                </select>
-            </div>
-            <div><span id="resultCount">0</span> de <span id="totalCount">0</span> | <strong><span id="resultPieces">0</span> piezas</strong> (Pág <span id="currentPage">1</span>/<span id="totalPages">1</span>)</div>
-            <div class="pagination-controls flex gap-1" id="paginationControls"></div>
-        </div>
-
-        <div id="multiSelectBar" class="multi-select-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl p-4 flex items-center gap-4 z-50">
-            <span class="font-semibold text-blue-600"><span id="selectedCount">0</span> seleccionadas</span>
-            <button class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700" onclick="openMultiAssignModal()">Asignar</button>
-            <button class="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300" onclick="clearSelection()">Cancelar</button>
-        </div>
-
-    </div> 
-
-    <div id="designerMetricsView" class="p-4 md:p-6" style="display: none;">
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex justify-between items-center">
-            <h1 class="text-2xl font-bold">Métricas por Diseñador</h1>
-            <button class="py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50" onclick="hideMetricsView()">Volver</button>
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
-            <div class="lg:col-span-1 bg-white rounded-lg shadow-lg p-6"><h3 class="font-semibold mb-4">Seleccionar</h3><div id="metricsSidebarList" class="space-y-2"></div></div>
-            <div id="metricsDetail" class="lg:col-span-3 bg-white rounded-lg shadow-lg p-6"></div>
-        </div>
-    </div>
-    
-    <div id="assignModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all">
-            <div class="flex justify-between items-center p-6 border-b"><h2 class="text-2xl font-semibold">Editar Orden</h2><button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">X</button></div>
-            <div class="p-6 space-y-4">
-                <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border">
-                    <div><div class="text-xs text-gray-500 uppercase">Cliente</div><div id="detailCliente" class="font-semibold">-</div></div>
-                    <div><div class="text-xs text-gray-500 uppercase">Código</div><div id="detailCodigo" class="font-semibold">-</div></div>
-                    <div><div class="text-xs text-gray-500 uppercase">Estilo</div><div id="detailEstilo" class="font-semibold">-</div></div>
-                    <div><div class="text-xs text-gray-500 uppercase">Depto</div><div id="detailDepartamento" class="font-semibold">-</div></div>
-                    <div><div class="text-xs text-gray-500 uppercase">Fecha</div><div id="detailFecha" class="font-semibold">-</div></div>
-                    <div><div class="text-xs text-gray-500 uppercase">Piezas</div><div id="detailPiezas" class="font-semibold">-</div></div>
+        <div class="flex items-center justify-center mt-10">
+            <div class="w-full max-w-lg">
+                <div id="dropZone" class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h.586a1 1 0 01.707.293l.828.828A1 1 0 009.828 4H14.172a1 1 0 00.707-.293l.828-.828A1 1 0 0116.414 3H17a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path></svg>
+                        <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
+                        <p class="text-xs text-gray-500">Solo archivos .XLSX o .XLS</p>
+                    </div>
+                    <input id="fileInput" type="file" class="hidden" accept=".xlsx, .xls">
                 </div>
-                <div><label>Diseñador:</label><select id="modalDesigner" class="w-full border rounded px-3 py-2"></select></div>
-                <div><label>Estado:</label><select id="modalStatus" class="w-full border rounded px-3 py-2"><option value="">Sin estado</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option><option value="Completada">Completada</option></select></div>
-                <div><label>Fecha Recibida:</label><input type="date" id="modalReceivedDate" class="w-full border rounded px-3 py-2"></div>
-                <div><label>Notas:</label><textarea id="modalNotes" class="w-full border rounded px-3 py-2"></textarea></div>
-                <div><label>Historial:</label><div id="modalHistory" class="max-h-48 overflow-y-auto bg-gray-50 border rounded p-3 space-y-2"></div></div>
-                <div class="pt-4 border-t">
-                    <div class="flex justify-between items-center mb-2"><label>Órdenes Hijas (<span id="childOrderCount">0</span>):</label><button id="addChildOrderBtn" class="bg-green-600 text-white text-xs py-1 px-3 rounded hover:bg-green-700" onclick="openAddChildModal()">+ Hija</button></div>
-                    <div id="childOrdersList" class="max-h-56 overflow-y-auto bg-gray-50 border rounded p-3 space-y-2"></div>
+                <p id="fileName" class="mt-2 text-sm text-gray-600 font-medium"></p>
+            </div>
+        </div>
+    </section>
+
+    <main id="dashboard" class="p-4 md:p-8" style="display: none;">
+        
+        <nav class="flex flex-wrap justify-between items-center pb-4 mb-4 border-b border-gray-300">
+            <div class="flex items-center">
+                <h1 class="text-3xl font-bold text-gray-900">Panel de Producción</h1>
+                <span id="dbStatus" class="ml-3 font-medium text-yellow-600">● Conectando...</span>
+            </div>
+            <div class="flex items-center space-x-2 mt-2 md:mt-0">
+                <button onclick="openCompareModal()" class="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-md shadow-sm">Comparar</button>
+                <button onclick="openDesignerManager()" class="text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 px-3 py-2 rounded-md shadow-sm">Administrar Diseñadores</button>
+                <span id="userName" class="hidden md:inline-block ml-4 font-medium text-gray-700"></span>
+                <button id="logoutButton" class="text-sm font-medium text-blue-600 hover:text-blue-800 px-3 py-2">Cerrar sesión</button>
+            </div>
+        </nav>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <h3 class="text-sm font-medium text-gray-500 truncate">Total Órdenes</h3>
+                <p id="summaryTotal" class="mt-1 text-3xl font-semibold text-gray-900">0</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <h3 class="text-sm font-medium text-gray-500 truncate">Total P_Art</h3>
+                <p id="summaryPArt" class="mt-1 text-3xl font-semibold text-blue-600">0</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <h3 class="text-sm font-medium text-amber-500 truncate">En Bandeja</h3>
+                <p id="summaryBandeja" class="mt-1 text-3xl font-semibold text-amber-600">0</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <h3 class="text-sm font-medium text-purple-500 truncate">En Producción</h3>
+                <p id="summaryProduccion" class="mt-1 text-3xl font-semibold text-purple-600">0</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <h3 class="text-sm font-medium text-blue-500 truncate">En Auditoría</h3>
+                <p id="summaryAuditoria" class="mt-1 text-3xl font-semibold text-blue-500">0</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <h3 class="text-sm font-medium text-red-500 truncate">Atrasadas</h3>
+                <p id="summaryAtrasadas" class="mt-1 text-3xl font-semibold text-red-600">0</p>
+            </div>
+        </div>
+        
+        <div class="flex flex-col lg:flex-row gap-6">
+
+            <div class="flex-grow w-full lg:w-3/4">
+
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <div class="col-span-1 md:col-span-3 lg:col-span-2">
+                            <label for="searchInput" class="block text-sm font-medium text-gray-700">Buscar (Código, Cliente, Estilo)</label>
+                            <input type="text" id="searchInput" placeholder="Escribe para buscar..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="clientFilter" class="block text-sm font-medium text-gray-700">Cliente</label>
+                            <select id="clientFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></select>
+                        </div>
+                        <div>
+                            <label for="styleFilter" class="block text-sm font-medium text-gray-700">Estilo</label>
+                            <select id="styleFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></select>
+                        </div>
+                        <div>
+                            <label for="teamFilter" class="block text-sm font-medium text-gray-700">Team</label>
+                            <select id="teamFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></select>
+                        </div>
+                        <div>
+                            <label for="departamentoFilter" class="block text-sm font-medium text-gray-700">Departamento</label>
+                            <select id="departamentoFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></select>
+                        </div>
+                        <div>
+                            <label for="designerFilter" class="block text-sm font-medium text-gray-700">Diseñador</label>
+                            <select id="designerFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></select>
+                        </div>
+                        <div>
+                            <label for="customStatusFilter" class="block text-sm font-medium text-gray-700">Estado P_Art</label>
+                            <select id="customStatusFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="">Todos</option>
+                                <option value="Bandeja">Bandeja</option>
+                                <option value="Producción">Producción</option>
+                                <option value="Auditoría">Auditoría</option>
+                                <option value="Completada">Completada</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="dateFrom" class="block text-sm font-medium text-gray-700">Fecha Desde</label>
+                            <input type="date" id="dateFrom" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="dateTo" class="block text-sm font-medium text-gray-700">Fecha Hasta</label>
+                            <input type="date" id="dateTo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="selectionBar" class="hidden fixed bottom-0 left-0 w-full bg-blue-600 text-white p-4 shadow-lg z-40 flex justify-between items-center">
+                    <div>
+                        <span id="selectionCount" class="font-medium">0 órdenes seleccionadas</span>
+                        <button onclick="clearSelection()" class="ml-4 text-sm font-medium text-blue-100 hover:text-white">Limpiar</button>
+                    </div>
+                    <div>
+                        <button onclick="openMultiAssignModal()" class="px-4 py-2 bg-white text-blue-600 font-medium rounded-md shadow-sm hover:bg-blue-50">Asignar en Masa</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="table-header w-12">
+                                        <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" class="form-checkbox">
+                                    </th>
+                                    <th class="table-header">Fecha</th>
+                                    <th class="table-header">Cliente</th>
+                                    <th class="table-header">Código</th>
+                                    <th class="table-header">Estilo</th>
+                                    <th class="table-header">Team</th>
+                                    <th class="table-header">Depto</th>
+                                    <th class="table-header">Estado P_Art</th>
+                                    <th class="table-header">Diseñador</th>
+                                    <th class="table-header text-right">Piezas</th>
+                                    <th class="table-header text-right">P. Hijas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody" class="divide-y divide-gray-200">
+                                <tr><td colspan="11" class="text-center text-gray-500 py-10">Cargando datos...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mt-4">
+                    <div id="tableSummary" class="text-sm text-gray-700"></div>
+                    <div id="paginationControls" class="flex"></div>
                 </div>
             </div>
-            <div class="flex justify-end gap-2 p-6 bg-gray-50 border-t">
-                <button class="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300" onclick="closeModal()">Cancelar</button>
-                <button class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700" onclick="asignarmeAmi()">Asignarme a mí</button>
-                <button class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700" onclick="saveAssignment()">Guardar</button>
+
+            <aside class="w-full lg:w-1/4">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sticky top-4">
+                    <h3 class="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Carga de Trabajo (P_Art)</h3>
+                    <div id="metricsSidebarList" class="space-y-3 max-h-[80vh] overflow-y-auto">
+                        </div>
+                </div>
+            </aside>
+
+        </div>
+    </main>
+
+    <div id="assignModal" class="modal">
+        <div class="modal-content">
+            <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center rounded-t-lg">
+                <h2 class="text-lg font-semibold text-gray-900">Detalles de la Orden</h2>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="modal-body p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50">
+                <div class="md:col-span-2 space-y-6">
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <h3 class="font-semibold text-gray-800 mb-3">Información</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <label class="block text-gray-500">Cliente</label>
+                                <strong id="detailCliente" class="block text-gray-900"></strong>
+                            </div>
+                            <div>
+                                <label class="block text-gray-500">Código</label>
+                                <strong id="detailCodigo" class="block text-gray-900"></strong>
+                            </div>
+                            <div>
+                                <label class="block text-gray-500">Estilo</label>
+                                <strong id="detailEstilo" class="block text-gray-900"></strong>
+                            </div>
+                            <div>
+                                <label class="block text-gray-500">Departamento</label>
+                                <strong id="detailDepartamento" class="block text-gray-900"></strong>
+                            </div>
+                            <div>
+                                <label class="block text-gray-500">Fecha Despacho</label>
+                                <strong id="detailFecha" class="block text-gray-900"></strong>
+                            </div>
+                            <div>
+                                <label class="block text-gray-500">Piezas</label>
+                                <strong id="detailPiezas" class="block text-gray-900"></strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <h3 class="font-semibold text-gray-800 mb-3">Asignación (P_Art)</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label for="modalDesigner" class="block text-sm font-medium text-gray-700">Diseñador</label>
+                                <select id="modalDesigner" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></select>
+                            </div>
+                            <div>
+                                <label for="modalStatus" class="block text-sm font-medium text-gray-700">Estado</label>
+                                <select id="modalStatus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="">Sin estado</option>
+                                    <option value="Bandeja">Bandeja</option>
+                                    <option value="Producción">Producción</option>
+                                    <option value="Auditoría">Auditoría</option>
+                                    <option value="Completada">Completada</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="modalReceivedDate" class="block text-sm font-medium text-gray-700">Recibida</label>
+                                <input type="date" id="modalReceivedDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label for="modalNotes" class="block text-sm font-medium text-gray-700">Notas</label>
+                            <textarea id="modalNotes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-semibold text-gray-800">Órdenes Hijas (<span id="childOrderCount">0</span>)</h3>
+                            <button id="addChildOrderBtn" onclick="openAddChildModal()" class="px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-600">Agregar</button>
+                        </div>
+                        <div id="childOrdersList" class="space-y-2 max-h-40 overflow-y-auto bg-gray-50 p-2 rounded">
+                            </div>
+                    </div>
+                </div>
+                
+                <div class="md:col-span-1 space-y-4">
+                    <h3 class="font-semibold text-gray-800">Historial de Cambios</h3>
+                    <div id="modalHistory" class="space-y-3 max-h-[65vh] overflow-y-auto bg-gray-100 p-2 rounded-lg">
+                        </div>
+                </div>
+            </div>
+            <div class="p-4 bg-white border-t border-gray-200 flex justify-between rounded-b-lg">
+                <button onclick="asignarmeAmi()" class="px-4 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-200">Asignarme a mí</button>
+                <div>
+                    <button onclick="closeModal()" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 mr-2">Cancelar</button>
+                    <button onclick="saveAssignment()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-700">Guardar Cambios</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="multiAssignModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg w-full max-w-lg p-6">
-            <h2 class="text-xl font-bold mb-4">Asignar Múltiples (<span id="multiModalCount">0</span>)</h2>
-            <div id="selectedOrdersList" class="mb-4 max-h-40 overflow-y-auto bg-gray-50 p-2 border rounded"></div>
-            <label>Diseñador:</label><select id="multiModalDesigner" class="w-full border rounded mb-2 px-3 py-2"></select>
-            <label>Estado:</label><select id="multiModalStatus" class="w-full border rounded mb-2 px-3 py-2"><option value="">-</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select>
-            <label>Fecha:</label><input type="date" id="multiModalReceivedDate" class="w-full border rounded mb-2 px-3 py-2">
-            <label>Notas:</label><textarea id="multiModalNotes" class="w-full border rounded mb-4 px-3 py-2"></textarea>
-            <div class="flex justify-end gap-2">
-                <button onclick="closeMultiModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
-                <button onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded">Guardar</button>
+    <div id="multiAssignModal" class="modal">
+        <div class="modal-content max-w-lg">
+            <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Asignación Múltiple (<span id="multiModalCount">0</span>)</h2>
+                <button onclick="closeMultiModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="modal-body p-6 space-y-4">
+                <div id="selectedOrdersList" class="max-h-40 overflow-y-auto bg-gray-100 border p-3 rounded-md space-y-2">
+                    </div>
+                <p class="text-sm text-gray-600">Solo se aplicarán los campos que llenes. Deja un campo vacío para no modificarlo.</p>
+                <div>
+                    <label for="multiModalDesigner" class="block text-sm font-medium text-gray-700">Diseñador</label>
+                    <select id="multiModalDesigner" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></select>
+                </div>
+                <div>
+                    <label for="multiModalStatus" class="block text-sm font-medium text-gray-700">Estado</label>
+                    <select id="multiModalStatus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- No Cambiar --</option>
+                        <option value="Bandeja">Bandeja</option>
+                        <option value="Producción">Producción</option>
+                        <option value="Auditoría">Auditoría</option>
+                        <option value="Completada">Completada</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="multiModalReceivedDate" class="block text-sm font-medium text-gray-700">Fecha Recibida</label>
+                    <input type="date" id="multiModalReceivedDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="multiModalNotes" class="block text-sm font-medium text-gray-700">Notas (sobrescribirá las existentes)</label>
+                    <textarea id="multiModalNotes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t flex justify-end">
+                <button onclick="closeMultiModal()" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 mr-2">Cancelar</button>
+                <button onclick="saveMultiAssignment()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-700">Aplicar Cambios</button>
             </div>
         </div>
     </div>
 
-    <div id="addChildModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg w-full max-w-lg p-6">
-            <h2 class="text-xl font-bold mb-4">Crear Orden Hija</h2>
-            <p id="parentOrderInfo" class="text-sm text-gray-600 mb-4"></p>
-            <div class="flex gap-2 mb-2"><input id="childOrderCode" readonly class="bg-gray-100 border px-2 py-1 flex-1"><input id="childOrderNumber" type="number" placeholder="#" class="border px-2 py-1 w-20" onchange="updateChildOrderCode()"></div>
-            <input id="childPieces" type="number" placeholder="Piezas" class="w-full border mb-2 px-3 py-2">
-            <input id="childDeliveryDate" type="date" class="w-full border mb-2 px-3 py-2">
-            <textarea id="childNotes" placeholder="Notas" class="w-full border mb-4 px-3 py-2"></textarea>
-            <div class="flex justify-end gap-2">
-                <button onclick="closeAddChildModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
-                <button onclick="saveChildOrder()" class="bg-blue-600 text-white px-4 py-2 rounded">Crear</button>
+    <div id="addChildModal" class="modal z-[51]"> <div class="modal-content max-w-md">
+            <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Agregar Orden Hija</h2>
+                <button onclick="closeAddChildModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="modal-body p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Orden Padre</label>
+                    <p id="parentOrderInfo" class="text-gray-800 font-medium"></p>
+                </div>
+                <div>
+                    <label for="childOrderNumber" class="block text-sm font-medium text-gray-700">Número de Hija (ej: 1, 2, A, B)</label>
+                    <input type="text" id="childOrderNumber" oninput="updateChildOrderCode()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                 <div>
+                    <label for="childOrderCode" class="block text-sm font-medium text-gray-700">Código Resultante</label>
+                    <input type="text" id="childOrderCode" readonly class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100">
+                </div>
+                <div>
+                    <label for="childPieces" class="block text-sm font-medium text-gray-700">Cantidad de Piezas</label>
+                    <input type="number" id="childPieces" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="childDeliveryDate" class="block text-sm font-medium text-gray-700">Fecha de Despacho (opcional)</label>
+                    <input type="date" id="childDeliveryDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="childNotes" class="block text-sm font-medium text-gray-700">Notas (opcional)</label>
+                    <textarea id="childNotes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t flex justify-end">
+                <button onclick="closeAddChildModal()" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 mr-2">Cancelar</button>
+                <button onclick="saveChildOrder()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-700">Guardar Hija</button>
             </div>
         </div>
     </div>
 
-    <div id="designerManagerModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg w-full max-w-md p-6">
-            <h2 class="text-xl font-bold mb-4">Gestionar Diseñadores</h2>
-            <div id="designerManagerList" class="mb-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50"></div>
-            <div class="flex gap-2">
-                <input id="newDesignerName" placeholder="Nombre" class="border px-3 py-2 flex-1 rounded">
-                <button onclick="addDesigner()" class="bg-green-600 text-white px-4 py-2 rounded">Agregar</button>
+    <div id="confirmModal" class="modal z-[52]">
+        <div class="modal-content max-w-sm">
+            <div class="p-6">
+                <h3 class="text-lg font-medium text-gray-900">Confirmación</h3>
+                <p id="confirmModalMessage" class="mt-2 text-sm text-gray-600 whitespace-pre-wrap">¿Estás seguro?</p>
             </div>
-            <button onclick="closeDesignerManager()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button>
-        </div>
-    </div>
-
-    <div id="confirmModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg w-full max-w-sm p-6">
-            <h2 class="text-xl font-bold mb-4 text-yellow-600">Confirmar Acción</h2>
-            <p id="confirmModalMessage" class="mb-6 text-gray-700"></p>
-            <div class="flex justify-end gap-2">
-                <button id="confirmModalCancel" class="bg-gray-200 px-4 py-2 rounded" onclick="closeConfirmModal()">Cancelar</button>
-                <button id="confirmModalConfirm" class="bg-red-600 text-white px-4 py-2 rounded">Confirmar</button>
+            <div class="p-4 bg-gray-50 border-t flex justify-end">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 mr-2">Cancelar</button>
+                <button id="confirmModalConfirm" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-red-700">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <div id="selectCompareModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg w-full max-w-sm p-6">
-            <h2 class="text-xl font-bold mb-4">Comparar</h2>
-            <p class="mb-2">Comparar a <strong id="compareDesigner1Name" class="text-blue-600"></strong> con:</p>
-            <select id="compareDesignerSelect" class="w-full border px-3 py-2 mb-4 rounded"></select>
-            <div class="flex justify-end gap-2">
-                <button onclick="closeCompareModals()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
-                <button onclick="startComparison()" class="bg-blue-600 text-white px-4 py-2 rounded">Comparar</button>
+    <div id="designerManagerModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Administrar Diseñadores</h2>
+                <button onclick="closeDesignerManager()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="modal-body p-6 space-y-4">
+                <div>
+                    <label for="newDesignerName" class="block text-sm font-medium text-gray-700">Nuevo Diseñador</label>
+                    <div class="mt-1 flex rounded-md shadow-sm">
+                        <input type="text" id="newDesignerName" class="block w-full rounded-l-md border-gray-300">
+                        <button onclick="addDesigner()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-r-md border border-blue-600 hover:bg-blue-700">Agregar</button>
+                    </div>
+                </div>
+                <div class="border-t pt-4">
+                    <h3 class="text-md font-medium text-gray-800 mb-2">Lista Actual</h3>
+                    <div id="designerManagerList" class="space-y-2 max-h-60 overflow-y-auto bg-gray-100 p-2 rounded">
+                        </div>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t flex justify-end">
+                <button onclick="closeDesignerManager()" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">Cerrar</button>
             </div>
         </div>
     </div>
 
-    <div id="compareModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg w-full max-w-3xl h-[90vh] flex flex-col p-6">
-            <h2 class="text-xl font-bold mb-4">Resultado Comparativa</h2>
-            <div class="flex-1 overflow-y-auto space-y-4">
-                <div id="compareChartContainer" class="h-64"><canvas id="compareChartCanvas"></canvas></div>
-                <div id="compareTableContainer"></div>
+    <div id="compareModal" class="modal">
+        <div class="modal-content max-w-3xl">
+            <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Comparar Diseñadores</h2>
+                <button onclick="closeCompareModals()" class="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
-            <button onclick="closeCompareModals()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button>
+            <div class="modal-body p-6 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label for="compareDesigner1" class="block text-sm font-medium text-gray-700">Diseñador 1</label>
+                        <select id="compareDesigner1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></select>
+                    </div>
+                     <div>
+                        <label for="compareDesigner2" class="block text-sm font-medium text-gray-700">Diseñador 2</label>
+                        <select id="compareDesigner2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></select>
+                    </div>
+                    <button onclick="generateCompareChart()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-700 w-full md:w-auto">Generar</button>
+                </div>
+                <div id="compareChartContainer" class="mt-4" style="display: none;">
+                    <div class="relative h-72">
+                        <canvas id="compareChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
-</body>
-</html>
+    <div id="metricsView" class="full-modal-view">
+        <div class="modal-content">
+            <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-900">Métricas: <span id="designerMetricsName" class="text-blue-600"></span></h2>
+                <button onclick="hideMetricsView()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="modal-body p-6 bg-gray-50">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                    <div class="bg-white p-3 rounded-lg border shadow-sm"><h3 class="text-sm text-gray-500">Total Activas</h3><p id="designerStatTotal" class="text-2xl font-bold text-gray-800">0</p></div>
+                    <div class="bg-white p-3 rounded-lg border shadow-sm"><h3 class="text-sm text-amber-500">Bandeja</h3><p id="designerStatBandeja" class="text-2xl font-bold text-amber-600">0</p></div>
+                    <div class="bg-white p-3 rounded-lg border shadow-sm"><h3 class="text-sm text-purple-500">Producción</h3><p id="designerStatProduccion" class="text-2xl font-bold text-purple-600">0</p></div>
+                    <div class="bg-white p-3 rounded-lg border shadow-sm"><h3 class="text-sm text-blue-500">Auditoría</h3><p id="designerStatAuditoria" class="text-2xl font-bold text-blue-500">0</p></div>
+                    <div class="bg-white p-3 rounded-lg border shadow-sm"><h3 class="text-sm text-green-500">Completadas</h3><p id="designerStatCompletadas" class="text-2xl font-bold text-green-600">0</p></div>
+                    <div class="bg-white p-3 rounded-lg border shadow-sm"><h3 class="text-sm text-gray-500">Total Piezas</h3><p id="designerStatPiezas" class="text-2xl font-bold text-gray-800">0</p></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white p-4 rounded-lg border shadow-sm lg:col-span-1"><h3 class="font-medium text-center mb-2">Estado de Carga Activa</h3><div class="relative h-64"><canvas id="designerDoughnutChart"></canvas></div></div>
+                    <div class="bg-white p-4 rounded-lg border shadow-sm lg:col-span-2"><h3 class="font-medium text-center mb-2">Top 10 Clientes (Por Piezas)</h3><div class="relative h-64"><canvas id="designerBarChart"></canvas></div></div>
+                </div>
+                <div class="bg-white p-4 rounded-lg border shadow-sm mb-6"><h3 class="font-medium text-center mb-2">Actividad (Completadas últ. 30 días)</h3><div class="relative h-64"><canvas id="designerActivityChart"></canvas></div></div>
+                
+                <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="table-header">Código</th>
+                                <th class="table-header">Cliente</th>
+                                <th class="table-header">Estilo</th>
+                                <th class="table-header">Fecha</th>
+                                <th class="table-header">Estado</th>
+                                <th class="table-header text-right">Piezas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="designerMetricsTableBody" class="divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
