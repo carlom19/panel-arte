@@ -1901,7 +1901,7 @@ function closeCompareModals() {
 function generateCompareChart() {
     const d1_name = document.getElementById('compareDesigner1').value;
     const d2_name = document.getElementById('compareDesigner2').value;
-  s   if (!d1_name || !d2_name) {
+  if (!d1_name || !d2_name) {
         showCustomAlert("Debes seleccionar dos diseñadores", "error");
         return;
     }
