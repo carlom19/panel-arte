@@ -1,5 +1,5 @@
 /* ====================================================== */
-/* ===== ESTILOS CSS - Panel Arte v5.1 (CORREGIDO) ===== */
+/* ===== ESTILOS CSS - Panel Arte v5.2 (FINAL) ===== */
 /* ====================================================== */
 
 /* --- 1. Control de Modales (Blindado) --- */
@@ -16,7 +16,7 @@ body.modal-open { overflow: hidden; }
     z-index: 1000; /* Z-index alto para estar sobre todo */
     align-items: center; 
     justify-content: center;
-    background: rgba(0,0,0,0.5); /* Fondo oscuro por si el HTML no lo tiene */
+    background: rgba(0,0,0,0.5); /* Fondo oscuro */
 }
 
 .modal.active { 
@@ -32,16 +32,44 @@ body.modal-open { overflow: hidden; }
     overflow-y: auto; 
     width: 100%;
     margin: auto;
+    /* Scrollbar suave */
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
 }
 
 .modal.active .modal-content { 
     transform: scale(1); 
 }
 
-/* --- 2. Barra de Selección Múltiple --- */
-.multi-select-bar.active { 
-    opacity: 1; 
-    transform: translateX(-50%) translateY(0); 
+/* --- 2. Barra de Selección Múltiple (CORREGIDA) --- */
+.multi-select-bar {
+    /* Estado Base: OCULTO y desplazado hacia abajo */
+    position: fixed;
+    bottom: 2rem; 
+    left: 50%;
+    transform: translateX(-50%) translateY(200%); /* Empujado hacia abajo */
+    opacity: 0;
+    pointer-events: none; /* IMPORTANTE: Evita clics cuando está invisible */
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Rebote suave */
+    z-index: 40;
+    
+    /* Estilo visual moderno (Píldora Flotante) */
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #E5E7EB;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+}
+
+.multi-select-bar.active {
+    /* Estado Activo: VISIBLE y en posición */
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto; /* Reactiva la interacción */
 }
 
 /* --- 3. Resaltado de Filas de la Tabla --- */
@@ -71,7 +99,7 @@ tbody tr:hover { background-color: #F3F4F6; }
 .filter-btn.active { background: #2563EB; color: white; border-color: #2563EB; }
 .filter-btn.active span { background-color: #3B82F6; color: white; }
 
-/* --- 6. Estilos Específicos de Tablas (CORREGIDO) --- */
+/* --- 6. Estilos Específicos de Tablas (Blindado contra Tailwind) --- */
 /* Usamos .data-table para asegurar que estos estilos ganen a Tailwind */
 table.data-table th { 
     background: #F9FAFB; 

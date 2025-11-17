@@ -69,10 +69,7 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="openDesignerManager()">Gestionar Diseñadores</button>
-                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="openWeeklyReportModal()">Reporte Semanal</button>
                 <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="showMetricsView()">Métricas Diseñador</button>
-                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="showDepartmentMetrics()">Métricas Depto.</button>
-                <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2" onclick="showWorkPlanView()">Plan Semanal</button>
                 <button class="font-medium py-2 px-4 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2" onclick="resetApp()">Sincronizar Excel</button>
             </div>
         </div>
@@ -164,7 +161,6 @@
         <div id="multiSelectBar" class="multi-select-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl p-4 flex items-center gap-4 z-50">
             <span class="font-semibold text-blue-600"><span id="selectedCount">0</span> seleccionadas</span>
             <button class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700" onclick="openMultiAssignModal()">Asignar</button>
-            <button class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700" onclick="addSelectedToWorkPlan()">Al Plan</button>
             <button class="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300" onclick="clearSelection()">Cancelar</button>
         </div>
 
@@ -181,31 +177,6 @@
         </div>
     </div>
     
-    <div id="departmentMetricsView" class="p-4 md:p-6" style="display: none;">
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex justify-between items-center">
-            <h1 class="text-2xl font-bold">Métricas del Departamento</h1>
-            <button class="py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50" onclick="hideDepartmentMetrics()">Volver</button>
-        </div>
-        <div id="departmentMetricsContent" class="space-y-6"></div>
-    </div>
-    
-    <div id="workPlanView" class="p-4 md:p-6" style="display: none;">
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex justify-between items-center">
-            <h1 class="text-2xl font-bold">Plan Semanal</h1>
-            <button class="py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50" onclick="hideWorkPlanView()">Volver</button>
-        </div>
-        <div class="bg-white rounded-lg shadow-lg p-6">
-            <div class="flex gap-4 mb-4 items-end">
-                <div><label>Semana:</label><input type="week" id="view-workPlanWeekSelector" onchange="generateWorkPlan()" class="border border-gray-300 rounded-lg px-3 py-2 block"></div>
-                <button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700" onclick="loadUrgentOrdersToPlan()">Cargar Urgentes</button>
-                <span id="view-workPlanSummary" class="ml-auto text-sm text-gray-600 font-medium"></span>
-            </div>
-            <div id="view-workPlanContent" class="space-y-6 mt-6">
-                <div id="view-workPlanSpinner" class="spinner" style="display: none;"></div>
-            </div>
-        </div>
-    </div>
-
     <div id="assignModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
         <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all">
             <div class="flex justify-between items-center p-6 border-b"><h2 class="text-2xl font-semibold">Editar Orden</h2><button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">X</button></div>
@@ -275,18 +246,6 @@
                 <button onclick="addDesigner()" class="bg-green-600 text-white px-4 py-2 rounded">Agregar</button>
             </div>
             <button onclick="closeDesignerManager()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button>
-        </div>
-    </div>
-
-    <div id="weeklyReportModal" class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="modal-content bg-white rounded-lg w-full max-w-4xl p-6 h-[90vh] flex flex-col">
-            <h2 class="text-xl font-bold mb-4">Reporte Semanal</h2>
-            <input type="week" id="weekSelector" onchange="generateWeeklyReport()" class="border px-3 py-2 mb-4 w-full rounded">
-            <div id="weeklyReportContent" class="flex-1 overflow-y-auto relative"><div id="weeklyReportSpinner" class="spinner" style="display:none;"></div></div>
-            <div class="flex justify-end gap-2 mt-4">
-                <button onclick="closeWeeklyReportModal()" class="bg-gray-200 px-4 py-2 rounded">Cerrar</button>
-                <button onclick="exportWeeklyReportAsPDF()" class="bg-green-600 text-white px-4 py-2 rounded">Exportar PDF</button>
-            </div>
         </div>
     </div>
 
