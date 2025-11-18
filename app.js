@@ -778,16 +778,42 @@ function showCustomAlert(message, type = 'info') {
     const alertDiv = document.getElementById('customAlert');
     if(!alertDiv) return;
 
-    let alertClass = 'bg-blue-100 border-blue-500 text-blue-800'; 
-    if (type === 'error') alertClass = 'bg-red-100 border-red-500 text-red-800';
-    if (type === 'success') alertClass = 'bg-green-100 border-green-500 text-green-800';
+    // Colores según el tipo
+    let bgClass = 'bg-blue-100 border-blue-500 text-blue-800'; 
+    let icon = 'ℹ️';
     
-    alertDiv.className = `p-4 mb-4 rounded-lg border-l-4 ${alertClass}`;
-    alertDiv.innerHTML = `<strong class="font-semibold">${escapeHTML(message)}</strong>`;
+    if (type === 'error') {
+        bgClass = 'bg-red-100 border-red-500 text-red-800';
+        icon = '⚠️';
+    }
+    if (type === 'success') {
+        bgClass = 'bg-green-100 border-green-500 text-green-800';
+        icon = '✅';
+    }
+    
+    // HTML con estilos de tarjeta flotante
+    alertDiv.className = `fixed top-5 right-5 z-[2000] max-w-sm w-full shadow-2xl rounded-lg border-l-4 p-4 transform transition-all duration-300 ${bgClass}`;
+    alertDiv.innerHTML = `
+        <div class="flex justify-between items-start">
+            <div class="flex gap-3">
+                <span class="text-xl">${icon}</span>
+                <div>
+                    <strong class="font-bold block text-sm">${type === 'error' ? 'Error' : type === 'success' ? 'Éxito' : 'Información'}</strong>
+                    <span class="block text-sm mt-1">${escapeHTML(message)}</span>
+                </div>
+            </div>
+            <button onclick="document.getElementById('customAlert').style.display='none'" class="text-lg font-bold opacity-50 hover:opacity-100 ml-4">&times;</button>
+        </div>
+    `;
+    
     alertDiv.style.display = 'block';
     
+    // Auto-ocultar después de 5 segundos (10 si es error)
     const duration = (type === 'error') ? 10000 : 5000;
-    setTimeout(() => { alertDiv.style.display = 'none'; }, duration);
+    if (window.alertTimeout) clearTimeout(window.alertTimeout);
+    window.alertTimeout = setTimeout(() => { 
+        alertDiv.style.display = 'none'; 
+    }, duration);
 }
 
 let confirmCallback = null;
@@ -2122,4 +2148,289 @@ function exportDesignerMetricsPDF(name) {
         });
         doc.save(`Metricas_${name.replace(/\s/g,'_')}.pdf`);
     } catch (e) { console.error(e); showCustomAlert('Error exportando PDF.', 'error'); }
+}
+// ======================================================
+// ===== PARTE 6: LÓGICA FALTANTE (PLAN Y MÉTRICAS DEPTO) =====
+// ======================================================
+
+// --- 1. LÓGICA DE MÉTRICAS DE DEPARTAMENTO (CORREGIDA) ---
+function generateDepartmentMetrics() {
+    const contentDiv = document.getElementById('departmentMetricsContent');
+    if (!contentDiv) return;
+
+    // Limpieza previa
+    destroyAllCharts(); 
+    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center">Calculando métricas globales...</p>';
+
+    setTimeout(() => {
+        // Filtrar solo P_Art
+        const activeOrders = allOrders.filter(o => o.departamento === 'P_Art');
+        
+        // --- A. Estadísticas Generales ---
+        const totalOrders = activeOrders.length;
+        const totalPieces = activeOrders.reduce((sum, o) => sum + (o.cantidad || 0) + (o.childPieces || 0), 0);
+        
+        // Agrupación por Estado
+        const statusCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
+        activeOrders.forEach(o => {
+            const s = o.customStatus || 'Sin estado';
+            if (statusCounts[s] !== undefined) statusCounts[s]++;
+            else statusCounts['Sin estado']++;
+        });
+
+        // Carga por Diseñador (Excluyendo al Admin/Nombre prohibido)
+        const designerLoad = {};
+        activeOrders.forEach(o => {
+            if (o.designer && o.designer !== EXCLUDE_DESIGNER_NAME) {
+                if (!designerLoad[o.designer]) designerLoad[o.designer] = 0;
+                designerLoad[o.designer] += (o.cantidad || 0) + (o.childPieces || 0);
+            }
+        });
+
+        // --- B. Renderizado HTML ---
+        contentDiv.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-600">
+                    <h3 class="text-gray-500 text-sm uppercase font-semibold">Órdenes Activas</h3>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">${totalOrders}</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-600">
+                    <h3 class="text-gray-500 text-sm uppercase font-semibold">Piezas Totales</h3>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">${totalPieces.toLocaleString()}</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-600">
+                    <h3 class="text-gray-500 text-sm uppercase font-semibold">Diseñadores Activos</h3>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">${Object.keys(designerLoad).length}</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-4 rounded-lg shadow border">
+                    <h4 class="font-bold mb-4 text-gray-700">Distribución por Estado</h4>
+                    <div class="h-64"><canvas id="deptLoadPieChartCanvas"></canvas></div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow border">
+                    <h4 class="font-bold mb-4 text-gray-700">Carga por Diseñador (Piezas)</h4>
+                    <div class="h-64"><canvas id="deptLoadBarChartCanvas"></canvas></div>
+                </div>
+            </div>
+        `;
+
+        // --- C. Inicialización de Gráficos ---
+        
+        // 1. Pie Chart (Estados)
+        const ctxPie = document.getElementById('deptLoadPieChartCanvas').getContext('2d');
+        deptLoadPieChart = new Chart(ctxPie, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{
+                    data: Object.values(statusCounts),
+                    backgroundColor: ['#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#9CA3AF']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // 2. Bar Chart (Carga)
+        const ctxBar = document.getElementById('deptLoadBarChartCanvas').getContext('2d');
+        // Ordenar de mayor a menor carga
+        const sortedDesigners = Object.entries(designerLoad).sort((a,b) => b[1] - a[1]);
+        
+        deptLoadBarChart = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: sortedDesigners.map(d => d[0]),
+                datasets: [{
+                    label: 'Piezas Asignadas',
+                    data: sortedDesigners.map(d => d[1]),
+                    backgroundColor: '#3B82F6'
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+    }, 100);
+}
+
+// --- 2. LÓGICA DE PLAN SEMANAL (CORREGIDA) ---
+
+async function generateWorkPlan() {
+    const container = document.getElementById('view-workPlanContent');
+    const weekInput = document.getElementById('view-workPlanWeekSelector');
+    const summarySpan = document.getElementById('view-workPlanSummary');
+    
+    if (!weekInput.value) {
+        // Si no hay fecha seleccionada, poner la semana actual por defecto
+        const today = new Date();
+        const weekNo = getWeekIdentifier(today); // Función helper existente
+        const year = today.getFullYear();
+        weekInput.value = `${year}-W${String(weekNo).padStart(2, '0')}`;
+    }
+
+    const selectedWeek = weekInput.value;
+    const [year, week] = selectedWeek.split('-W').map(Number);
+    
+    // Calcular identificador de semana (simple) para la DB
+    // Nota: La función getWeekIdentifier usa una lógica específica, 
+    // aquí simplificamos para asegurar coincidencia con el input HTML.
+    const weekIdentifier = parseInt(week); 
+
+    container.innerHTML = '<div class="spinner"></div>';
+
+    // Obtener datos del mapa en memoria (sincronizado por Firebase)
+    // Nota: firebaseWeeklyPlanMap usa integers como keys (ej: 46)
+    const planData = firebaseWeeklyPlanMap.get(weekIdentifier) || [];
+
+    // Renderizar
+    setTimeout(() => {
+        if (planData.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed">
+                    <p class="text-gray-500 mb-4">El plan para la semana ${week} está vacío.</p>
+                    <p class="text-sm text-gray-400">Usa el botón "Cargar Urgentes" o selecciona órdenes desde el Dashboard.</p>
+                </div>`;
+            summarySpan.textContent = '0 órdenes';
+            return;
+        }
+
+        let totalPieces = 0;
+        let html = `
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prioridad</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente / Estilo</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrega</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+        `;
+
+        // Ordenar: Urgentes primero
+        planData.sort((a, b) => (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1);
+
+        planData.forEach(item => {
+            const pieces = (item.cantidad || 0) + (item.childPieces || 0);
+            totalPieces += pieces;
+            
+            const statusBadge = item.isLate 
+                ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">ATRASADA</span>' 
+                : item.isAboutToExpire 
+                    ? '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">URGENTE</span>'
+                    : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Normal</span>';
+
+            html += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-gray-900">${escapeHTML(item.cliente)}</div>
+                        <div class="text-xs text-gray-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(item.designer || 'Sin asignar')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">${pieces.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="text-red-600 hover:text-red-900 btn-remove-from-plan" 
+                            data-plan-entry-id="${item.planEntryId}" 
+                            data-order-code="${item.codigoContrato}">
+                            Quitar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+        summarySpan.textContent = `${planData.length} órdenes | ${totalPieces.toLocaleString()} piezas`;
+
+    }, 50);
+}
+
+// --- 3. LÓGICA DE CARGA DE URGENTES (CORREGIDA) ---
+
+async function loadUrgentOrdersToPlan() {
+    const weekInput = document.getElementById('view-workPlanWeekSelector');
+    if (!weekInput.value) { showCustomAlert('Selecciona una semana primero.', 'error'); return; }
+    
+    const [year, week] = weekInput.value.split('-W').map(Number);
+    const weekIdentifier = parseInt(week);
+
+    const urgentOrders = allOrders.filter(o => 
+        o.departamento === 'P_Art' && (o.isLate || o.isAboutToExpire)
+    );
+
+    if (urgentOrders.length === 0) {
+        showCustomAlert('No hay órdenes urgentes o atrasadas en este momento.', 'info');
+        return;
+    }
+
+    let addedCount = 0;
+    const batch = db_firestore.batch(); // Usar batch para eficiencia
+    let batchCount = 0;
+
+    // Limitar a 400 para seguridad de batch
+    const toProcess = urgentOrders.slice(0, 400);
+
+    for (const order of toProcess) {
+        const planEntryId = `${order.orderId}_${weekIdentifier}`;
+        const ref = db_firestore.collection('weeklyPlan').doc(planEntryId);
+        
+        // Nota: En un escenario real, deberíamos verificar si ya existe antes de escribir
+        // para no sobrescribir metadatos, pero para "Cargar Urgentes" masivo, 
+        // un 'set' con merge es aceptable o una verificación de lectura previa.
+        // Aquí usaremos set directo para velocidad en la UI.
+        
+        batch.set(ref, {
+            planEntryId: planEntryId,
+            orderId: order.orderId,
+            weekIdentifier: weekIdentifier,
+            designer: order.designer,
+            planStatus: 'Pendiente', 
+            addedAt: new Date().toISOString(),
+            cliente: order.cliente,
+            codigoContrato: order.codigoContrato,
+            estilo: order.estilo,
+            fechaDespacho: order.fechaDespacho ? order.fechaDespacho.toISOString() : null,
+            cantidad: order.cantidad,
+            childPieces: order.childPieces,
+            isLate: order.isLate,
+            isAboutToExpire: order.isAboutToExpire,
+            schemaVersion: DB_SCHEMA_VERSION
+        }, { merge: true });
+        
+        batchCount++;
+    }
+
+    if (batchCount > 0) {
+        try {
+            await batch.commit();
+            showCustomAlert(`Se cargaron ${batchCount} órdenes urgentes al plan.`, 'success');
+            // generateWorkPlan se activará automáticamente por el listener de onSnapshot
+        } catch (e) {
+            console.error(e);
+            showCustomAlert('Error al cargar urgentes.', 'error');
+        }
+    }
+}
+
+async function removeOrderFromPlan(planEntryId, orderCode) {
+    if (!confirm(`¿Quitar la orden ${orderCode} del plan?`)) return;
+    try {
+        await removeOrderFromWorkPlanDB(planEntryId);
+        showCustomAlert('Orden quitada del plan.', 'success');
+    } catch (e) {
+        showCustomAlert('Error al quitar orden.', 'error');
+    }
 }
