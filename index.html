@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v5.2 (Secure & Optimized)</title>
+    <title>Panel de Control - Arte v5.2 (Final)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -47,14 +47,6 @@
             </label>
             <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
         </div>
-        <div class="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-6 text-left">
-            <h4 class="text-lg font-semibold text-gray-800 mb-4">✨ v5.2 (Secure & Optimized)</h4>
-            <ul class="text-sm text-gray-600 list-disc list-inside space-y-2">
-                <li>☁️ Base de Datos Segura (Firebase).</li>
-                <li>🔒 Acceso restringido por dominio (@fitwellus.com).</li>
-                <li>⚡ Gestión avanzada de usuarios y roles.</li>
-            </ul>
-        </div>
     </div>
 
     <div id="dashboard" class="container mx-auto px-4 py-8" style="display: none;">
@@ -78,17 +70,17 @@
                 <button class="font-medium py-2 px-4 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2" onclick="resetApp()">Sincronizar Excel</button>
             </div>
         </div>
-
+        
         <div id="summaryBox" class="bg-white rounded-lg shadow-lg p-6 mb-6 border-l-4 border-blue-600"></div>
         <div id="alerts"></div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Total en P_Art</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statTotal">0</div></div><div class="bg-blue-100 text-blue-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M5 7h14"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Total Cantidad</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statTotalPieces">0</div></div><div class="bg-purple-100 text-purple-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Atrasadas</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statLate">0</div></div><div class="bg-red-100 text-red-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Por Vencer</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statExpiring">0</div></div><div class="bg-yellow-100 text-yellow-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">A Tiempo</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statOnTime">0</div></div><div class="bg-green-100 text-green-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div></div>
-            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Esta Semana</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statThisWeek">0</div></div><div class="bg-orange-100 text-orange-600 rounded-full p-3"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Total en P_Art</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statTotal">0</div></div><div class="bg-blue-100 text-blue-600 rounded-full p-3">📦</div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Total Cantidad</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statTotalPieces">0</div></div><div class="bg-purple-100 text-purple-600 rounded-full p-3">📊</div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Atrasadas</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statLate">0</div></div><div class="bg-red-100 text-red-600 rounded-full p-3">⚠️</div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Por Vencer</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statExpiring">0</div></div><div class="bg-yellow-100 text-yellow-600 rounded-full p-3">⏳</div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">A Tiempo</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statOnTime">0</div></div><div class="bg-green-100 text-green-600 rounded-full p-3">✅</div></div>
+            <div class="bg-white rounded-lg shadow-lg p-6 flex items-center justify-between"><div><h3 class="text-sm font-medium text-gray-500 uppercase">Esta Semana</h3><div class="text-2xl font-bold text-gray-900 mt-2" id="statThisWeek">0</div></div><div class="bg-orange-100 text-orange-600 rounded-full p-3">📅</div></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -113,16 +105,22 @@
                 <div class="filter-item"><label>Team:</label><select id="teamFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
                 <div class="filter-item"><label>Depto:</label><select id="departamentoFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
                 <div class="filter-item"><label>Diseñador:</label><select id="designerFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
-                <div class="filter-item"><label>Estado:</label><select id="customStatusFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></select></div>
+                
+                <div class="filter-item">
+                    <label>Estado:</label>
+                    <select id="customStatusFilter" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="">Todos</option>
+                        <option value="Bandeja">Bandeja</option>
+                        <option value="Producción">Producción</option>
+                        <option value="Auditoría">Auditoría</option>
+                        <option value="Completada">Completada</option>
+                    </select>
+                </div>
+                
                 <div class="filter-item"><label>Desde:</label><input type="date" id="dateFrom" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></div>
                 <div class="filter-item"><label>Hasta:</label><input type="date" id="dateTo" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"></div>
                 <div class="filter-item flex items-end"><button class="w-full py-2 px-4 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50" onclick="clearAllFilters()">Limpiar Filtros</button></div>
             </div>
-        </div>
-
-        <div class="filters bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div class="mb-4"><label class="block font-semibold mb-2">Estado de Entrega:</label><div class="flex rounded-lg border border-gray-300 overflow-hidden" id="statusFilters"></div></div>
-            <div><label class="block font-semibold mb-2">Fecha:</label><div class="flex rounded-lg border border-gray-300 overflow-hidden" id="dateFilters"></div></div>
         </div>
 
         <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
@@ -131,17 +129,17 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 w-12"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
-                            <th onclick="sortTable('status')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estado <span id="sort-status"></span></th>
-                            <th onclick="sortTable('date')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Fecha <span id="sort-date"></span></th>
-                            <th onclick="sortTable('cliente')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Cliente <span id="sort-cliente"></span></th>
+                            <th onclick="sortTable('status')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estado</th>
+                            <th onclick="sortTable('date')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Fecha</th>
+                            <th onclick="sortTable('cliente')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Cliente</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Código</th>
-                            <th onclick="sortTable('estilo')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estilo <span id="sort-estilo"></span></th>
-                            <th onclick="sortTable('teamName')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Team <span id="sort-teamName"></span></th>
-                            <th onclick="sortTable('departamento')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Depto <span id="sort-departamento"></span></th>
-                            <th onclick="sortTable('designer')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Diseñador <span id="sort-designer"></span></th>
-                            <th onclick="sortTable('customStatus')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estado Orden <span id="sort-customStatus"></span></th>
-                            <th onclick="sortTable('receivedDate')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Recibida <span id="sort-receivedDate"></span></th>
-                            <th onclick="sortTable('cantidad')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Cant. <span id="sort-cantidad"></span></th>
+                            <th onclick="sortTable('estilo')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estilo</th>
+                            <th onclick="sortTable('teamName')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Team</th>
+                            <th onclick="sortTable('departamento')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Depto</th>
+                            <th onclick="sortTable('designer')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Diseñador</th>
+                            <th onclick="sortTable('customStatus')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Estado Orden</th>
+                            <th onclick="sortTable('receivedDate')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Recibida</th>
+                            <th onclick="sortTable('cantidad')" class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase cursor-pointer">Cant.</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Notas</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-indigo-500 uppercase">Acciones</th>
                         </tr>
@@ -201,9 +199,7 @@
                 <button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700" onclick="loadUrgentOrdersToPlan()">Cargar Urgentes</button>
                 <span id="view-workPlanSummary" class="ml-auto text-sm text-gray-600 font-medium"></span>
             </div>
-            <div id="view-workPlanContent" class="space-y-6 mt-6">
-                <div id="view-workPlanSpinner" class="spinner" style="display: none;"></div>
-            </div>
+            <div id="view-workPlanContent" class="space-y-6 mt-6"></div>
         </div>
     </div>
 
@@ -256,7 +252,9 @@
         <div class="modal-content bg-white rounded-lg w-full max-w-lg p-6">
             <h2 class="text-xl font-bold mb-4">Crear Orden Hija</h2>
             <p id="parentOrderInfo" class="text-sm text-gray-600 mb-4"></p>
-            <div class="flex gap-2 mb-2"><input id="childOrderCode" readonly class="bg-gray-100 border px-2 py-1 flex-1"><input id="childOrderNumber" type="number" placeholder="#" class="border px-2 py-1 w-20" onchange="updateChildOrderCode()"></div>
+            <div class="flex gap-2 mb-2"><input id="childOrderCode" readonly class="bg-gray-100 border px-2 py-1 flex-1">
+            <input id="childOrderNumber" type="number" placeholder="#" class="border px-2 py-1 w-20" oninput="updateChildOrderCode()" onchange="updateChildOrderCode()">
+            </div>
             <input id="childPieces" type="number" placeholder="Piezas" class="w-full border mb-2 px-3 py-2">
             <input id="childDeliveryDate" type="date" class="w-full border mb-2 px-3 py-2">
             <textarea id="childNotes" placeholder="Notas" class="w-full border mb-4 px-3 py-2"></textarea>
