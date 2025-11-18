@@ -231,7 +231,7 @@
             <div class="flex justify-end gap-2 p-6 bg-gray-50 border-t">
                 <button class="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300" onclick="closeModal()">Cancelar</button>
                 <button class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700" onclick="asignarmeAmi()">Asignarme a mí</button>
-                <button class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700" onclick="saveAssignment()">Guardar</button>
+                <button id="saveAssignmentButton" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700" onclick="saveAssignment()">Guardar</button>
             </div>
         </div>
     </div>
@@ -246,7 +246,7 @@
             <label>Notas:</label><textarea id="multiModalNotes" class="w-full border rounded mb-4 px-3 py-2"></textarea>
             <div class="flex justify-end gap-2">
                 <button onclick="closeMultiModal()" class="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
-                <button onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded">Guardar</button>
+                <button id="saveMultiAssignmentButton" onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded">Guardar</button>
             </div>
         </div>
     </div>
