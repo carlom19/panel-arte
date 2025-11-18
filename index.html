@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v5.1 (Cloud Fixed)</title>
+    <title>Panel de Control - Arte v5.2 (Secure & Optimized)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -26,7 +26,7 @@
         <svg class="w-16 h-16 mx-auto text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.333-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
         </svg>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Panel de Control - Arte v5.1</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Panel de Control - Arte v5.2</h1>
         <p class="text-gray-600 mb-8">Por favor, inicia sesión con tu cuenta de Google.</p>
         <button id="loginButton" class="w-full inline-flex justify-center items-center gap-3 bg-blue-600 text-white font-medium py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-sm cursor-pointer">
             Iniciar Sesión con Google
@@ -46,11 +46,11 @@
             <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
         </div>
         <div class="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-6 text-left">
-            <h4 class="text-lg font-semibold text-gray-800 mb-4">✨ v5.1 (Cloud Fixed)</h4>
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">✨ v5.2 (Secure & Optimized)</h4>
             <ul class="text-sm text-gray-600 list-disc list-inside space-y-2">
-                <li>☁️ Base de Datos en la Nube (Firebase).</li>
-                <li>⚡ Sincronización en tiempo real.</li>
-                <li>✅ Estabilidad mejorada en tablas y modales.</li>
+                <li>☁️ Base de Datos Segura (Firebase).</li>
+                <li>🔒 Acceso restringido por dominio (@fitwellus.com).</li>
+                <li>⚡ Gestión avanzada de usuarios y roles.</li>
             </ul>
         </div>
     </div>
@@ -59,7 +59,7 @@
         
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6 flex flex-wrap justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Panel de Control - Arte v5.1</h1>
+                <h1 class="text-2xl font-bold text-gray-900">Panel de Control - Arte v5.2</h1>
                 <p class="text-sm text-gray-500 mt-1">
                     <span id="fileName"></span>
                     <span id="dbStatus" class="ml-3 font-medium text-gray-500">Conectando...</span>
@@ -270,10 +270,13 @@
         <div class="modal-content bg-white rounded-lg w-full max-w-md p-6">
             <h2 class="text-xl font-bold mb-4">Gestionar Diseñadores</h2>
             <div id="designerManagerList" class="mb-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50"></div>
-            <div class="flex gap-2">
-                <input id="newDesignerName" placeholder="Nombre" class="border px-3 py-2 flex-1 rounded">
-                <button onclick="addDesigner()" class="bg-green-600 text-white px-4 py-2 rounded">Agregar</button>
+            
+            <div class="flex flex-col gap-2">
+                <input id="newDesignerName" placeholder="Nombre y Apellido" class="border px-3 py-2 rounded">
+                <input id="newDesignerEmail" placeholder="Correo (@fitwellus.com)" class="border px-3 py-2 rounded">
+                <button onclick="addDesigner()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Agregar Usuario</button>
             </div>
+            
             <button onclick="closeDesignerManager()" class="mt-4 w-full bg-gray-200 py-2 rounded">Cerrar</button>
         </div>
     </div>

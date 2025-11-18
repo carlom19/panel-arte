@@ -632,25 +632,35 @@ async function deleteChildOrderFromDB(childOrderId) {
 }
 
 async function addDesigner() {
-    const input = document.getElementById('newDesignerName');
-    const name = input.value.trim();
-    if (!name) return;
+    const nameInput = document.getElementById('newDesignerName');
+    const emailInput = document.getElementById('newDesignerEmail');
+    
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim().toLowerCase(); // Guardar siempre en minúsculas
 
-    if (designerList.map(d => d.toLowerCase()).includes(name.toLowerCase())) {
-        showCustomAlert(`El diseñador "${name}" ya existe.`, 'error');
+    if (!name || !email) {
+        showCustomAlert('Por favor, ingresa nombre y correo.', 'error');
+        return;
+    }
+
+    // Validación opcional: que sea del dominio correcto
+    if (!email.includes('@fitwellus.com')) {
+        showCustomAlert('El correo debe ser de @fitwellus.com', 'error');
         return;
     }
 
     try {
         await db_firestore.collection('designers').add({ 
             name: name,
+            email: email, // <--- Nuevo campo
             schemaVersion: DB_SCHEMA_VERSION 
         });
-        input.value = '';
-        showCustomAlert(`Diseñador "${name}" agregado.`, 'success');
+        
+        nameInput.value = '';
+        emailInput.value = '';
+        showCustomAlert(`Usuario "${name}" agregado correctamente.`, 'success');
     } catch (error) {
         console.error('Error en addDesigner:', error);
-        logToFirestore('designer:add', error);
         showCustomAlert(`Error al agregar: ${error.message}`, 'error');
     }
 }
@@ -1359,16 +1369,26 @@ function populateDesignerManagerModal() {
     const listDiv = document.getElementById('designerManagerList');
     if (!listDiv) return;
     listDiv.innerHTML = '';
+    
     if (firebaseDesignersMap.size === 0) {
         listDiv.innerHTML = '<p class="text-gray-500 text-center">No hay diseñadores</p>';
         return;
     }
+    
     firebaseDesignersMap.forEach((data, docId) => {
         const safeName = escapeHTML(data.name);
+        const safeEmail = escapeHTML(data.email || 'Sin correo'); // Mostrar correo
+        
         listDiv.innerHTML += `
-            <div class="flex justify-between items-center p-2 border-b last:border-b-0">
-                <span>${safeName}</span>
-                <button class="btn-delete-designer text-red-600 text-sm" data-name="${safeName}" data-id="${docId}">Eliminar</button>
+            <div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50">
+                <div class="leading-tight">
+                    <div class="font-medium text-gray-900">${safeName}</div>
+                    <div class="text-xs text-gray-500">${safeEmail}</div>
+                </div>
+                <button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50" 
+                    data-name="${safeName}" data-id="${docId}">
+                    Eliminar
+                </button>
             </div>`;
     });
 }
