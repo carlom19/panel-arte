@@ -25,8 +25,9 @@ tailwind.config = {
                 brand: {
                     50: '#f0fdfa',
                     100: '#ccfbf1',
-                    500: '#14b8a6', // Color de Acción Principal
+                    500: '#14b8a6', // Color de Acción Principal (Teal)
                     600: '#0d9488',
+                    700: '#0f766e',
                     800: '#115e59',
                     900: '#0f172a', // Fondos oscuros profundos
                 },
@@ -34,7 +35,7 @@ tailwind.config = {
                     800: '#1e293b', // Fondo de tarjetas oscuro
                     900: '#0f172a', // Fondo body oscuro
                 },
-                // Mapeo de estados
+                // Mapeo de estados para gráficos
                 'chart-bandeja': '#F59E0B',
                 'chart-produccion': '#8B5CF6',
                 'chart-auditoria': '#3B82F6',
@@ -147,12 +148,12 @@ function showCustomAlert(message, type = 'info') {
     const alertDiv = document.getElementById('customAlert');
     if(!alertDiv) return;
     
-    // Estilos Dark Mode integrados
+    // Estilos Dark Mode integrados para las alertas
     let bgClass = type === 'error' 
-        ? 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/80 dark:text-red-100' 
+        ? 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/80 dark:text-red-100 dark:border-red-700' 
         : type === 'success' 
-            ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/80 dark:text-green-100' 
-            : 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/80 dark:text-blue-100';
+            ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/80 dark:text-green-100 dark:border-green-700' 
+            : 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/80 dark:text-blue-100 dark:border-blue-700';
     
     let icon = type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
     
@@ -178,7 +179,7 @@ function showLoading(message = 'Cargando...') {
     if (document.getElementById('loadingOverlay')) return;
     const overlay = document.createElement('div');
     overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay backdrop-blur-sm'; 
-    overlay.innerHTML = `<div class="spinner"></div><p class="font-medium">${escapeHTML(message)}</p>`;
+    overlay.innerHTML = `<div class="spinner"></div><p class="font-medium text-white mt-4">${escapeHTML(message)}</p>`;
     document.body.appendChild(overlay);
 }
 function hideLoading() { const overlay = document.getElementById('loadingOverlay'); if (overlay) overlay.remove(); }
@@ -197,6 +198,16 @@ window.toggleTheme = function() {
     } else {
         html.classList.add('dark');
         localStorage.setItem('theme', 'dark');
+    }
+    // Recargar gráficos si existen para actualizar colores
+    if(designerDoughnutChart || deptLoadPieChart) {
+        // Pequeño hack para recargar la vista actual y actualizar colores de charts
+        if(document.getElementById('designerMetricsView').style.display === 'block') {
+             const activeBtn = document.querySelector('#metricsSidebarList .filter-btn.active');
+             if(activeBtn) generateDesignerMetrics(activeBtn.dataset.designer);
+        } else if (document.getElementById('departmentMetricsView').style.display === 'block') {
+            generateDepartmentMetrics();
+        }
     }
 }
 
@@ -277,7 +288,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
-    // Si agregas un botón de toggleTheme en el HTML, su listener iría aquí
 
     firebase.auth().onAuthStateChanged((user) => {
         const loginSection = document.getElementById('loginSection');
@@ -287,7 +297,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
         if (user) {
             usuarioActual = user;
             console.log("Usuario conectado:", usuarioActual.displayName);
-            document.getElementById('userName').textContent = usuarioActual.displayName;
+            
+            const userNameEl = document.getElementById('userName');
+            if(userNameEl) userNameEl.textContent = usuarioActual.displayName;
             
             loginSection.style.display = 'none';
             if (!isExcelLoaded) {
@@ -343,6 +355,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
     
     if (dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
+        
+        // Estilos de drag and drop compatibles con dark mode
         dropZone.addEventListener('dragenter', () => dropZone.classList.add('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
         dropZone.addEventListener('dragover', () => dropZone.classList.add('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
@@ -732,10 +746,19 @@ async function logToFirestore(context, error) {
 
 function handleDrop(e){ const dt = e.dataTransfer; handleFiles(dt.files); }
 function handleFileSelect(e){ handleFiles(e.target.files); }
+
+// --- CORRECCIÓN CRÍTICA: Verificación de elemento fileName ---
 function handleFiles(files){
     if (!files || files.length === 0) return;
     const file = files[0];
-    document.getElementById('fileName').textContent = file.name;
+    
+    // Comprobación de seguridad: si el elemento existe, actualiza el texto.
+    const fileNameEl = document.getElementById('fileName');
+    if (fileNameEl) {
+        fileNameEl.textContent = " | " + file.name;
+        fileNameEl.style.display = 'inline';
+    }
+    
     processFile(file);
 }
 
@@ -1005,7 +1028,7 @@ async function loadChildOrders() {
             const isLate = date && date < new Date().setHours(0,0,0,0);
             return `<div class="bg-white dark:bg-slate-700 p-2 rounded border dark:border-slate-600 text-xs mb-1 flex justify-between items-center">
                 <div>
-                    <strong class="text-blue-600 dark:text-blue-400">${escapeHTML(child.childCode)}</strong><br>
+                    <strong class="text-brand-600 dark:text-brand-400">${escapeHTML(child.childCode)}</strong><br>
                     <span class="${isLate?'text-red-600 dark:text-red-400':'text-green-600 dark:text-green-400'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</span>
                 </div>
                 <button class="btn-delete-child text-red-600 hover:text-red-800 px-2" data-child-id="${child.childOrderId}" data-child-code="${child.childCode}">✕</button>
@@ -1044,7 +1067,7 @@ window.openAssignModal = async function(orderId) {
 
     const history = firebaseHistoryMap.get(orderId) || [];
     document.getElementById('modalHistory').innerHTML = history.length 
-        ? history.map(h => `<div class="text-xs border-b dark:border-gray-600 py-1"><span class="text-gray-500 dark:text-gray-400">${new Date(h.timestamp).toLocaleDateString()}</span> - ${escapeHTML(h.change)}</div>`).join('') 
+        ? history.map(h => `<div class="text-xs border-b dark:border-slate-600 py-1"><span class="text-gray-500 dark:text-gray-400">${new Date(h.timestamp).toLocaleDateString()}</span> - ${escapeHTML(h.change)}</div>`).join('') 
         : '<p class="text-gray-400 text-xs text-center">Sin historial</p>';
     
     await loadChildOrders();
@@ -1196,7 +1219,7 @@ function populateDesignerManagerModal() {
     if (firebaseDesignersMap.size === 0) { listDiv.innerHTML = '<p class="text-gray-500 text-center">No hay diseñadores</p>'; return; }
     
     firebaseDesignersMap.forEach((data, docId) => {
-        listDiv.innerHTML += `<div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-slate-700 dark:border-gray-600"><div class="leading-tight"><div class="font-medium text-gray-900 dark:text-gray-100">${escapeHTML(data.name)}</div><div class="text-xs text-gray-500 dark:text-gray-400">${escapeHTML(data.email || 'Sin correo')}</div></div><button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30" data-name="${escapeHTML(data.name)}" data-id="${docId}">Eliminar</button></div>`;
+        listDiv.innerHTML += `<div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-slate-700 dark:border-slate-600"><div class="leading-tight"><div class="font-medium text-gray-900 dark:text-gray-100">${escapeHTML(data.name)}</div><div class="text-xs text-gray-500 dark:text-gray-400">${escapeHTML(data.email || 'Sin correo')}</div></div><button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30" data-name="${escapeHTML(data.name)}" data-id="${docId}">Eliminar</button></div>`;
     });
 }
 
@@ -1233,7 +1256,7 @@ function updateMultiSelectBar() {
     const pageCount = paginatedOrders.filter(o => selectedOrders.has(o.orderId)).length;
     if (selectedOrders.size > 0) {
         bar.classList.add('active'); 
-        count.innerHTML = `${selectedOrders.size} <span class="text-xs font-normal text-gray-500">(${pageCount} en esta pág)</span>`;
+        count.innerHTML = `${selectedOrders.size} <span class="text-xs font-normal text-gray-500 dark:text-gray-400">(${pageCount} en esta pág)</span>`;
     } else { bar.classList.remove('active'); }
 }
 
@@ -1324,8 +1347,7 @@ function calculateStats(orders) {
 }
 
 function updateStats(stats) {
-    // Asumiendo que el HTML ha sido actualizado a la estructura Bento, actualizamos por ID
-    // Si los IDs no existen, JS simplemente no hace nada, evitando errores.
+    // Actualización compatible con el nuevo BENTO GRID UI
     const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
     
     setTxt('statTotal', stats.total);
@@ -1371,7 +1393,7 @@ function updateTable() {
         body.innerHTML = paginatedOrders.map(order => {
             const hasChildren = order.childPieces > 0;
             
-            // Clases de fila (incluyendo soporte oscuro)
+            // Clases de fila (incluyendo soporte oscuro y colores semánticos)
             let rowClass = "cursor-pointer transition-colors hover:bg-brand-50 dark:hover:bg-slate-700 ";
             if (order.isVeryLate) rowClass += "bg-red-50 dark:bg-red-900/10 border-l-4 border-red-500 ";
             else if (order.isLate) rowClass += "bg-orange-50 dark:bg-orange-900/10 border-l-4 border-orange-500 ";
@@ -1527,10 +1549,10 @@ function exportTableToExcel() {
     XLSX.writeFile(wb, `Reporte_Panel_Arte_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-// --- generateSummary (Refactorizado para Bento UI - Actualiza el DOM si existe el contenedor antiguo, pero el nuevo dashboard usa IDs directos) ---
+// --- generateSummary (Contenedor alternativo) ---
 function generateSummary() {
     const summaryBox = document.getElementById('summaryBox');
-    if (!summaryBox) return; // Si usas el nuevo Bento Grid, este contenedor podría no existir, y está bien.
+    if (!summaryBox) return; 
     
     const stats = calculateStats(allOrders.filter(o => o.departamento === 'P_Art'));
     summaryBox.innerHTML = `
@@ -1591,7 +1613,7 @@ function generateReports() {
     allOrders.forEach(o => { if(o.cliente) clients[o.cliente] = (clients[o.cliente]||0)+1; });
     const top = Object.entries(clients).sort((a,b)=>b[1]-a[1]).slice(0,10);
     document.getElementById('clientReport').innerHTML = top.map(([c,n], i) => `
-        <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 py-2 last:border-0">
+        <div class="flex justify-between items-center border-b border-gray-100 dark:border-slate-700 py-2 last:border-0">
             <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-400 w-4">${i+1}</span>
                 <span class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[150px]" title="${c}">${c}</span>

@@ -77,9 +77,12 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold leading-tight">Panel de Control</h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
                         <span id="userName" class="font-semibold text-slate-700 dark:text-slate-200">Usuario</span>
-                        <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                        
+                        <span id="fileName" class="hidden sm:inline font-medium text-brand-600 dark:text-brand-400 ml-1 border-l border-gray-300 dark:border-slate-600 pl-2"></span>
+                        
+                        <span class="w-1 h-1 bg-slate-300 rounded-full mx-1"></span>
                         <span id="dbStatus" class="flex items-center gap-1"><i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Conectando...</span>
                     </p>
                 </div>
@@ -333,7 +336,7 @@
             <div class="flex flex-wrap gap-4 mb-6 items-end border-b dark:border-slate-700 pb-6">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Semana</label>
-                    <input type="week" id="view-workPlanWeekSelector" onchange="generateWorkPlan()" class="border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-lg px-3 py-2 block shadow-sm">
+                    <input type="week" id="view-workPlanWeekSelector" onchange="generateWorkPlan()" class="border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white px-3 py-2 w-full rounded-lg text-sm shadow-sm">
                 </div>
                 <button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm transition-colors" onclick="loadUrgentOrdersToPlan()">
                     <i class="fa-solid fa-bolt mr-1"></i> Cargar Urgentes
