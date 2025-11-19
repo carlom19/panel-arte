@@ -1,185 +1,3 @@
-/* ====================================================== */
-/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) ===== */
-/* ====================================================== */
-
-/* --- 1. Control de Modales (Animaciones Suaves) --- */
-body.modal-open { overflow: hidden; }
-
-.modal { 
-    display: flex; 
-    opacity: 0; 
-    pointer-events: none; 
-    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1); /* Curva de animación estilo iOS */
-    position: fixed; 
-    inset: 0; 
-    z-index: 1000; 
-    align-items: center; 
-    justify-content: center;
-    /* El fondo oscuro se maneja con clases de Tailwind (bg-slate-900/50) */
-}
-
-.modal.active { 
-    opacity: 1; 
-    pointer-events: auto; 
-}
-
-.modal-content { 
-    transform: scale(0.98) translateY(10px); 
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
-    max-height: 90vh; 
-    overflow-y: auto; 
-    width: 100%;
-    margin: auto;
-    /* Scrollbar fino para el contenido del modal */
-    scrollbar-width: thin;
-}
-
-.modal.active .modal-content { 
-    transform: scale(1) translateY(0); 
-}
-
-/* --- 2. Barra de Selección Múltiple (Efecto Flotante) --- */
-.multi-select-bar {
-    position: fixed;
-    bottom: 2rem; 
-    left: 50%;
-    transform: translateX(-50%) translateY(200%); /* Oculto abajo */
-    opacity: 0;
-    pointer-events: none; 
-    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1); /* Animación de entrada elástica */
-    z-index: 50;
-}
-
-.multi-select-bar.active {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-    pointer-events: auto; 
-}
-
-/* --- 3. Tablas Estilo Salient (Personalización Fina) --- */
-/* Separamos los bordes para permitir bordes redondeados en las filas */
-table.data-table {
-    border-collapse: separate; 
-    border-spacing: 0; 
-}
-
-table.data-table th {
-    background-color: #F8FAFC; /* slate-50 */
-    color: #475569; /* slate-600 */
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid #E2E8F0; /* slate-200 */
-    white-space: nowrap;
-}
-
-table.data-table td {
-    border-bottom: 1px solid #F1F5F9; /* slate-100 */
-    vertical-align: middle;
-    color: #334155; /* slate-700 */
-    transition: background-color 0.1s;
-}
-
-/* Hover suave en las filas */
-table.data-table tr:hover td {
-    background-color: #F8FAFC; /* slate-50 */
-}
-
-/* Badge Styles (Etiquetas de estado) */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.125rem 0.625rem;
-    border-radius: 9999px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    line-height: 1;
-}
-
-/* --- 4. Utilerías de Animación --- */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.fade-in { animation: fadeIn 0.3s ease-out forwards; }
-
-/* --- 5. Spinner de Carga --- */
-.spinner {
-    border: 3px solid #E2E8F0; 
-    border-top: 3px solid #2563EB; /* Azul primario */
-    border-radius: 50%;
-    width: 32px; height: 32px; 
-    animation: spin 0.8s linear infinite; 
-    margin: 0 auto 1rem;
-}
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-.loading-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(255,255,255,0.8); 
-    backdrop-filter: blur(4px); /* Efecto borroso de fondo */
-    display: flex; align-items: center;
-    justify-content: center; z-index: 9999; flex-direction: column;
-}
-.loading-overlay p {
-    color: #1e293b; font-weight: 500; margin-top: 10px;
-}
-
-/* --- 6. Scrollbars Modernos (Webkit) --- */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
-
-/* --- 7. Overrides para Tabla Responsiva (Mobile Cards) --- */
-/* En móviles, transformamos la tabla en tarjetas individuales */
-@media (max-width: 768px) {
-    table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { 
-        display: block; 
-    }
-    /* Ocultar cabecera original */
-    .data-table thead tr { position: absolute; top: -9999px; left: -9999px; }
-    
-    /* Estilo de tarjeta para la fila */
-    .data-table tr { 
-        margin-bottom: 1rem; 
-        border: 1px solid #E2E8F0; 
-        border-radius: 1rem; 
-        background: white;
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        padding: 0.5rem;
-    }
-    
-    .data-table td { 
-        border: none;
-        border-bottom: 1px solid #F1F5F9; 
-        position: relative;
-        padding-left: 40% !important; /* Espacio para la etiqueta */
-        text-align: right;
-        min-height: 30px;
-        font-size: 0.875rem;
-    }
-    
-    .data-table td:last-child { border-bottom: none; }
-    
-    /* Pseudo-elemento para la etiqueta del dato (data-label) */
-    .data-table td:before { 
-        position: absolute; top: 12px; left: 12px; width: 35%; 
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        font-weight: 600; color: #64748B; text-align: left;
-        content: attr(data-label); 
-        font-size: 0.75rem;
-        text-transform: uppercase;
-    }
-    
-    /* Ajuste especial para el checkbox en móvil */
-    .data-table td:first-child { 
-        padding-left: 1rem !important; 
-        text-align: left; 
-        background: #F8FAFC; 
-        border-radius: 0.5rem; 
-        margin-bottom: 0.5rem;
-    }
-    .data-table td:first-child:before { display: none; }
-}
 // ======================================================
 // ===== CONFIGURACIÓN DE FIREBASE =====
 // ======================================================
@@ -193,12 +11,30 @@ const firebaseConfig = {
 };
 
 // Inicializa Firebase
-// Aseguramos que firebase esté definido antes de usarlo
 if (typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
 } else {
     console.error("Error: El SDK de Firebase no se ha cargado correctamente.");
 }
+
+// ======================================================
+// ===== CONFIGURACIÓN DE TAILWIND =====
+// ======================================================
+tailwind.config = {
+    theme: {
+        extend: {
+            fontFamily: { sans: ['Inter', 'sans-serif'] },
+            colors: {
+                'chart-bandeja': '#F59E0B',
+                'chart-produccion': '#8B5CF6',
+                'chart-auditoria': '#3B82F6',
+                'chart-completada': '#10B981',
+                'chart-sin-estado': '#6B7280',
+            }
+        },
+    },
+};
+
 // ======================================================
 // ===== VARIABLES GLOBALES =====
 // ======================================================
