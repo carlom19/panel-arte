@@ -1,5 +1,5 @@
 /* ====================================================== */
-/* ===== ESTILOS CSS - Panel Arte v5.2 (FINAL) ===== */
+/* ===== ESTILOS CSS - Panel Arte v5.2 (UX MEJORADA) ===== */
 /* ====================================================== */
 
 /* --- 1. Control de Modales (Blindado) --- */
@@ -72,13 +72,77 @@ body.modal-open { overflow: hidden; }
     pointer-events: auto; /* Reactiva la interacción */
 }
 
-/* --- 3. Resaltado de Filas de la Tabla --- */
-tr.very-late { background-color: #FEF2F2; border-left: 4px solid #EF4444; }
-tr.late { background-color: #FEF2F2; }
-tr.expiring { background-color: #FEFCE8; }
-tbody tr:hover { background-color: #F3F4F6; }
+/* --- 3. Resaltado de Filas y Animaciones --- */
+/* Animación suave al cargar filas */
+@keyframes fadeInRow {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
-/* --- 4. Botones de Paginación --- */
+tbody tr {
+    animation: fadeInRow 0.2s ease-out forwards;
+}
+
+tr.very-late { background-color: #FEF2F2; border-left: 4px solid #EF4444; }
+tr.late { background-color: #FFF7ED; border-left: 4px solid #F97316; } /* Naranja suave */
+tr.expiring { background-color: #FEFCE8; border-left: 4px solid #EAB308; }
+tbody tr:hover { background-color: #F8FAFC; transform: scale-[1.01]; transition: background-color 0.1s; }
+
+/* --- 4. Tabla Responsive (Card View) --- */
+/* En móviles, la tabla se convierte en tarjetas */
+@media (max-width: 768px) {
+    table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { 
+        display: block; 
+    }
+    
+    /* Ocultar cabecera original */
+    .data-table thead tr { 
+        position: absolute; top: -9999px; left: -9999px; 
+    }
+    
+    .data-table tr { 
+        margin-bottom: 1rem; 
+        border: 1px solid #E5E7EB; 
+        border-radius: 0.5rem; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        background: white;
+        overflow: hidden;
+    }
+    
+    .data-table td { 
+        border: none;
+        border-bottom: 1px solid #F3F4F6; 
+        position: relative;
+        padding-left: 40% !important; /* Espacio para la etiqueta */
+        text-align: right;
+        min-height: 40px;
+    }
+    
+    .data-table td:last-child { border-bottom: none; }
+    
+    /* La etiqueta viene del atributo data-label en el HTML */
+    .data-table td:before { 
+        position: absolute; top: 12px; left: 12px; width: 35%; 
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        font-weight: 600; color: #6B7280; text-align: left;
+        content: attr(data-label); 
+    }
+    
+    /* Ajuste para el checkbox en móvil */
+    .data-table td:first-child { padding-left: 12px !important; text-align: left; background: #F9FAFB; }
+    .data-table td:first-child:before { content: "Seleccionar"; display: inline-block; position: static; margin-right: 10px; }
+}
+
+/* --- 5. Cabecera Sticky (Escritorio) --- */
+@media (min-width: 769px) {
+    .table-container { max-height: 75vh; overflow-y: auto; }
+    table.data-table thead th { 
+        position: sticky; top: 0; z-index: 10; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+}
+
+/* --- 6. Estilos Generales y Overrides --- */
 .pagination-controls button {
     background-color: white; border: 1px solid #D1D5DB; color: #374151;
     padding: 6px 12px; margin: 0 2px; cursor: pointer; border-radius: 6px;
@@ -88,7 +152,6 @@ tbody tr:hover { background-color: #F3F4F6; }
 .pagination-controls button:disabled { background-color: #F9FAFB; color: #9CA3AF; cursor: not-allowed; }
 .pagination-controls button.active { background-color: #2563EB; color: white; border-color: #2563EB; }
 
-/* --- 5. Botones de Filtro (Sidebar) --- */
 .filter-btn {
     display: flex; justify-content: space-between; align-items: center; width: 100%;
     text-align: left; padding: 8px 12px; border: 1px solid #E5E7EB;
@@ -140,9 +203,9 @@ table.data-table td {
 .loading-overlay p { color: white; font-size: 1.1em; margin-top: 16px; }
 
 /* --- 8. Ajustes Globales de Tamaño (Overrides) --- */
-html { font-size: 13.2px; }
-.p-4 { padding: 0.825rem !important; }
-.p-6 { padding: 1.2375rem !important; }
+html { font-size: 14px; } /* Ligeramente más grande para legibilidad */
+.p-4 { padding: 1rem !important; }
+.p-6 { padding: 1.5rem !important; }
 .p-8 { padding: 1.65rem !important; }
 .mb-4 { margin-bottom: 0.825rem !important; }
 .mb-6 { margin-bottom: 1.2375rem !important; }
@@ -153,7 +216,7 @@ html { font-size: 13.2px; }
 .text-base { font-size: 0.89375rem !important; }
 .text-sm { font-size: 0.75625rem !important; }
 .text-xs { font-size: 0.6875rem !important; }
-input, select, textarea, button { font-size: 0.825rem !important; padding: 0.4125rem 0.825rem !important; }
+input, select, textarea, button { font-size: 0.9rem !important; padding: 0.5rem 0.75rem !important; }
 .grid > div { padding: 1.1rem !important; }
 
 /* Regla general para tablas que no tengan la clase .data-table (Fallback) */

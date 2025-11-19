@@ -99,7 +99,7 @@ let currentWorkPlanWeek = '';
 let currentCompareDesigner1 = '';
 
 // ======================================================
-// ===== FUNCIONES AUXILIARES DE SEGURIDAD =====
+// ===== FUNCIONES AUXILIARES DE SEGURIDAD Y UX =====
 // ======================================================
 
 function safeAddEventListener(id, event, handler) {
@@ -119,12 +119,118 @@ function debounce(func, delay) {
     }
 }
 
+function preventDefaults(e){ e.preventDefault(); e.stopPropagation(); }
+
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function showCustomAlert(message, type = 'info') {
+    const alertDiv = document.getElementById('customAlert');
+    if(!alertDiv) return;
+    let bgClass = type === 'error' ? 'bg-red-100 border-red-500 text-red-800' : type === 'success' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-blue-100 border-blue-500 text-blue-800';
+    let icon = type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+    
+    alertDiv.className = `fixed top-5 right-5 z-[2000] max-w-sm w-full shadow-2xl rounded-lg border-l-4 p-4 transform transition-all duration-300 ${bgClass}`;
+    alertDiv.innerHTML = `<div class="flex justify-between items-start"><div class="flex gap-3"><span class="text-xl">${icon}</span><div><strong class="font-bold block text-sm">${type.toUpperCase()}</strong><span class="block text-sm mt-1">${escapeHTML(message)}</span></div></div><button onclick="document.getElementById('customAlert').style.display='none'" class="text-lg opacity-50 hover:opacity-100 ml-4">&times;</button></div>`;
+    alertDiv.style.display = 'block';
+    if (window.alertTimeout) clearTimeout(window.alertTimeout);
+    window.alertTimeout = setTimeout(() => { alertDiv.style.display = 'none'; }, type === 'error' ? 10000 : 5000);
+}
+
+function setButtonLoading(buttonId, isLoading, originalText = 'Guardar') {
+    const btn = document.getElementById(buttonId);
+    if (!btn) return;
+    if (isLoading) {
+        btn.dataset.originalText = btn.innerHTML; btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
+    } else {
+        btn.disabled = false; btn.innerHTML = btn.dataset.originalText || originalText;
+    }
+}
+
+function showLoading(message = 'Cargando...') {
+    if (document.getElementById('loadingOverlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay'; 
+    overlay.innerHTML = `<div class="spinner"></div><p>${escapeHTML(message)}</p>`;
+    document.body.appendChild(overlay);
+}
+function hideLoading() { const overlay = document.getElementById('loadingOverlay'); if (overlay) overlay.remove(); }
+
+function checkAndCloseModalStack() {
+    const activeModals = document.querySelectorAll('.modal.active');
+    if (activeModals.length === 0) document.body.classList.remove('modal-open');
+}
+
+// === MODAL DE CONFIRMACIÓN MEJORADO ===
+let confirmCallback = null;
+let isStrictConfirm = false;
+
+function showConfirmModal(message, onConfirmCallback, strict = false) {
+    document.getElementById('confirmModalMessage').textContent = message;
+    confirmCallback = onConfirmCallback;
+    isStrictConfirm = strict;
+    
+    const strictContainer = document.getElementById('confirmStrictContainer');
+    const confirmBtn = document.getElementById('confirmModalConfirm');
+    const input = document.getElementById('confirmStrictInput');
+    
+    if (strict) {
+        strictContainer.classList.remove('hidden');
+        input.value = '';
+        confirmBtn.disabled = true;
+        confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        strictContainer.classList.add('hidden');
+        confirmBtn.disabled = false;
+        confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+    
+    document.getElementById('confirmModal').classList.add('active');
+    document.body.classList.add('modal-open');
+    
+    // Clonar botón para eliminar listeners previos
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+    
+    newConfirmBtn.addEventListener('click', () => {
+        if (confirmCallback) confirmCallback();
+        closeConfirmModal();
+    }, { once: true });
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.remove('active');
+    checkAndCloseModalStack(); 
+    confirmCallback = null;
+    document.getElementById('confirmStrictInput').value = ''; 
+}
+
+function checkStrictInput() {
+    if (!isStrictConfirm) return;
+    const input = document.getElementById('confirmStrictInput');
+    const btn = document.getElementById('confirmModalConfirm');
+    if (input.value.toUpperCase() === 'CONFIRMAR') {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+function openLegendModal() {
+    document.getElementById('legendModal').classList.add('active');
+}
+
 // ======================================================
 // ===== FUNCIONES DE INICIALIZACIÓN =====
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM cargado. Inicializando App v5.2 (Final)...');
+    console.log('DOM cargado. Inicializando App v5.2 (Final UX)...');
     
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
@@ -259,6 +365,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             closeModal(); closeMultiModal(); closeWeeklyReportModal();
             hideWorkPlanView(); closeDesignerManager(); hideMetricsView(); 
             hideDepartmentMetrics(); closeConfirmModal(); closeCompareModals(); closeAddChildModal();
+            document.getElementById('legendModal').classList.remove('active');
         }
         if (e.ctrlKey && e.key === 's') {
             const assignModal = document.getElementById('assignModal');
@@ -292,7 +399,7 @@ function conectarDatosDeFirebase() {
     
     const dbStatus = document.getElementById('dbStatus');
     if(dbStatus) {
-        dbStatus.textContent = '● Conectando...';
+        dbStatus.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-xs"></i> Conectando...';
         dbStatus.className = "ml-3 font-medium text-yellow-600";
     }
     
@@ -488,21 +595,27 @@ async function addDesigner() {
     } catch (error) { showCustomAlert(`Error al agregar: ${error.message}`, 'error'); logToFirestore('designer:add', error); }
 }
 
+// --- MEJORA: deleteDesigner con validación estricta ---
 async function deleteDesigner(docId, name) {
     if (!firebaseDesignersMap.has(docId)) {
-        showCustomAlert('El diseñador ya no existe o fue eliminado.', 'error');
+        showCustomAlert('El diseñador no existe.', 'error');
         return;
     }
 
     const ordersToUpdate = allOrders.filter(o => o.designer === name && o.departamento === 'P_Art');
-    let message = `¿Estás seguro de eliminar a "${name}"?`;
-    if (ordersToUpdate.length > 0) message += `\n\n⚠️ ADVERTENCIA: Tiene ${ordersToUpdate.length} órdenes asignadas.`;
+    let message = `¿Eliminar a "${name}"?`;
+    let strict = false;
+    
+    if (ordersToUpdate.length > 0) {
+        message += `\n⚠️ TIENE ${ordersToUpdate.length} ÓRDENES ASIGNADAS.\nPara confirmar, escribe "CONFIRMAR".`;
+        strict = true;
+    }
 
     showConfirmModal(message, async () => {
         try {
+            showLoading('Eliminando...');
             await db_firestore.collection('designers').doc(docId).delete();
             if (ordersToUpdate.length > 0) {
-                showLoading(`Desasignando ${ordersToUpdate.length} órdenes...`);
                 const orderIds = ordersToUpdate.map(o => o.orderId);
                 const BATCH_SIZE = 450;
                 for (let i = 0; i < orderIds.length; i += BATCH_SIZE) {
@@ -515,9 +628,9 @@ async function deleteDesigner(docId, name) {
                     await batch.commit();
                 }
             }
-            showCustomAlert(`Diseñador "${name}" eliminado.`, 'success');
-        } catch (error) { showCustomAlert(`Error: ${error.message}`, 'error'); logToFirestore('designer:delete', error); } finally { hideLoading(); }
-    });
+            showCustomAlert('Diseñador eliminado.', 'success');
+        } catch (error) { showCustomAlert(error.message, 'error'); logToFirestore('designer:delete', error); } finally { hideLoading(); }
+    }, strict);
 }
 
 async function addOrderToWorkPlanDB(order, weekIdentifier) {
@@ -566,73 +679,6 @@ async function logToFirestore(context, error) {
     } catch (e) {
         console.error("Fallo al loguear error:", e);
     }
-}
-
-// ======================================================
-// ===== FUNCIONES BÁSICAS (Auxiliares y UI) =====
-// ======================================================
-
-function preventDefaults(e){ e.preventDefault(); e.stopPropagation(); }
-function escapeHTML(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function showCustomAlert(message, type = 'info') {
-    const alertDiv = document.getElementById('customAlert');
-    if(!alertDiv) return;
-    let bgClass = type === 'error' ? 'bg-red-100 border-red-500 text-red-800' : type === 'success' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-blue-100 border-blue-500 text-blue-800';
-    let icon = type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
-    
-    alertDiv.className = `fixed top-5 right-5 z-[2000] max-w-sm w-full shadow-2xl rounded-lg border-l-4 p-4 transform transition-all duration-300 ${bgClass}`;
-    alertDiv.innerHTML = `<div class="flex justify-between items-start"><div class="flex gap-3"><span class="text-xl">${icon}</span><div><strong class="font-bold block text-sm">${type.toUpperCase()}</strong><span class="block text-sm mt-1">${escapeHTML(message)}</span></div></div><button onclick="document.getElementById('customAlert').style.display='none'" class="text-lg opacity-50 hover:opacity-100 ml-4">&times;</button></div>`;
-    alertDiv.style.display = 'block';
-    if (window.alertTimeout) clearTimeout(window.alertTimeout);
-    window.alertTimeout = setTimeout(() => { alertDiv.style.display = 'none'; }, type === 'error' ? 10000 : 5000);
-}
-
-let confirmCallback = null;
-function showConfirmModal(message, onConfirmCallback) {
-    document.getElementById('confirmModalMessage').textContent = message;
-    confirmCallback = onConfirmCallback;
-    document.getElementById('confirmModal').classList.add('active');
-    document.body.classList.add('modal-open');
-    
-    const confirmBtn = document.getElementById('confirmModalConfirm');
-    const newConfirmBtn = confirmBtn.cloneNode(true);
-    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-    newConfirmBtn.addEventListener('click', () => { if (confirmCallback) confirmCallback(); closeConfirmModal(); }, { once: true });
-}
-
-function closeConfirmModal() {
-    document.getElementById('confirmModal').classList.remove('active');
-    checkAndCloseModalStack(); 
-    confirmCallback = null;
-}
-
-function setButtonLoading(buttonId, isLoading, originalText = 'Guardar') {
-    const btn = document.getElementById(buttonId);
-    if (!btn) return;
-    if (isLoading) {
-        btn.dataset.originalText = btn.innerHTML; btn.disabled = true;
-        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
-    } else {
-        btn.disabled = false; btn.innerHTML = btn.dataset.originalText || originalText;
-    }
-}
-
-function showLoading(message = 'Cargando...') {
-    if (document.getElementById('loadingOverlay')) return;
-    const overlay = document.createElement('div');
-    overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay'; 
-    overlay.innerHTML = `<div class="spinner"></div><p>${escapeHTML(message)}</p>`;
-    document.body.appendChild(overlay);
-}
-function hideLoading() { const overlay = document.getElementById('loadingOverlay'); if (overlay) overlay.remove(); }
-
-function checkAndCloseModalStack() {
-    const activeModals = document.querySelectorAll('.modal.active');
-    if (activeModals.length === 0) document.body.classList.remove('modal-open');
 }
 
 // ======================================================
@@ -802,7 +848,7 @@ async function processFile(file) {
 }
 
 // ======================================================
-// ===== LÓGICA DE ÓRDENES HIJAS (CORREGIDA) =====
+// ===== LÓGICA DE ÓRDENES HIJAS =====
 // ======================================================
 
 async function recalculateChildPieces() {
@@ -818,13 +864,12 @@ async function recalculateChildPieces() {
     needsRecalculation = false;
 }
 
-// --- CORRECCIÓN: Abrir modal con datos del padre ---
 function openAddChildModal() {
     if (!currentEditingOrderId) return;
     const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
     if (!parentOrder) return;
     
-    document.getElementById('parentOrderInfo').textContent = `Orden Padre: ${parentOrder.codigoContrato} - ${parentOrder.cliente}`;
+    document.getElementById('parentOrderInfo').textContent = `Padre: ${parentOrder.codigoContrato} - ${parentOrder.cliente}`;
     document.getElementById('childOrderCode').value = parentOrder.codigoContrato + '-';
     document.getElementById('childOrderNumber').value = '';
     document.getElementById('childPieces').value = '';
@@ -835,19 +880,12 @@ function openAddChildModal() {
     document.body.classList.add('modal-open');
 }
 
-// --- CORRECCIÓN: Actualizar código en tiempo real ---
 function updateChildOrderCode() {
     const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
     if (!parentOrder) return;
     
     const childNumber = document.getElementById('childOrderNumber').value;
-    const codeField = document.getElementById('childOrderCode');
-    
-    if (childNumber && childNumber > 0) {
-        codeField.value = `${parentOrder.codigoContrato}-${childNumber}`;
-    } else {
-        codeField.value = `${parentOrder.codigoContrato}-`;
-    }
+    document.getElementById('childOrderCode').value = `${parentOrder.codigoContrato}-${childNumber ? childNumber : ''}`;
 }
 
 async function saveChildOrder() {
@@ -863,7 +901,6 @@ async function saveChildOrder() {
         if (!childPieces || childPieces < 1) { showCustomAlert('Ingresa la cantidad.', 'error'); return; }
         
         const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
-        if (!parentOrder) return;
         
         const childCode = `${parentOrder.codigoContrato}-${childNumber}`;
         const deliveryDate = childDeliveryDate ? new Date(childDeliveryDate + 'T00:00:00Z') 
@@ -916,27 +953,26 @@ async function loadChildOrders() {
         document.getElementById('childOrderCount').textContent = childOrders.length;
         const list = document.getElementById('childOrdersList');
         
-        if (childOrders.length === 0) { list.innerHTML = '<p class="text-gray-500 text-xs text-center">Sin órdenes hijas</p>'; return; }
+        if (childOrders.length === 0) { list.innerHTML = '<p class="text-gray-400 text-xs text-center">Sin órdenes hijas</p>'; return; }
         
         list.innerHTML = childOrders.map(child => {
             const date = child.fechaDespacho ? new Date(child.fechaDespacho) : null;
             const isLate = date && date < new Date().setHours(0,0,0,0);
-            return `<div class="bg-white p-2 rounded border shadow-sm text-xs mb-1">
-                <div class="flex justify-between">
-                    <strong class="text-blue-600">${escapeHTML(child.childCode)}</strong>
-                    <button class="btn-delete-child text-red-600 hover:text-red-800" data-child-id="${child.childOrderId}" data-child-code="${child.childCode}">✕</button>
+            return `<div class="bg-white p-2 rounded border text-xs mb-1 flex justify-between items-center">
+                <div>
+                    <strong class="text-blue-600">${escapeHTML(child.childCode)}</strong><br>
+                    <span class="${isLate?'text-red-600':'text-green-600'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</span>
                 </div>
-                <div class="${isLate?'text-red-600':'text-green-600'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</div>
+                <button class="btn-delete-child text-red-600 hover:text-red-800 px-2" data-child-id="${child.childOrderId}" data-child-code="${child.childCode}">✕</button>
             </div>`;
         }).join('');
     } catch (e) { console.error(e); }
 }
 
 // ======================================================
-// ===== LÓGICA DE ASIGNACIÓN (MODALES CORREGIDOS) =====
+// ===== LÓGICA DE ASIGNACIÓN =====
 // ======================================================
 
-// --- CORRECCIÓN: Modal de Asignación Completo ---
 window.openAssignModal = async function(orderId) {
     currentEditingOrderId = orderId;
     const order = allOrders.find(o => o.orderId === orderId);
@@ -949,10 +985,7 @@ window.openAssignModal = async function(orderId) {
     document.getElementById('detailFecha').textContent = formatDate(order.fechaDespacho);
     
     const totalPieces = (order.cantidad || 0) + (order.childPieces || 0);
-    const piecesText = order.childPieces > 0 
-        ? `${order.cantidad.toLocaleString()} (+${order.childPieces} hijas) = ${totalPieces.toLocaleString()} pzs`
-        : `${order.cantidad.toLocaleString()} pzs`;
-    document.getElementById('detailPiezas').textContent = piecesText;
+    document.getElementById('detailPiezas').textContent = `${order.cantidad.toLocaleString()} (+${order.childPieces} hijas) = ${totalPieces.toLocaleString()} pzs`;
     
     document.getElementById('modalDesigner').value = order.designer || '';
     document.getElementById('modalStatus').value = order.customStatus || '';
@@ -987,10 +1020,9 @@ async function asignarmeAmi() {
 
 window.saveAssignment = async function() {
     if (!currentEditingOrderId) return;
-    const saveButtonId = 'saveAssignmentButton';
+    setButtonLoading('saveAssignmentButton', true);
     
     try {
-        setButtonLoading(saveButtonId, true); 
         const order = allOrders.find(o => o.orderId === currentEditingOrderId);
         const newDesigner = document.getElementById('modalDesigner').value;
         const newStatus = document.getElementById('modalStatus').value;
@@ -1019,7 +1051,7 @@ window.saveAssignment = async function() {
             showCustomAlert('Guardado.', 'success');
             closeModal();
         } else { showCustomAlert('Sin cambios.', 'info'); }
-    } catch (e) { showCustomAlert(e.message, 'error'); logToFirestore('saveAssignment', e); } finally { setButtonLoading(saveButtonId, false); }
+    } catch (e) { showCustomAlert(e.message, 'error'); logToFirestore('saveAssignment', e); } finally { setButtonLoading('saveAssignmentButton', false); }
 }
 
 function openMultiAssignModal() {
@@ -1035,12 +1067,14 @@ function closeMultiModal() {
 
 async function saveMultiAssignment() {
     if (selectedOrders.size === 0) return;
-    const saveButtonId = 'saveMultiAssignmentButton';
+    setButtonLoading('saveMultiAssignmentButton', true);
 
     try {
-        setButtonLoading(saveButtonId, true); 
         const newDesigner = document.getElementById('multiModalDesigner').value;
         const newStatus = document.getElementById('multiModalStatus').value;
+        const newDate = document.getElementById('multiModalReceivedDate').value;
+        const newNotes = document.getElementById('multiModalNotes').value;
+
         const batch = db_firestore.batch();
         let count = 0;
 
@@ -1051,6 +1085,9 @@ async function saveMultiAssignment() {
                 let update = { schemaVersion: DB_SCHEMA_VERSION };
                 if(newDesigner) update.designer = newDesigner;
                 if(newStatus) update.customStatus = newStatus;
+                if(newDate) update.receivedDate = newDate;
+                if(newNotes) update.notes = (order.notes ? order.notes + '\n' : '') + newNotes; // Append note
+                
                 batch.set(ref, update, { merge: true });
                 count++;
             }
@@ -1060,7 +1097,7 @@ async function saveMultiAssignment() {
         closeMultiModal();
         clearSelection();
         showCustomAlert(`${count} órdenes actualizadas.`, 'success');
-    } catch (e) { showCustomAlert(e.message, 'error'); logToFirestore('saveMulti', e); } finally { setButtonLoading(saveButtonId, false); }
+    } catch (e) { showCustomAlert(e.message, 'error'); logToFirestore('saveMulti', e); } finally { setButtonLoading('saveMultiAssignmentButton', false); }
 }
 // ======================================================
 // ===== LÓGICA DE UI (GENERAL) =====
@@ -1086,7 +1123,6 @@ function updateAllDesignerDropdowns() {
     }
 }
 
-// --- CORRECCIÓN: Sidebar de Métricas ---
 function populateMetricsSidebar() {
     const sidebarList = document.getElementById('metricsSidebarList');
     if (!sidebarList) return;
@@ -1254,41 +1290,57 @@ function updateStats(stats) {
 function updateAlerts(stats) {
     const div = document.getElementById('alerts');
     div.innerHTML = '';
-    if (stats.veryLate > 0) div.innerHTML += `<div class="alert bg-red-100 border-red-500 text-red-800 p-4 mb-4 border-l-4"><strong>URGENTE:</strong> ${stats.veryLate} muy atrasadas.</div>`;
-    else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="alert bg-yellow-100 border-yellow-500 text-yellow-800 p-4 mb-4 border-l-4"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
+    if (stats.veryLate > 0) div.innerHTML += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 shadow-sm rounded-r"><strong>URGENTE:</strong> ${stats.veryLate} muy atrasadas.</div>`;
+    else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 shadow-sm rounded-r"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
 }
 
+// === MODIFICACIÓN CRÍTICA: updateTable para Móvil y Empty States ===
 function updateTable() {
     const filtered = getFilteredOrders();
     const body = document.getElementById('tableBody');
+    
     setupPagination(filtered);
+    
     document.getElementById('resultCount').textContent = filtered.length;
     document.getElementById('totalCount').textContent = allOrders.length;
     document.getElementById('resultPieces').textContent = filtered.reduce((s,o)=>s+(o.cantidad||0)+(o.childPieces||0),0).toLocaleString();
 
     if (paginatedOrders.length === 0) {
-        body.innerHTML = '<tr><td colspan="14" class="text-center py-8 text-gray-500">Sin resultados</td></tr>';
+        body.innerHTML = `
+            <tr>
+                <td colspan="14" class="text-center py-12">
+                    <div class="flex flex-col items-center justify-center text-gray-400">
+                        <i class="fa-solid fa-magnifying-glass text-4xl mb-4 text-gray-300"></i>
+                        <p class="text-lg font-medium">No se encontraron órdenes</p>
+                        <p class="text-sm">Intenta ajustar los filtros o la búsqueda.</p>
+                        <button onclick="clearAllFilters()" class="mt-4 text-blue-600 hover:underline font-medium">Limpiar filtros</button>
+                    </div>
+                </td>
+            </tr>`;
     } else {
         body.innerHTML = paginatedOrders.map(order => {
             const hasChildren = order.childPieces > 0;
             const rowClass = order.isVeryLate ? 'very-late' : order.isLate ? 'late' : order.isAboutToExpire ? 'expiring' : '';
             const receivedDateStr = order.receivedDate ? order.receivedDate.split('-').reverse().join('/') : '-';
 
-            return `<tr class="${rowClass} cursor-pointer" onclick="openAssignModal('${order.orderId}')">
-                <td class="px-6 py-4" onclick="event.stopPropagation()">${order.departamento === 'P_Art' ? `<input type="checkbox" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${getStatusBadge(order)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatDate(order.fechaDespacho)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${escapeHTML(order.cliente)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-blue-600 text-xs">(Hijas)</span>' : ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(order.estilo)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(order.teamName)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-xs"><span class="bg-gray-100 px-2 py-1 rounded">${escapeHTML(order.departamento)}</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">${order.designer ? `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${getCustomStatusBadge(order.customStatus)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${receivedDateStr}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">${(order.cantidad||0).toLocaleString()}</td>
-                <td class="px-6 py-4 text-center">${order.notes ? '📝' : '-'}</td>
-                <td class="px-6 py-4 text-sm"><button class="text-blue-600 hover:underline">Ver</button></td>
+            return `
+            <tr class="${rowClass} cursor-pointer transition-colors hover:bg-blue-50" onclick="openAssignModal('${order.orderId}')">
+                <td class="px-6 py-4" data-label="Seleccionar" onclick="event.stopPropagation()">
+                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap" data-label="Estado">${getStatusBadge(order)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" data-label="Cliente" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Código">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-blue-600 text-xs font-bold">(Hijas)</span>' : ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Team">${escapeHTML(order.teamName)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 px-2 py-1 rounded border">${escapeHTML(order.departamento)}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm" data-label="Diseñador">${order.designer ? `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
+                <td class="px-6 py-4 whitespace-nowrap" data-label="Estado Orden">${getCustomStatusBadge(order.customStatus)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Recibida">${receivedDateStr}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600" data-label="Cant.">${(order.cantidad||0).toLocaleString()}</td>
+                <td class="px-6 py-4 text-center" data-label="Notas">${order.notes ? '📝' : '-'}</td>
+                <td class="px-6 py-4 text-sm" data-label="Acción"><button class="text-blue-600 hover:underline font-medium">Editar</button></td>
             </tr>`;
         }).join('');
     }
@@ -1330,14 +1382,14 @@ function getFilteredOrders() {
 }
 
 function getStatusBadge(order) {
-    if (order.isVeryLate) return `<span class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">Muy Atrasada (${order.daysLate}d)</span>`;
-    if (order.isLate) return `<span class="px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-600">Atrasada (${order.daysLate}d)</span>`;
-    if (order.isAboutToExpire) return `<span class="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Por Vencer</span>`;
-    return `<span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">A Tiempo</span>`;
+    if (order.isVeryLate) return `<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold border border-red-200">MUY ATRASADA</span>`;
+    if (order.isLate) return `<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-xs font-bold border border-orange-200">ATRASADA</span>`;
+    if (order.isAboutToExpire) return `<span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200">URGENTE</span>`;
+    return `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-medium border border-green-200">A TIEMPO</span>`;
 }
 function getCustomStatusBadge(status) {
-    const map = { 'Bandeja': 'bg-yellow-100 text-yellow-800', 'Producción': 'bg-purple-100 text-purple-800', 'Auditoría': 'bg-blue-100 text-blue-800', 'Completada': 'bg-gray-100 text-gray-800' };
-    return status ? `<span class="px-2 py-1 rounded text-xs font-medium ${map[status] || 'bg-gray-50'}">${status}</span>` : '-';
+    const map = { 'Bandeja': 'bg-yellow-100 text-yellow-800', 'Producción': 'bg-purple-100 text-purple-800', 'Auditoría': 'bg-blue-100 text-blue-800', 'Completada': 'bg-gray-100 text-gray-600' };
+    return status ? `<span class="${map[status] || 'bg-gray-100'} px-2 py-0.5 rounded text-xs font-bold border border-gray-200">${status}</span>` : '-';
 }
 function formatDate(date) {
     return date ? date.toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '-';
@@ -1359,7 +1411,6 @@ function populateFilterDropdowns() {
 
 // --- CORRECCIÓN: Función clearAllFilters REPARADA ---
 function clearAllFilters() {
-    // 1. Reiniciar TODAS las variables globales de filtro
     currentSearch = '';
     currentClientFilter = '';
     currentStyleFilter = '';
@@ -1371,16 +1422,13 @@ function clearAllFilters() {
     currentDateTo = '';
     currentFilter = 'all';
 
-    // 2. Limpiar visualmente los inputs y selects
     document.querySelectorAll('.filter-item select, .filter-item input').forEach(el => {
         el.value = '';
     });
 
-    // 3. Limpiar el input de búsqueda principal si existe
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
 
-    // 4. Reiniciar a página 1 y actualizar
     currentPage = 1;
     updateTable();
 }
@@ -1392,6 +1440,30 @@ function sortTable(k) {
     updateTable(); 
 }
 
+// === NUEVA FUNCIONALIDAD: Exportar a Excel ===
+function exportTableToExcel() {
+    if (allOrders.length === 0) { showCustomAlert('No hay datos para exportar.', 'error'); return; }
+    
+    const filtered = getFilteredOrders();
+    const dataToExport = filtered.map(o => ({
+        "Cliente": o.cliente,
+        "Código": o.codigoContrato,
+        "Estilo": o.estilo,
+        "Departamento": o.departamento,
+        "Fecha Despacho": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
+        "Diseñador": o.designer,
+        "Estado Interno": o.customStatus,
+        "Fecha Recibido": o.receivedDate,
+        "Cantidad": o.cantidad,
+        "Notas": o.notes
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ordenes Filtradas");
+    XLSX.writeFile(wb, `Reporte_Panel_Arte_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 // --- CORRECCIÓN: Implementación de generateSummary ---
 function generateSummary() {
     const summaryBox = document.getElementById('summaryBox');
@@ -1401,17 +1473,19 @@ function generateSummary() {
     summaryBox.innerHTML = `
         <div class="flex justify-between items-center">
             <div>
-                <h3 class="text-lg font-semibold text-gray-900">Resumen General</h3>
-                <p class="text-sm text-gray-600">Última actualización: ${new Date().toLocaleTimeString()}</p>
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-blue-600"></i> Resumen General
+                </h3>
+                <p class="text-xs text-gray-500 mt-1">Actualizado: ${new Date().toLocaleTimeString()}</p>
             </div>
-            <div class="flex gap-4">
+            <div class="flex gap-8">
                 <div class="text-center">
                     <div class="text-2xl font-bold text-blue-600">${stats.total}</div>
-                    <div class="text-xs text-gray-500">Órdenes</div>
+                    <div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Órdenes</div>
                 </div>
                 <div class="text-center">
                     <div class="text-2xl font-bold text-purple-600">${stats.totalPieces.toLocaleString()}</div>
-                    <div class="text-xs text-gray-500">Piezas</div>
+                    <div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Piezas</div>
                 </div>
             </div>
         </div>`;
@@ -1429,25 +1503,40 @@ function generateWorkloadReport() {
             if (o.designer !== EXCLUDE_DESIGNER_NAME) total += p;
         }
     });
-    document.getElementById('workloadTotal').textContent = `${total.toLocaleString()} pzs (Sin ${EXCLUDE_DESIGNER_NAME})`;
+    document.getElementById('workloadTotal').textContent = `${total.toLocaleString()} pzs`;
     const html = designerList.map(d => {
         const s = designerStats[d];
         const isEx = d === EXCLUDE_DESIGNER_NAME;
         const pct = (total > 0 && !isEx) ? ((s.pieces/total)*100).toFixed(1) : 0;
-        return `<div class="mb-2"><div class="flex justify-between text-sm"><span>${d}</span><span>${s.pieces} pzs (${isEx?'-':pct+'%'})</span></div><div class="h-2 bg-gray-200 rounded"><div class="h-full bg-blue-600 rounded" style="width:${isEx?0:pct}%"></div></div></div>`;
+        return `
+        <div class="mb-3">
+            <div class="flex justify-between text-sm mb-1">
+                <span class="font-medium text-gray-700">${d}</span>
+                <span class="text-gray-600">${s.pieces.toLocaleString()} (${isEx?'-':pct+'%'})</span>
+            </div>
+            <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-500 rounded-full" style="width:${isEx?0:pct}%"></div>
+            </div>
+        </div>`;
     }).join('');
     document.getElementById('workloadList').innerHTML = html;
 }
 
 function generateReports() {
+    generateWorkloadReport();
     const clients = {};
     allOrders.forEach(o => { if(o.cliente) clients[o.cliente] = (clients[o.cliente]||0)+1; });
     const top = Object.entries(clients).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    document.getElementById('clientReport').innerHTML = top.map(([c,n]) => `<div class="flex justify-between border-b py-1 text-sm"><span>${c}</span><strong>${n}</strong></div>`).join('');
-    generateWorkloadReport();
+    document.getElementById('clientReport').innerHTML = top.map(([c,n], i) => `
+        <div class="flex justify-between items-center border-b border-gray-100 py-2 last:border-0">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-400 w-4">${i+1}</span>
+                <span class="text-sm text-gray-700 truncate max-w-[150px]" title="${c}">${c}</span>
+            </div>
+            <strong class="text-sm text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${n}</strong>
+        </div>`).join('');
 }
 
-// --- CORRECCIÓN: Modal semanal ---
 function openWeeklyReportModal() {
     document.getElementById('weeklyReportModal').classList.add('active');
     document.body.classList.add('modal-open');
@@ -1547,7 +1636,7 @@ function generateWeeklyReport() {
     setTimeout(() => {
         try {
             const weekValue = document.getElementById('weekSelector').value;
-            if (!weekValue) { contentDiv.innerHTML = '<p class="text-center py-4">Por favor, selecciona una semana.</p>'; spinner.style.display = 'none'; return; }
+            if (!weekValue) { contentDiv.innerHTML = '<p class="text-center py-4 text-gray-500">Por favor, selecciona una semana.</p>'; spinner.style.display = 'none'; return; }
             
             const [year, week] = weekValue.split('-W').map(Number);
             const { startDate, endDate } = getWeekDateRange(year, week);
@@ -1559,7 +1648,7 @@ function generateWeeklyReport() {
                 return receivedDate >= startDate && receivedDate <= endDate;
             });
 
-            let reportHTML = `<h4 class="text-lg font-semibold text-gray-800 mt-4 mb-2">Semana: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</h4><div class="table-container border rounded-lg overflow-hidden mt-4 max-h-96 overflow-y-auto"><table id="weeklyReportTable" class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+            let reportHTML = `<h4 class="text-lg font-semibold text-gray-800 mt-4 mb-4 border-b pb-2">Semana: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</h4><div class="table-container border rounded-lg overflow-hidden mt-4 max-h-96 overflow-y-auto"><table id="weeklyReportTable" class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
 
             if (filteredOrders.length > 0) {
                 filteredOrders.sort((a,b) => new Date(a.receivedDate) - new Date(b.receivedDate));
@@ -1570,7 +1659,7 @@ function generateWeeklyReport() {
                     reportHTML += `<tr><td class="px-4 py-2 text-sm">${new Date(order.receivedDate + 'T00:00:00Z').toLocaleDateString()}</td><td class="px-4 py-2 text-sm font-medium">${escapeHTML(order.cliente)}</td><td class="px-4 py-2 text-sm text-gray-500">${escapeHTML(order.codigoContrato)}</td><td class="px-4 py-2 text-sm">${escapeHTML(order.designer) || '-'}</td><td class="px-4 py-2 text-sm font-bold text-gray-800">${p.toLocaleString()}</td></tr>`;
                 });
                 reportHTML += `<tr class="bg-gray-100 font-bold"><td colspan="4" class="px-4 py-2 text-right">Total:</td><td class="px-4 py-2">${totalPieces.toLocaleString()}</td></tr>`;
-            } else { reportHTML += '<tr><td colspan="5" class="text-center py-8 text-gray-500">No hay órdenes recibidas esta semana.</td></tr>'; }
+            } else { reportHTML += '<tr><td colspan="5" class="text-center py-12 text-gray-400"><i class="fa-regular fa-folder-open text-2xl mb-2 block"></i>No hay órdenes recibidas esta semana.</td></tr>'; }
             reportHTML += `</tbody></table></div>`;
             contentDiv.innerHTML = reportHTML;
         } catch (e) { console.error(e); contentDiv.innerHTML = '<p class="text-red-500">Error generando reporte.</p>'; }
@@ -1580,7 +1669,7 @@ function generateWeeklyReport() {
 
 async function generateDesignerMetrics(designerName) {
     const contentDiv = document.getElementById('metricsDetail');
-    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center">Cargando...</p>';
+    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center mt-4 text-gray-500">Cargando métricas...</p>';
     
     destroyAllCharts(); 
     currentDesignerTableFilter = { search: '', cliente: '', estado: '', fechaDesde: '', fechaHasta: '' };
@@ -1595,7 +1684,24 @@ async function generateDesignerMetrics(designerName) {
     
     setTimeout(() => {
         const safeName = escapeHTML(designerName);
-        contentDiv.innerHTML = `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">${safeName}</h2><div class="flex gap-2"><button class="px-3 py-2 bg-green-600 text-white rounded shadow text-sm" onclick="exportDesignerMetricsPDF('${safeName.replace(/'/g, "\\'")}')">PDF</button><button class="px-3 py-2 bg-white border rounded shadow text-sm hover:bg-gray-50" onclick="openCompareModal('${safeName.replace(/'/g, "\\'")}')">Comparar</button></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"><div class="chart-container h-64 bg-white p-4 rounded shadow border"><canvas id="designerDoughnutChartCanvas"></canvas></div><div class="chart-container h-64 bg-white p-4 rounded shadow border"><canvas id="designerBarChartCanvas"></canvas></div></div><div id="designerOrdersTableContainer"></div>`;
+        contentDiv.innerHTML = `
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-gray-800">${safeName}</h2>
+                <div class="flex gap-2">
+                    <button class="px-3 py-2 bg-green-600 text-white rounded shadow text-sm hover:bg-green-700 transition" onclick="exportDesignerMetricsPDF('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-file-pdf mr-1"></i> PDF</button>
+                    <button class="px-3 py-2 bg-white border rounded shadow text-sm hover:bg-gray-50 transition" onclick="openCompareModal('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-scale-balanced mr-1"></i> Comparar</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="chart-container h-64 bg-white p-4 rounded-lg shadow-sm border border-gray-100 relative">
+                    <canvas id="designerDoughnutChartCanvas"></canvas>
+                </div>
+                <div class="chart-container h-64 bg-white p-4 rounded-lg shadow-sm border border-gray-100 relative">
+                    <canvas id="designerBarChartCanvas"></canvas>
+                </div>
+            </div>
+            <div id="designerOrdersTableContainer" class="mt-6"></div>
+        `;
         renderDesignerOrdersTable(designerName);
         initDesignerCharts(designerOrders);
     }, 100);
@@ -1606,10 +1712,30 @@ function renderDesignerOrdersTable(designerName) {
     if (!container) return;
     const isUnassigned = designerName === 'Sin asignar';
     let orders = allOrders.filter(o => (isUnassigned ? !o.designer : o.designer === designerName) && o.departamento === 'P_Art');
-    let html = `<div class="overflow-x-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estilo</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
-    if (orders.length === 0) html += `<tr><td colspan="4" class="p-4 text-center text-gray-500">Sin órdenes activas</td></tr>`;
+    
+    let html = `<div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Estado</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Cliente</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Estilo</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Piezas</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">`;
+            
+    if (orders.length === 0) html += `<tr><td colspan="4" class="p-8 text-center text-gray-400">Sin órdenes activas</td></tr>`;
     else {
-        orders.forEach(o => { html += `<tr><td class="px-4 py-2">${getStatusBadge(o)}</td><td class="px-4 py-2 text-sm">${escapeHTML(o.cliente)}</td><td class="px-4 py-2 text-sm text-gray-500">${escapeHTML(o.estilo)}</td><td class="px-4 py-2 text-sm font-bold text-blue-600">${((o.cantidad||0)+(o.childPieces||0)).toLocaleString()}</td></tr>`; });
+        orders.forEach(o => { 
+            html += `
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-4 py-2">${getStatusBadge(o)}</td>
+                <td class="px-4 py-2 font-medium">${escapeHTML(o.cliente)}</td>
+                <td class="px-4 py-2 text-gray-500">${escapeHTML(o.estilo)}</td>
+                <td class="px-4 py-2 font-bold text-blue-600">${((o.cantidad||0)+(o.childPieces||0)).toLocaleString()}</td>
+            </tr>`; 
+        });
     }
     html += `</tbody></table></div>`;
     container.innerHTML = html;
@@ -1629,7 +1755,7 @@ function initDesignerCharts(orders) {
         designerDoughnutChart = new Chart(ctx1, {
             type: 'doughnut',
             data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: colors }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Órdenes por Estado' } } }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Órdenes por Estado' }, legend: { position: 'right' } } }
         });
     }
     const ctx2 = document.getElementById('designerBarChartCanvas')?.getContext('2d');
@@ -1637,7 +1763,7 @@ function initDesignerCharts(orders) {
         designerBarChart = new Chart(ctx2, {
             type: 'bar',
             data: { labels: Object.keys(piecesCounts), datasets: [{ label: 'Piezas', data: Object.values(piecesCounts), backgroundColor: colors }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Carga de Piezas' }, legend: {display: false} } }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Carga de Piezas' }, legend: {display: false} }, scales: { y: { beginAtZero: true } } }
         });
     }
 }
@@ -1649,7 +1775,21 @@ function generateCompareReport(name1, name2) {
     const s1 = calculateStats(o1);
     const s2 = calculateStats(o2);
     
-    document.getElementById('compareTableContainer').innerHTML = `<table class="min-w-full divide-y divide-gray-200 mt-4"><thead class="bg-gray-50"><tr><th>Métrica</th><th>${escapeHTML(name1)}</th><th>${escapeHTML(name2)}</th></tr></thead><tbody class="divide-y divide-gray-200 bg-white"><tr><td class="px-4 py-2">Total Órdenes</td><td class="px-4 py-2 text-center font-bold">${s1.total}</td><td class="px-4 py-2 text-center font-bold">${s2.total}</td></tr><tr><td class="px-4 py-2">Total Piezas</td><td class="px-4 py-2 text-center text-blue-600">${s1.totalPieces.toLocaleString()}</td><td class="px-4 py-2 text-center text-blue-600">${s2.totalPieces.toLocaleString()}</td></tr><tr><td class="px-4 py-2">Atrasadas</td><td class="px-4 py-2 text-center text-red-600">${s1.late}</td><td class="px-4 py-2 text-center text-red-600">${s2.late}</td></tr></tbody></table>`;
+    document.getElementById('compareTableContainer').innerHTML = `
+        <table class="min-w-full divide-y divide-gray-200 mt-4 text-sm border border-gray-200 rounded-lg overflow-hidden">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 font-bold text-gray-700">Métrica</th>
+                    <th class="px-4 py-3 font-bold text-gray-700">${escapeHTML(name1)}</th>
+                    <th class="px-4 py-3 font-bold text-gray-700">${escapeHTML(name2)}</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+                <tr><td class="px-4 py-3 text-gray-600">Total Órdenes</td><td class="px-4 py-3 text-center font-bold value-a">${s1.total}</td><td class="px-4 py-3 text-center font-bold value-b">${s2.total}</td></tr>
+                <tr><td class="px-4 py-3 text-gray-600">Total Piezas</td><td class="px-4 py-3 text-center text-blue-600 font-bold value-a">${s1.totalPieces.toLocaleString()}</td><td class="px-4 py-3 text-center text-blue-600 font-bold value-b">${s2.totalPieces.toLocaleString()}</td></tr>
+                <tr><td class="px-4 py-3 text-gray-600">Atrasadas</td><td class="px-4 py-3 text-center text-red-600 font-bold value-a">${s1.late}</td><td class="px-4 py-3 text-center text-red-600 font-bold value-b">${s2.late}</td></tr>
+            </tbody>
+        </table>`;
     
     const ctx = document.getElementById('compareChartCanvas').getContext('2d');
     if(compareChart) compareChart.destroy();
@@ -1693,7 +1833,7 @@ function generateDepartmentMetrics() {
     const contentDiv = document.getElementById('departmentMetricsContent');
     if (!contentDiv) return;
     destroyAllCharts(); 
-    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center">Calculando métricas globales...</p>';
+    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center text-gray-500 mt-4">Calculando métricas globales...</p>';
     setTimeout(() => {
         const activeOrders = allOrders.filter(o => o.departamento === 'P_Art');
         const totalOrders = activeOrders.length;
@@ -1711,20 +1851,20 @@ function generateDepartmentMetrics() {
             }
         });
 
-        contentDiv.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-600"><h3 class="text-gray-500 text-sm uppercase font-semibold">Órdenes Activas</h3><p class="text-3xl font-bold text-gray-900 mt-2">${totalOrders}</p></div><div class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-600"><h3 class="text-gray-500 text-sm uppercase font-semibold">Piezas Totales</h3><p class="text-3xl font-bold text-gray-900 mt-2">${totalPieces.toLocaleString()}</p></div><div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-600"><h3 class="text-gray-500 text-sm uppercase font-semibold">Diseñadores Activos</h3><p class="text-3xl font-bold text-gray-900 mt-2">${Object.keys(designerLoad).length}</p></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-4 rounded-lg shadow border"><h4 class="font-bold mb-4 text-gray-700">Distribución por Estado</h4><div class="h-64"><canvas id="deptLoadPieChartCanvas"></canvas></div></div><div class="bg-white p-4 rounded-lg shadow border"><h4 class="font-bold mb-4 text-gray-700">Carga por Diseñador (Piezas)</h4><div class="h-64"><canvas id="deptLoadBarChartCanvas"></canvas></div></div></div>`;
+        contentDiv.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Órdenes Activas</h3><p class="text-3xl font-bold text-gray-900 mt-2">${totalOrders}</p></div><div class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Piezas Totales</h3><p class="text-3xl font-bold text-gray-900 mt-2">${totalPieces.toLocaleString()}</p></div><div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Diseñadores Activos</h3><p class="text-3xl font-bold text-gray-900 mt-2">${Object.keys(designerLoad).length}</p></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-4 rounded-lg shadow border border-gray-100"><h4 class="font-bold mb-4 text-gray-700">Distribución por Estado</h4><div class="h-64"><canvas id="deptLoadPieChartCanvas"></canvas></div></div><div class="bg-white p-4 rounded-lg shadow border border-gray-100"><h4 class="font-bold mb-4 text-gray-700">Carga por Diseñador (Piezas)</h4><div class="h-64"><canvas id="deptLoadBarChartCanvas"></canvas></div></div></div>`;
 
         const ctxPie = document.getElementById('deptLoadPieChartCanvas').getContext('2d');
         deptLoadPieChart = new Chart(ctxPie, {
             type: 'pie',
             data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#9CA3AF'] }] },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
         });
         const ctxBar = document.getElementById('deptLoadBarChartCanvas').getContext('2d');
         const sortedDesigners = Object.entries(designerLoad).sort((a,b) => b[1] - a[1]);
         deptLoadBarChart = new Chart(ctxBar, {
             type: 'bar',
             data: { labels: sortedDesigners.map(d => d[0]), datasets: [{ label: 'Piezas Asignadas', data: sortedDesigners.map(d => d[1]), backgroundColor: '#3B82F6' }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
         });
     }, 100);
 }
@@ -1741,12 +1881,12 @@ function generateWorkPlan() {
 
     setTimeout(() => {
         if (planData.length === 0) {
-            container.innerHTML = `<div class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed"><p class="text-gray-500 mb-4">El plan para la semana ${weekIdentifier} está vacío.</p><p class="text-sm text-gray-400">Usa el botón "Cargar Urgentes" o selecciona órdenes desde el Dashboard.</p></div>`;
+            container.innerHTML = `<div class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300"><i class="fa-solid fa-calendar-xmark text-4xl text-gray-300 mb-3"></i><p class="text-gray-500 mb-2 font-medium">El plan para la semana ${weekIdentifier} está vacío.</p><p class="text-xs text-gray-400">Usa el botón "Cargar Urgentes" o selecciona órdenes desde el Dashboard.</p></div>`;
             summarySpan.textContent = '0 órdenes'; return;
         }
 
         let totalPieces = 0;
-        let html = `<div class="bg-white rounded-lg shadow overflow-hidden"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prioridad</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente / Estilo</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrega</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+        let html = `<div class="bg-white rounded-lg shadow overflow-hidden border border-gray-200"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prioridad</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente / Estilo</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrega</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
 
         planData.sort((a, b) => (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1);
 
@@ -1754,7 +1894,7 @@ function generateWorkPlan() {
             const pieces = (item.cantidad || 0) + (item.childPieces || 0);
             totalPieces += pieces;
             const statusBadge = item.isLate ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">ATRASADA</span>' : item.isAboutToExpire ? '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">URGENTE</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Normal</span>';
-            html += `<tr class="hover:bg-gray-50"><td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td><td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${escapeHTML(item.cliente)}</div><div class="text-xs text-gray-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(item.designer || 'Sin asignar')}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">${pieces.toLocaleString()}</td><td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button class="text-red-600 hover:text-red-900 btn-remove-from-plan" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}">Quitar</button></td></tr>`;
+            html += `<tr class="hover:bg-gray-50 transition"><td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td><td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${escapeHTML(item.cliente)}</div><div class="text-xs text-gray-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(item.designer || 'Sin asignar')}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">${pieces.toLocaleString()}</td><td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button class="text-red-600 hover:text-red-900 btn-remove-from-plan transition-colors" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button></td></tr>`;
         });
         html += `</tbody></table></div>`;
         container.innerHTML = html;
