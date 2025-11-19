@@ -14,7 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- FontAwesome para Iconos (Compatible con Tailwind) -->
+    <!-- FontAwesome para Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -80,7 +80,6 @@
                 </p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <!-- Botones de Navegación UX Mejorados con Iconos -->
                 <button class="font-medium py-2 px-4 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-2 transition-colors" onclick="openLegendModal()">
                     <i class="fa-solid fa-circle-question text-blue-500"></i> Ayuda
                 </button>
@@ -108,11 +107,9 @@
             </div>
         </div>
         
-        <!-- Resumen Visual (Generado por JS) -->
         <div id="summaryBox" class="bg-white rounded-lg shadow-lg p-6 mb-6 border-l-4 border-blue-600 transition-all"></div>
         <div id="alerts"></div>
 
-        <!-- KPI Cards con Iconos -->
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
             <div class="bg-white rounded-lg shadow p-4 flex flex-col justify-between border-l-4 border-blue-500 hover:shadow-md transition-shadow relative overflow-hidden">
                 <div class="absolute right-2 top-2 opacity-10"><i class="fa-solid fa-box-open text-4xl text-blue-500"></i></div>
@@ -146,7 +143,6 @@
             </div>
         </div>
 
-        <!-- Reportes Rápidos -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div class="lg:col-span-1 bg-white rounded-lg shadow-lg p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -165,7 +161,6 @@
             </div>
         </div>
 
-        <!-- Filtros Avanzados -->
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
             <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
                 <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -231,19 +226,23 @@
             </div>
         </div>
 
-        <!-- Paginación -->
+        <!-- Paginación CORREGIDA -->
         <div class="pagination-container bg-white rounded-lg shadow-lg p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="text-sm text-gray-600 flex items-center">
-                <span>Filas por pág:</span>
-                <select id="rowsPerPage" onchange="changeRowsPerPage()" class="ml-2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+            <div class="text-sm text-gray-600 flex items-center flex-wrap gap-2">
+                <span>Filas:</span>
+                <select id="rowsPerPage" onchange="changeRowsPerPage()" class="ml-2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 py-1">
                     <option value="25">25</option>
                     <option value="50" selected>50</option>
                     <option value="100">100</option>
                     <option value="250">250</option>
                 </select>
-                <span class="mx-2">|</span>
-                <span id="resultCount" class="font-medium">0</span> de <span id="totalCount" class="font-medium">0</span> órdenes | 
-                <strong class="ml-1"><span id="resultPieces">0</span> piezas</strong>
+                <span class="mx-2 text-gray-300">|</span>
+                <span id="resultCount" class="font-medium">0</span> de <span id="totalCount" class="font-medium">0</span>
+                <span class="mx-2 text-gray-300">|</span>
+                <strong class="text-blue-600"><span id="resultPieces">0</span> pzs</strong>
+                <!-- Elementos reincorporados para evitar error de JS -->
+                <span class="mx-2 text-gray-300 hidden sm:inline">|</span>
+                <span class="hidden sm:inline">Pág <span id="currentPage">1</span>/<span id="totalPages">1</span></span>
             </div>
             <div class="pagination-controls flex gap-1" id="paginationControls"></div>
         </div>
@@ -431,7 +430,6 @@
                     </div>
                     <div class="w-24">
                         <label class="block text-xs font-bold text-gray-500 mb-1">Sufijo #</label>
-                        <!-- FIX: min="1" y onchange para validación -->
                         <input id="childOrderNumber" type="number" min="1" placeholder="#" class="border border-gray-300 px-3 py-2 w-full text-center font-bold rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateChildOrderCode()" onchange="updateChildOrderCode()">
                     </div>
                 </div>
@@ -470,7 +468,6 @@
                 <p class="text-sm text-gray-500" id="confirmModalMessage"></p>
             </div>
             
-            <!-- UX MEJORADA: Input para confirmación destructiva -->
             <div id="confirmStrictContainer" class="mt-4 mb-4 hidden text-left bg-red-50 p-3 rounded-lg border border-red-100">
                 <p class="text-xs text-red-700 mb-2 font-medium">Esta acción es irreversible. Escribe <strong class="bg-white px-1 rounded border border-red-200">CONFIRMAR</strong> abajo:</p>
                 <input type="text" id="confirmStrictInput" class="border border-red-300 p-2 w-full text-center uppercase rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none placeholder-red-200" placeholder="Escribe aquí..." oninput="checkStrictInput()">
