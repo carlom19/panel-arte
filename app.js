@@ -12,30 +12,12 @@ const firebaseConfig = {
 // Inicializa Firebase
 firebase.initializeApp(firebaseConfig);
 
-// ======================================================
-// ===== CONFIGURACIÓN TAILWIND (MODO OSCURO & BRAND) =====
-// ======================================================
+// Configuración de Tailwind (para gráficos)
 tailwind.config = {
-    darkMode: 'class', // Activa el modo oscuro manual via clase .dark
     theme: {
         extend: {
             fontFamily: { sans: ['Inter', 'sans-serif'] },
             colors: {
-                // Paleta "Calma y Control" (Teal / Slate)
-                brand: {
-                    50: '#f0fdfa',
-                    100: '#ccfbf1',
-                    500: '#14b8a6', // Color de Acción Principal (Teal)
-                    600: '#0d9488',
-                    700: '#0f766e',
-                    800: '#115e59',
-                    900: '#0f172a', // Fondos oscuros profundos
-                },
-                slate: {
-                    800: '#1e293b', // Fondo de tarjetas oscuro
-                    900: '#0f172a', // Fondo body oscuro
-                },
-                // Mapeo de estados para gráficos
                 'chart-bandeja': '#F59E0B',
                 'chart-produccion': '#8B5CF6',
                 'chart-auditoria': '#3B82F6',
@@ -147,14 +129,7 @@ function escapeHTML(str) {
 function showCustomAlert(message, type = 'info') {
     const alertDiv = document.getElementById('customAlert');
     if(!alertDiv) return;
-    
-    // Estilos Dark Mode integrados para las alertas
-    let bgClass = type === 'error' 
-        ? 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/80 dark:text-red-100 dark:border-red-700' 
-        : type === 'success' 
-            ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/80 dark:text-green-100 dark:border-green-700' 
-            : 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/80 dark:text-blue-100 dark:border-blue-700';
-    
+    let bgClass = type === 'error' ? 'bg-red-100 border-red-500 text-red-800' : type === 'success' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-blue-100 border-blue-500 text-blue-800';
     let icon = type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
     
     alertDiv.className = `fixed top-5 right-5 z-[2000] max-w-sm w-full shadow-2xl rounded-lg border-l-4 p-4 transform transition-all duration-300 ${bgClass}`;
@@ -178,8 +153,8 @@ function setButtonLoading(buttonId, isLoading, originalText = 'Guardar') {
 function showLoading(message = 'Cargando...') {
     if (document.getElementById('loadingOverlay')) return;
     const overlay = document.createElement('div');
-    overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay backdrop-blur-sm'; 
-    overlay.innerHTML = `<div class="spinner"></div><p class="font-medium text-white mt-4">${escapeHTML(message)}</p>`;
+    overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay'; 
+    overlay.innerHTML = `<div class="spinner"></div><p>${escapeHTML(message)}</p>`;
     document.body.appendChild(overlay);
 }
 function hideLoading() { const overlay = document.getElementById('loadingOverlay'); if (overlay) overlay.remove(); }
@@ -187,28 +162,6 @@ function hideLoading() { const overlay = document.getElementById('loadingOverlay
 function checkAndCloseModalStack() {
     const activeModals = document.querySelectorAll('.modal.active');
     if (activeModals.length === 0) document.body.classList.remove('modal-open');
-}
-
-// === GESTIÓN DE TEMA (DARK MODE) ===
-window.toggleTheme = function() {
-    const html = document.documentElement;
-    if (html.classList.contains('dark')) {
-        html.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-    } else {
-        html.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-    }
-    // Recargar gráficos si existen para actualizar colores
-    if(designerDoughnutChart || deptLoadPieChart) {
-        // Pequeño hack para recargar la vista actual y actualizar colores de charts
-        if(document.getElementById('designerMetricsView').style.display === 'block') {
-             const activeBtn = document.querySelector('#metricsSidebarList .filter-btn.active');
-             if(activeBtn) generateDesignerMetrics(activeBtn.dataset.designer);
-        } else if (document.getElementById('departmentMetricsView').style.display === 'block') {
-            generateDepartmentMetrics();
-        }
-    }
 }
 
 // === MODAL DE CONFIRMACIÓN MEJORADO ===
@@ -277,15 +230,8 @@ function openLegendModal() {
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM cargado. Inicializando App v5.2 (Final UX + Dark Mode)...');
+    console.log('DOM cargado. Inicializando App v5.2 (Final UX - Corregido)...');
     
-    // Check Theme Preference
-    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-    } else {
-        document.documentElement.classList.remove('dark');
-    }
-
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
 
@@ -297,9 +243,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         if (user) {
             usuarioActual = user;
             console.log("Usuario conectado:", usuarioActual.displayName);
-            
-            const userNameEl = document.getElementById('userName');
-            if(userNameEl) userNameEl.textContent = usuarioActual.displayName;
+            document.getElementById('userName').textContent = usuarioActual.displayName;
             
             loginSection.style.display = 'none';
             if (!isExcelLoaded) {
@@ -355,13 +299,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
     
     if (dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
-        
-        // Estilos de drag and drop compatibles con dark mode
-        dropZone.addEventListener('dragenter', () => dropZone.classList.add('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
-        dropZone.addEventListener('dragover', () => dropZone.classList.add('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
+        dropZone.addEventListener('dragenter', () => dropZone.classList.add('border-blue-500', 'bg-gray-100'), false);
+        dropZone.addEventListener('dragover', () => dropZone.classList.add('border-blue-500', 'bg-gray-100'), false);
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-blue-500', 'bg-gray-100'), false);
         dropZone.addEventListener('drop', (e) => {
-            dropZone.classList.remove('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800');
+            dropZone.classList.remove('border-blue-500', 'bg-gray-100');
             handleDrop(e);
         }, false);
         
@@ -369,7 +311,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         fileInput.addEventListener('change', handleFileSelect);
     }
 
-    // Listeners delegados (mejor rendimiento)
     const designerManagerList = document.getElementById('designerManagerList');
     if(designerManagerList) {
         designerManagerList.addEventListener('click', function(e) {
@@ -419,17 +360,48 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     }
 
+    // --- CORRECCIÓN CRÍTICA: EVENTO KEYDOWN (ESCAPE) BLINDADO ---
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal(); closeMultiModal(); closeWeeklyReportModal();
-            hideWorkPlanView(); closeDesignerManager(); hideMetricsView(); 
-            hideDepartmentMetrics(); closeConfirmModal(); closeCompareModals(); closeAddChildModal();
-            document.getElementById('legendModal').classList.remove('active');
+            // 1. Prioridad: Cerrar modales críticos, alertas y confirmaciones
+            closeConfirmModal();
+            const legendModal = document.getElementById('legendModal');
+            if (legendModal) legendModal.classList.remove('active');
+
+            // 2. IMPORTANTE: Solo gestionamos el cierre de vistas si el Excel ya fue cargado
+            // Esto evita que se muestre el dashboard cuando estamos en el login.
+            if (isExcelLoaded) {
+                closeModal(); 
+                closeMultiModal(); 
+                closeWeeklyReportModal();
+                closeDesignerManager();
+                closeAddChildModal();
+                
+                // Cierre inteligente de vistas: Solo ocultar si están visibles
+                const compareModal = document.getElementById('compareModal');
+                if (compareModal && compareModal.classList.contains('active')) closeCompareModals();
+
+                const workPlan = document.getElementById('workPlanView');
+                if (workPlan && workPlan.style.display !== 'none') hideWorkPlanView();
+
+                const metricsView = document.getElementById('designerMetricsView');
+                if (metricsView && metricsView.style.display !== 'none') hideMetricsView();
+
+                const deptView = document.getElementById('departmentMetricsView');
+                if (deptView && deptView.style.display !== 'none') hideDepartmentMetrics();
+            }
         }
+        
+        // Atajo Guardar (Ctrl+S)
         if (e.ctrlKey && e.key === 's') {
+            e.preventDefault(); // Prevenir dialogo del navegador
             const assignModal = document.getElementById('assignModal');
+            const multiAssignModal = document.getElementById('multiAssignModal');
+            
             if (assignModal && assignModal.classList.contains('active')) {
-                e.preventDefault(); saveAssignment();
+                saveAssignment();
+            } else if (multiAssignModal && multiAssignModal.classList.contains('active')) {
+                saveMultiAssignment();
             }
         }
     });
@@ -459,7 +431,7 @@ function conectarDatosDeFirebase() {
     const dbStatus = document.getElementById('dbStatus');
     if(dbStatus) {
         dbStatus.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-xs"></i> Conectando...';
-        dbStatus.className = "ml-3 font-medium text-yellow-600 dark:text-yellow-400";
+        dbStatus.className = "ml-3 font-medium text-yellow-600";
     }
     
     unsubscribeAssignments = db_firestore.collection('assignments').onSnapshot((snapshot) => {
@@ -468,7 +440,7 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded) mergeYActualizar(); 
         if(dbStatus) {
             dbStatus.textContent = '● Conectado';
-            dbStatus.className = "ml-3 font-medium text-green-600 dark:text-green-400";
+            dbStatus.className = "ml-3 font-medium text-green-600";
         }
     }, (e) => { console.error("Error assignments:", e); logToFirestore('firebase:assignments', e); });
 
@@ -654,7 +626,6 @@ async function addDesigner() {
     } catch (error) { showCustomAlert(`Error al agregar: ${error.message}`, 'error'); logToFirestore('designer:add', error); }
 }
 
-// --- deleteDesigner con validación estricta ---
 async function deleteDesigner(docId, name) {
     if (!firebaseDesignersMap.has(docId)) {
         showCustomAlert('El diseñador no existe.', 'error');
@@ -746,19 +717,10 @@ async function logToFirestore(context, error) {
 
 function handleDrop(e){ const dt = e.dataTransfer; handleFiles(dt.files); }
 function handleFileSelect(e){ handleFiles(e.target.files); }
-
-// --- CORRECCIÓN CRÍTICA: Verificación de elemento fileName ---
 function handleFiles(files){
     if (!files || files.length === 0) return;
     const file = files[0];
-    
-    // Comprobación de seguridad: si el elemento existe, actualiza el texto.
-    const fileNameEl = document.getElementById('fileName');
-    if (fileNameEl) {
-        fileNameEl.textContent = " | " + file.name;
-        fileNameEl.style.display = 'inline';
-    }
-    
+    document.getElementById('fileName').textContent = file.name;
     processFile(file);
 }
 
@@ -1026,10 +988,10 @@ async function loadChildOrders() {
         list.innerHTML = childOrders.map(child => {
             const date = child.fechaDespacho ? new Date(child.fechaDespacho) : null;
             const isLate = date && date < new Date().setHours(0,0,0,0);
-            return `<div class="bg-white dark:bg-slate-700 p-2 rounded border dark:border-slate-600 text-xs mb-1 flex justify-between items-center">
+            return `<div class="bg-white p-2 rounded border text-xs mb-1 flex justify-between items-center">
                 <div>
-                    <strong class="text-brand-600 dark:text-brand-400">${escapeHTML(child.childCode)}</strong><br>
-                    <span class="${isLate?'text-red-600 dark:text-red-400':'text-green-600 dark:text-green-400'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</span>
+                    <strong class="text-blue-600">${escapeHTML(child.childCode)}</strong><br>
+                    <span class="${isLate?'text-red-600':'text-green-600'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</span>
                 </div>
                 <button class="btn-delete-child text-red-600 hover:text-red-800 px-2" data-child-id="${child.childOrderId}" data-child-code="${child.childCode}">✕</button>
             </div>`;
@@ -1067,7 +1029,7 @@ window.openAssignModal = async function(orderId) {
 
     const history = firebaseHistoryMap.get(orderId) || [];
     document.getElementById('modalHistory').innerHTML = history.length 
-        ? history.map(h => `<div class="text-xs border-b dark:border-slate-600 py-1"><span class="text-gray-500 dark:text-gray-400">${new Date(h.timestamp).toLocaleDateString()}</span> - ${escapeHTML(h.change)}</div>`).join('') 
+        ? history.map(h => `<div class="text-xs border-b py-1"><span class="text-gray-500">${new Date(h.timestamp).toLocaleDateString()}</span> - ${escapeHTML(h.change)}</div>`).join('') 
         : '<p class="text-gray-400 text-xs text-center">Sin historial</p>';
     
     await loadChildOrders();
@@ -1198,14 +1160,14 @@ function populateMetricsSidebar() {
     
     const unassignedCount = allOrders.filter(o => o.departamento === 'P_Art' && !o.designer).length;
     if (unassignedCount > 0) {
-        sidebarList.innerHTML += `<button class="filter-btn dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200" data-designer="Sin asignar" id="btn-metric-Sin-asignar"><span>Sin asignar</span><span class="bg-gray-200 dark:bg-gray-600 dark:text-white px-2 py-1 rounded text-xs font-bold">${unassignedCount}</span></button>`;
+        sidebarList.innerHTML += `<button class="filter-btn" data-designer="Sin asignar" id="btn-metric-Sin-asignar"><span>Sin asignar</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${unassignedCount}</span></button>`;
     }
     
     designerList.forEach(name => {
         const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
         const count = allOrders.filter(o => o.departamento === 'P_Art' && o.designer === name).length;
         if (count > 0) {
-            sidebarList.innerHTML += `<button class="filter-btn dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200" data-designer="${escapeHTML(name)}" id="btn-metric-${safeId}"><span>${escapeHTML(name)}</span><span class="bg-gray-200 dark:bg-gray-600 dark:text-white px-2 py-1 rounded text-xs font-bold">${count}</span></button>`;
+            sidebarList.innerHTML += `<button class="filter-btn" data-designer="${escapeHTML(name)}" id="btn-metric-${safeId}"><span>${escapeHTML(name)}</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${count}</span></button>`;
         }
     });
     
@@ -1219,7 +1181,7 @@ function populateDesignerManagerModal() {
     if (firebaseDesignersMap.size === 0) { listDiv.innerHTML = '<p class="text-gray-500 text-center">No hay diseñadores</p>'; return; }
     
     firebaseDesignersMap.forEach((data, docId) => {
-        listDiv.innerHTML += `<div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-slate-700 dark:border-slate-600"><div class="leading-tight"><div class="font-medium text-gray-900 dark:text-gray-100">${escapeHTML(data.name)}</div><div class="text-xs text-gray-500 dark:text-gray-400">${escapeHTML(data.email || 'Sin correo')}</div></div><button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30" data-name="${escapeHTML(data.name)}" data-id="${docId}">Eliminar</button></div>`;
+        listDiv.innerHTML += `<div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50"><div class="leading-tight"><div class="font-medium text-gray-900">${escapeHTML(data.name)}</div><div class="text-xs text-gray-500">${escapeHTML(data.email || 'Sin correo')}</div></div><button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50" data-name="${escapeHTML(data.name)}" data-id="${docId}">Eliminar</button></div>`;
     });
 }
 
@@ -1256,22 +1218,36 @@ function updateMultiSelectBar() {
     const pageCount = paginatedOrders.filter(o => selectedOrders.has(o.orderId)).length;
     if (selectedOrders.size > 0) {
         bar.classList.add('active'); 
-        count.innerHTML = `${selectedOrders.size} <span class="text-xs font-normal text-gray-500 dark:text-gray-400">(${pageCount} en esta pág)</span>`;
+        count.innerHTML = `${selectedOrders.size} <span class="text-xs font-normal text-gray-500">(${pageCount} en esta pág)</span>`;
     } else { bar.classList.remove('active'); }
 }
 
+// --- CORRECCIÓN CRÍTICA: LÓGICA DE CHECKBOXES ---
 function updateCheckboxes() {
+    // 1. Actualizar filas individuales
     const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
     checkboxes.forEach((checkbox) => {
         const orderId = checkbox.dataset.orderId;
         if (orderId) checkbox.checked = selectedOrders.has(orderId);
     });
+
+    // 2. Lógica inteligente para el checkbox maestro
     const selectAllCheckbox = document.getElementById('selectAll');
-    const pArtOrdersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art');
-    const allOnPageSelected = pArtOrdersOnPage.length > 0 && pArtOrdersOnPage.every(order => selectedOrders.has(order.orderId));
     if(selectAllCheckbox) {
-        selectAllCheckbox.checked = allOnPageSelected;
-        selectAllCheckbox.indeterminate = !allOnPageSelected && pArtOrdersOnPage.some(order => selectedOrders.has(order.orderId));
+        const pArtOrdersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art');
+        
+        if (pArtOrdersOnPage.length === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.disabled = true; // Deshabilitar si no hay nada seleccionable
+        } else {
+            selectAllCheckbox.disabled = false;
+            const allSelected = pArtOrdersOnPage.every(order => selectedOrders.has(order.orderId));
+            const someSelected = pArtOrdersOnPage.some(order => selectedOrders.has(order.orderId));
+            
+            selectAllCheckbox.checked = allSelected;
+            selectAllCheckbox.indeterminate = !allSelected && someSelected;
+        }
     }
 }
 
@@ -1347,26 +1323,22 @@ function calculateStats(orders) {
 }
 
 function updateStats(stats) {
-    // Actualización compatible con el nuevo BENTO GRID UI
-    const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
-    
-    setTxt('statTotal', stats.total);
-    setTxt('statTotalPieces', stats.totalPieces.toLocaleString());
-    setTxt('statLate', stats.late);
-    setTxt('statExpiring', stats.aboutToExpire);
-    setTxt('statOnTime', stats.onTime);
-    setTxt('statThisWeek', stats.thisWeek);
+    document.getElementById('statTotal').textContent = stats.total;
+    document.getElementById('statTotalPieces').textContent = stats.totalPieces.toLocaleString();
+    document.getElementById('statLate').textContent = stats.late;
+    document.getElementById('statExpiring').textContent = stats.aboutToExpire;
+    document.getElementById('statOnTime').textContent = stats.onTime;
+    document.getElementById('statThisWeek').textContent = stats.thisWeek;
 }
 
 function updateAlerts(stats) {
     const div = document.getElementById('alerts');
-    if(!div) return;
     div.innerHTML = '';
-    if (stats.veryLate > 0) div.innerHTML += `<div class="bg-red-100 dark:bg-red-900/50 border-l-4 border-red-500 text-red-700 dark:text-red-200 p-4 mb-4 shadow-sm rounded-r"><strong>URGENTE:</strong> ${stats.veryLate} muy atrasadas.</div>`;
-    else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="bg-yellow-100 dark:bg-yellow-900/50 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-200 p-4 mb-4 shadow-sm rounded-r"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
+    if (stats.veryLate > 0) div.innerHTML += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 shadow-sm rounded-r"><strong>URGENTE:</strong> ${stats.veryLate} muy atrasadas.</div>`;
+    else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 shadow-sm rounded-r"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
 }
 
-// === MODIFICACIÓN: updateTable con soporte Dark Mode ===
+// === MODIFICACIÓN CRÍTICA: updateTable para Móvil y Empty States ===
 function updateTable() {
     const filtered = getFilteredOrders();
     const body = document.getElementById('tableBody');
@@ -1380,52 +1352,46 @@ function updateTable() {
     if (paginatedOrders.length === 0) {
         body.innerHTML = `
             <tr>
-                <td colspan="14" class="text-center py-12 dark:bg-slate-800">
-                    <div class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-                        <i class="fa-solid fa-magnifying-glass text-4xl mb-4 text-gray-300 dark:text-gray-600"></i>
+                <td colspan="14" class="text-center py-12">
+                    <div class="flex flex-col items-center justify-center text-gray-400">
+                        <i class="fa-solid fa-magnifying-glass text-4xl mb-4 text-gray-300"></i>
                         <p class="text-lg font-medium">No se encontraron órdenes</p>
                         <p class="text-sm">Intenta ajustar los filtros o la búsqueda.</p>
-                        <button onclick="clearAllFilters()" class="mt-4 text-brand-500 hover:underline font-medium">Limpiar filtros</button>
+                        <button onclick="clearAllFilters()" class="mt-4 text-blue-600 hover:underline font-medium">Limpiar filtros</button>
                     </div>
                 </td>
             </tr>`;
     } else {
         body.innerHTML = paginatedOrders.map(order => {
             const hasChildren = order.childPieces > 0;
-            
-            // Clases de fila (incluyendo soporte oscuro y colores semánticos)
-            let rowClass = "cursor-pointer transition-colors hover:bg-brand-50 dark:hover:bg-slate-700 ";
-            if (order.isVeryLate) rowClass += "bg-red-50 dark:bg-red-900/10 border-l-4 border-red-500 ";
-            else if (order.isLate) rowClass += "bg-orange-50 dark:bg-orange-900/10 border-l-4 border-orange-500 ";
-            else if (order.isAboutToExpire) rowClass += "bg-yellow-50 dark:bg-yellow-900/10 border-l-4 border-yellow-500 ";
-            else rowClass += "dark:bg-slate-800 dark:border-slate-700";
-
+            const rowClass = order.isVeryLate ? 'very-late' : order.isLate ? 'late' : order.isAboutToExpire ? 'expiring' : '';
             const receivedDateStr = order.receivedDate ? order.receivedDate.split('-').reverse().join('/') : '-';
 
             return `
-            <tr class="${rowClass}" onclick="openAssignModal('${order.orderId}')">
-                <td class="px-6 py-4 dark:text-gray-300" data-label="Seleccionar" onclick="event.stopPropagation()">
-                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
+            <tr class="${rowClass} cursor-pointer transition-colors hover:bg-blue-50" onclick="openAssignModal('${order.orderId}')">
+                <td class="px-6 py-4" data-label="Seleccionar" onclick="event.stopPropagation()">
+                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap" data-label="Estado">${getStatusBadge(order)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium dark:text-gray-100" data-label="Cliente" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" data-label="Código">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-brand-600 dark:text-brand-400 text-xs font-bold">(Hijas)</span>' : ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" data-label="Team">${escapeHTML(order.teamName)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 dark:bg-slate-700 dark:text-gray-300 px-2 py-1 rounded border dark:border-slate-600">${escapeHTML(order.departamento)}</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm" data-label="Diseñador">${order.designer ? `<span class="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 px-2 py-1 rounded-full text-xs font-medium">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" data-label="Cliente" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Código">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-blue-600 text-xs font-bold">(Hijas)</span>' : ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Team">${escapeHTML(order.teamName)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 px-2 py-1 rounded border">${escapeHTML(order.departamento)}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm" data-label="Diseñador">${order.designer ? `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
                 <td class="px-6 py-4 whitespace-nowrap" data-label="Estado Orden">${getCustomStatusBadge(order.customStatus)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" data-label="Recibida">${receivedDateStr}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600 dark:text-brand-400" data-label="Cant.">${(order.cantidad||0).toLocaleString()}</td>
-                <td class="px-6 py-4 text-center dark:text-gray-300" data-label="Notas">${order.notes ? '📝' : '-'}</td>
-                <td class="px-6 py-4 text-sm" data-label="Acción"><button class="text-brand-600 dark:text-brand-400 hover:underline font-medium">Editar</button></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Recibida">${receivedDateStr}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600" data-label="Cant.">${(order.cantidad||0).toLocaleString()}</td>
+                <td class="px-6 py-4 text-center" data-label="Notas">${order.notes ? '📝' : '-'}</td>
+                <td class="px-6 py-4 text-sm" data-label="Acción"><button class="text-blue-600 hover:underline font-medium">Editar</button></td>
             </tr>`;
         }).join('');
     }
     updateCheckboxes();
 }
 
+// --- CORRECCIÓN: getFilteredOrders con filtro Depto mejorado ---
 function getFilteredOrders() {
     let res = allOrders;
     if (currentSearch) {
@@ -1460,22 +1426,15 @@ function getFilteredOrders() {
 }
 
 function getStatusBadge(order) {
-    if (order.isVeryLate) return `<span class="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 px-2 py-0.5 rounded text-xs font-bold border border-red-200 dark:border-red-800">MUY ATRASADA</span>`;
-    if (order.isLate) return `<span class="bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200 px-2 py-0.5 rounded text-xs font-bold border border-orange-200 dark:border-orange-800">ATRASADA</span>`;
-    if (order.isAboutToExpire) return `<span class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200 dark:border-yellow-800">URGENTE</span>`;
-    return `<span class="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 px-2 py-0.5 rounded text-xs font-medium border border-green-200 dark:border-green-800">A TIEMPO</span>`;
+    if (order.isVeryLate) return `<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold border border-red-200">MUY ATRASADA</span>`;
+    if (order.isLate) return `<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-xs font-bold border border-orange-200">ATRASADA</span>`;
+    if (order.isAboutToExpire) return `<span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200">URGENTE</span>`;
+    return `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-medium border border-green-200">A TIEMPO</span>`;
 }
-
 function getCustomStatusBadge(status) {
-    const map = { 
-        'Bandeja': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200', 
-        'Producción': 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200', 
-        'Auditoría': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200', 
-        'Completada': 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' 
-    };
-    return status ? `<span class="${map[status] || 'bg-gray-100'} px-2 py-0.5 rounded text-xs font-bold border border-gray-200 dark:border-gray-600">${status}</span>` : '-';
+    const map = { 'Bandeja': 'bg-yellow-100 text-yellow-800', 'Producción': 'bg-purple-100 text-purple-800', 'Auditoría': 'bg-blue-100 text-blue-800', 'Completada': 'bg-gray-100 text-gray-600' };
+    return status ? `<span class="${map[status] || 'bg-gray-100'} px-2 py-0.5 rounded text-xs font-bold border border-gray-200">${status}</span>` : '-';
 }
-
 function formatDate(date) {
     return date ? date.toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '-';
 }
@@ -1494,7 +1453,7 @@ function populateFilterDropdowns() {
     updateAllDesignerDropdowns();
 }
 
-// --- clearAllFilters ---
+// --- CORRECCIÓN: Función clearAllFilters REPARADA ---
 function clearAllFilters() {
     currentSearch = '';
     currentClientFilter = '';
@@ -1549,27 +1508,27 @@ function exportTableToExcel() {
     XLSX.writeFile(wb, `Reporte_Panel_Arte_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-// --- generateSummary (Contenedor alternativo) ---
+// --- CORRECCIÓN: Implementación de generateSummary ---
 function generateSummary() {
     const summaryBox = document.getElementById('summaryBox');
-    if (!summaryBox) return; 
+    if (!summaryBox) return;
     
     const stats = calculateStats(allOrders.filter(o => o.departamento === 'P_Art'));
     summaryBox.innerHTML = `
         <div class="flex justify-between items-center">
             <div>
-                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-line text-brand-600"></i> Resumen General
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-blue-600"></i> Resumen General
                 </h3>
                 <p class="text-xs text-gray-500 mt-1">Actualizado: ${new Date().toLocaleTimeString()}</p>
             </div>
             <div class="flex gap-8">
                 <div class="text-center">
-                    <div class="text-2xl font-bold text-brand-600 dark:text-brand-400">${stats.total}</div>
+                    <div class="text-2xl font-bold text-blue-600">${stats.total}</div>
                     <div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Órdenes</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">${stats.totalPieces.toLocaleString()}</div>
+                    <div class="text-2xl font-bold text-purple-600">${stats.totalPieces.toLocaleString()}</div>
                     <div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Piezas</div>
                 </div>
             </div>
@@ -1596,11 +1555,11 @@ function generateWorkloadReport() {
         return `
         <div class="mb-3">
             <div class="flex justify-between text-sm mb-1">
-                <span class="font-medium text-gray-700 dark:text-gray-300">${d}</span>
-                <span class="text-gray-600 dark:text-gray-400">${s.pieces.toLocaleString()} (${isEx?'-':pct+'%'})</span>
+                <span class="font-medium text-gray-700">${d}</span>
+                <span class="text-gray-600">${s.pieces.toLocaleString()} (${isEx?'-':pct+'%'})</span>
             </div>
-            <div class="h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                <div class="h-full bg-brand-500 rounded-full" style="width:${isEx?0:pct}%"></div>
+            <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-500 rounded-full" style="width:${isEx?0:pct}%"></div>
             </div>
         </div>`;
     }).join('');
@@ -1613,12 +1572,12 @@ function generateReports() {
     allOrders.forEach(o => { if(o.cliente) clients[o.cliente] = (clients[o.cliente]||0)+1; });
     const top = Object.entries(clients).sort((a,b)=>b[1]-a[1]).slice(0,10);
     document.getElementById('clientReport').innerHTML = top.map(([c,n], i) => `
-        <div class="flex justify-between items-center border-b border-gray-100 dark:border-slate-700 py-2 last:border-0">
+        <div class="flex justify-between items-center border-b border-gray-100 py-2 last:border-0">
             <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-400 w-4">${i+1}</span>
-                <span class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[150px]" title="${c}">${c}</span>
+                <span class="text-sm text-gray-700 truncate max-w-[150px]" title="${c}">${c}</span>
             </div>
-            <strong class="text-sm text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded-full">${n}</strong>
+            <strong class="text-sm text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${n}</strong>
         </div>`).join('');
 }
 
@@ -1729,11 +1688,11 @@ function generateWeeklyReport() {
 
             const filteredOrders = allOrders.filter(order => {
                 if (!order.receivedDate) return false;
-                const receivedDate = new Date(order.receivedDate + 'T00:00:00Z'); 
+                const receivedDate = new Date(order.receivedDate + 'T00:00:00Z'); // ✅ CORRECCIÓN: Agregar UTC
                 return receivedDate >= startDate && receivedDate <= endDate;
             });
 
-            let reportHTML = `<h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-4 border-b dark:border-gray-600 pb-2">Semana: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</h4><div class="table-container border dark:border-gray-600 rounded-lg overflow-hidden mt-4 max-h-96 overflow-y-auto"><table id="weeklyReportTable" class="min-w-full divide-y divide-gray-200 dark:divide-gray-600"><thead class="bg-gray-50 dark:bg-slate-700"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Fecha</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Código</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Diseñador</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Piezas</th></tr></thead><tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+            let reportHTML = `<h4 class="text-lg font-semibold text-gray-800 mt-4 mb-4 border-b pb-2">Semana: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</h4><div class="table-container border rounded-lg overflow-hidden mt-4 max-h-96 overflow-y-auto"><table id="weeklyReportTable" class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
 
             if (filteredOrders.length > 0) {
                 filteredOrders.sort((a,b) => new Date(a.receivedDate) - new Date(b.receivedDate));
@@ -1741,9 +1700,9 @@ function generateWeeklyReport() {
                 filteredOrders.forEach(order => {
                     const p = (order.cantidad || 0) + (order.childPieces || 0);
                     totalPieces += p;
-                    reportHTML += `<tr><td class="px-4 py-2 text-sm dark:text-gray-300">${new Date(order.receivedDate + 'T00:00:00Z').toLocaleDateString()}</td><td class="px-4 py-2 text-sm font-medium dark:text-gray-200">${escapeHTML(order.cliente)}</td><td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${escapeHTML(order.codigoContrato)}</td><td class="px-4 py-2 text-sm dark:text-gray-300">${escapeHTML(order.designer) || '-'}</td><td class="px-4 py-2 text-sm font-bold text-gray-800 dark:text-gray-100">${p.toLocaleString()}</td></tr>`;
+                    reportHTML += `<tr><td class="px-4 py-2 text-sm">${new Date(order.receivedDate + 'T00:00:00Z').toLocaleDateString()}</td><td class="px-4 py-2 text-sm font-medium">${escapeHTML(order.cliente)}</td><td class="px-4 py-2 text-sm text-gray-500">${escapeHTML(order.codigoContrato)}</td><td class="px-4 py-2 text-sm">${escapeHTML(order.designer) || '-'}</td><td class="px-4 py-2 text-sm font-bold text-gray-800">${p.toLocaleString()}</td></tr>`;
                 });
-                reportHTML += `<tr class="bg-gray-100 dark:bg-slate-700 font-bold"><td colspan="4" class="px-4 py-2 text-right dark:text-gray-300">Total:</td><td class="px-4 py-2 dark:text-gray-100">${totalPieces.toLocaleString()}</td></tr>`;
+                reportHTML += `<tr class="bg-gray-100 font-bold"><td colspan="4" class="px-4 py-2 text-right">Total:</td><td class="px-4 py-2">${totalPieces.toLocaleString()}</td></tr>`;
             } else { reportHTML += '<tr><td colspan="5" class="text-center py-12 text-gray-400"><i class="fa-regular fa-folder-open text-2xl mb-2 block"></i>No hay órdenes recibidas esta semana.</td></tr>'; }
             reportHTML += `</tbody></table></div>`;
             contentDiv.innerHTML = reportHTML;
@@ -1770,18 +1729,18 @@ async function generateDesignerMetrics(designerName) {
     setTimeout(() => {
         const safeName = escapeHTML(designerName);
         contentDiv.innerHTML = `
-            <div class="flex justify-between items-center mb-6 border-b pb-4 dark:border-gray-600">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">${safeName}</h2>
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-gray-800">${safeName}</h2>
                 <div class="flex gap-2">
-                    <button class="px-3 py-2 bg-brand-600 text-white rounded shadow text-sm hover:bg-brand-700 transition" onclick="exportDesignerMetricsPDF('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-file-pdf mr-1"></i> PDF</button>
-                    <button class="px-3 py-2 bg-white dark:bg-slate-700 dark:text-white border dark:border-slate-600 rounded shadow text-sm hover:bg-gray-50 transition" onclick="openCompareModal('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-scale-balanced mr-1"></i> Comparar</button>
+                    <button class="px-3 py-2 bg-green-600 text-white rounded shadow text-sm hover:bg-green-700 transition" onclick="exportDesignerMetricsPDF('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-file-pdf mr-1"></i> PDF</button>
+                    <button class="px-3 py-2 bg-white border rounded shadow text-sm hover:bg-gray-50 transition" onclick="openCompareModal('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-scale-balanced mr-1"></i> Comparar</button>
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div class="chart-container h-64 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700 relative">
+                <div class="chart-container h-64 bg-white p-4 rounded-lg shadow-sm border border-gray-100 relative">
                     <canvas id="designerDoughnutChartCanvas"></canvas>
                 </div>
-                <div class="chart-container h-64 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700 relative">
+                <div class="chart-container h-64 bg-white p-4 rounded-lg shadow-sm border border-gray-100 relative">
                     <canvas id="designerBarChartCanvas"></canvas>
                 </div>
             </div>
@@ -1798,27 +1757,27 @@ function renderDesignerOrdersTable(designerName) {
     const isUnassigned = designerName === 'Sin asignar';
     let orders = allOrders.filter(o => (isUnassigned ? !o.designer : o.designer === designerName) && o.departamento === 'P_Art');
     
-    let html = `<div class="overflow-x-auto border border-gray-200 dark:border-slate-600 rounded-lg shadow-sm">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600 text-sm">
-            <thead class="bg-gray-50 dark:bg-slate-700">
+    let html = `<div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs">Estado</th>
-                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs">Cliente</th>
-                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs">Estilo</th>
-                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs">Piezas</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Estado</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Cliente</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Estilo</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Piezas</th>
                 </tr>
             </thead>
-            <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+            <tbody class="bg-white divide-y divide-gray-200">`;
             
     if (orders.length === 0) html += `<tr><td colspan="4" class="p-8 text-center text-gray-400">Sin órdenes activas</td></tr>`;
     else {
         orders.forEach(o => { 
             html += `
-            <tr class="hover:bg-gray-50 dark:hover:bg-slate-700 transition">
+            <tr class="hover:bg-gray-50 transition">
                 <td class="px-4 py-2">${getStatusBadge(o)}</td>
-                <td class="px-4 py-2 font-medium dark:text-gray-200">${escapeHTML(o.cliente)}</td>
-                <td class="px-4 py-2 text-gray-500 dark:text-gray-400">${escapeHTML(o.estilo)}</td>
-                <td class="px-4 py-2 font-bold text-brand-600 dark:text-brand-400">${((o.cantidad||0)+(o.childPieces||0)).toLocaleString()}</td>
+                <td class="px-4 py-2 font-medium">${escapeHTML(o.cliente)}</td>
+                <td class="px-4 py-2 text-gray-500">${escapeHTML(o.estilo)}</td>
+                <td class="px-4 py-2 font-bold text-blue-600">${((o.cantidad||0)+(o.childPieces||0)).toLocaleString()}</td>
             </tr>`; 
         });
     }
@@ -1826,16 +1785,8 @@ function renderDesignerOrdersTable(designerName) {
     container.innerHTML = html;
 }
 
+// --- CORRECCIÓN CRÍTICA: DESTRUCCIÓN DE GRÁFICOS ---
 function initDesignerCharts(orders) {
-    // Configuración Global de ChartJS para Dark Mode
-    if (document.documentElement.classList.contains('dark')) {
-        Chart.defaults.color = '#94a3b8';
-        Chart.defaults.borderColor = '#334155';
-    } else {
-        Chart.defaults.color = '#666';
-        Chart.defaults.borderColor = '#e2e8f0';
-    }
-
     const statusCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
     const piecesCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
     orders.forEach(o => {
@@ -1844,6 +1795,11 @@ function initDesignerCharts(orders) {
         if(statusCounts[s] !== undefined) { statusCounts[s]++; piecesCounts[s] += p; }
     });
     const colors = ['#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#6B7280']; 
+    
+    // Asegurar destrucción previa para evitar glitches
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+
     const ctx1 = document.getElementById('designerDoughnutChartCanvas')?.getContext('2d');
     if (ctx1) {
         designerDoughnutChart = new Chart(ctx1, {
@@ -1870,29 +1826,23 @@ function generateCompareReport(name1, name2) {
     const s2 = calculateStats(o2);
     
     document.getElementById('compareTableContainer').innerHTML = `
-        <table class="min-w-full divide-y divide-gray-200 mt-4 text-sm border border-gray-200 dark:border-slate-600 rounded-lg overflow-hidden">
-            <thead class="bg-gray-50 dark:bg-slate-700">
+        <table class="min-w-full divide-y divide-gray-200 mt-4 text-sm border border-gray-200 rounded-lg overflow-hidden">
+            <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Métrica</th>
-                    <th class="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">${escapeHTML(name1)}</th>
-                    <th class="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">${escapeHTML(name2)}</th>
+                    <th class="px-4 py-3 font-bold text-gray-700">Métrica</th>
+                    <th class="px-4 py-3 font-bold text-gray-700">${escapeHTML(name1)}</th>
+                    <th class="px-4 py-3 font-bold text-gray-700">${escapeHTML(name2)}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-600 bg-white dark:bg-slate-800">
-                <tr><td class="px-4 py-3 text-gray-600 dark:text-gray-400">Total Órdenes</td><td class="px-4 py-3 text-center font-bold value-a dark:text-gray-200">${s1.total}</td><td class="px-4 py-3 text-center font-bold value-b dark:text-gray-200">${s2.total}</td></tr>
-                <tr><td class="px-4 py-3 text-gray-600 dark:text-gray-400">Total Piezas</td><td class="px-4 py-3 text-center text-blue-600 dark:text-blue-400 font-bold value-a">${s1.totalPieces.toLocaleString()}</td><td class="px-4 py-3 text-center text-blue-600 dark:text-blue-400 font-bold value-b">${s2.totalPieces.toLocaleString()}</td></tr>
-                <tr><td class="px-4 py-3 text-gray-600 dark:text-gray-400">Atrasadas</td><td class="px-4 py-3 text-center text-red-600 dark:text-red-400 font-bold value-a">${s1.late}</td><td class="px-4 py-3 text-center text-red-600 dark:text-red-400 font-bold value-b">${s2.late}</td></tr>
+            <tbody class="divide-y divide-gray-200 bg-white">
+                <tr><td class="px-4 py-3 text-gray-600">Total Órdenes</td><td class="px-4 py-3 text-center font-bold value-a">${s1.total}</td><td class="px-4 py-3 text-center font-bold value-b">${s2.total}</td></tr>
+                <tr><td class="px-4 py-3 text-gray-600">Total Piezas</td><td class="px-4 py-3 text-center text-blue-600 font-bold value-a">${s1.totalPieces.toLocaleString()}</td><td class="px-4 py-3 text-center text-blue-600 font-bold value-b">${s2.totalPieces.toLocaleString()}</td></tr>
+                <tr><td class="px-4 py-3 text-gray-600">Atrasadas</td><td class="px-4 py-3 text-center text-red-600 font-bold value-a">${s1.late}</td><td class="px-4 py-3 text-center text-red-600 font-bold value-b">${s2.late}</td></tr>
             </tbody>
         </table>`;
     
     const ctx = document.getElementById('compareChartCanvas').getContext('2d');
     if(compareChart) compareChart.destroy();
-    
-    // Asegurar colores correctos para el gráfico
-    if (document.documentElement.classList.contains('dark')) {
-        Chart.defaults.color = '#94a3b8';
-    }
-
     compareChart = new Chart(ctx, {
         type: 'bar',
         data: { labels: ['Total Piezas', 'Atrasadas'], datasets: [{ label: name1, data: [s1.totalPieces, s1.late], backgroundColor: 'rgba(59, 130, 246, 0.7)' }, { label: name2, data: [s2.totalPieces, s2.late], backgroundColor: 'rgba(245, 158, 11, 0.7)' }] },
@@ -1951,9 +1901,7 @@ function generateDepartmentMetrics() {
             }
         });
 
-        contentDiv.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow border-l-4 border-blue-600"><h3 class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold tracking-wider">Órdenes Activas</h3><p class="text-3xl font-bold text-gray-900 dark:text-white mt-2">${totalOrders}</p></div><div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow border-l-4 border-purple-600"><h3 class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold tracking-wider">Piezas Totales</h3><p class="text-3xl font-bold text-gray-900 dark:text-white mt-2">${totalPieces.toLocaleString()}</p></div><div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow border-l-4 border-green-600"><h3 class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold tracking-wider">Diseñadores Activos</h3><p class="text-3xl font-bold text-gray-900 dark:text-white mt-2">${Object.keys(designerLoad).length}</p></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow border border-gray-100 dark:border-slate-700"><h4 class="font-bold mb-4 text-gray-700 dark:text-gray-200">Distribución por Estado</h4><div class="h-64"><canvas id="deptLoadPieChartCanvas"></canvas></div></div><div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow border border-gray-100 dark:border-slate-700"><h4 class="font-bold mb-4 text-gray-700 dark:text-gray-200">Carga por Diseñador (Piezas)</h4><div class="h-64"><canvas id="deptLoadBarChartCanvas"></canvas></div></div></div>`;
-
-        if (document.documentElement.classList.contains('dark')) Chart.defaults.color = '#94a3b8';
+        contentDiv.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Órdenes Activas</h3><p class="text-3xl font-bold text-gray-900 mt-2">${totalOrders}</p></div><div class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Piezas Totales</h3><p class="text-3xl font-bold text-gray-900 mt-2">${totalPieces.toLocaleString()}</p></div><div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Diseñadores Activos</h3><p class="text-3xl font-bold text-gray-900 mt-2">${Object.keys(designerLoad).length}</p></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-4 rounded-lg shadow border border-gray-100"><h4 class="font-bold mb-4 text-gray-700">Distribución por Estado</h4><div class="h-64"><canvas id="deptLoadPieChartCanvas"></canvas></div></div><div class="bg-white p-4 rounded-lg shadow border border-gray-100"><h4 class="font-bold mb-4 text-gray-700">Carga por Diseñador (Piezas)</h4><div class="h-64"><canvas id="deptLoadBarChartCanvas"></canvas></div></div></div>`;
 
         const ctxPie = document.getElementById('deptLoadPieChartCanvas').getContext('2d');
         deptLoadPieChart = new Chart(ctxPie, {
@@ -1983,20 +1931,20 @@ function generateWorkPlan() {
 
     setTimeout(() => {
         if (planData.length === 0) {
-            container.innerHTML = `<div class="text-center py-12 bg-gray-50 dark:bg-slate-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600"><i class="fa-solid fa-calendar-xmark text-4xl text-gray-300 dark:text-gray-500 mb-3"></i><p class="text-gray-500 dark:text-gray-400 mb-2 font-medium">El plan para la semana ${weekIdentifier} está vacío.</p><p class="text-xs text-gray-400">Usa el botón "Cargar Urgentes" o selecciona órdenes desde el Dashboard.</p></div>`;
+            container.innerHTML = `<div class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300"><i class="fa-solid fa-calendar-xmark text-4xl text-gray-300 mb-3"></i><p class="text-gray-500 mb-2 font-medium">El plan para la semana ${weekIdentifier} está vacío.</p><p class="text-xs text-gray-400">Usa el botón "Cargar Urgentes" o selecciona órdenes desde el Dashboard.</p></div>`;
             summarySpan.textContent = '0 órdenes'; return;
         }
 
         let totalPieces = 0;
-        let html = `<div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden border border-gray-200 dark:border-slate-700"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-slate-700"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Prioridad</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente / Estilo</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Diseñador</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Entrega</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Piezas</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Acción</th></tr></thead><tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+        let html = `<div class="bg-white rounded-lg shadow overflow-hidden border border-gray-200"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prioridad</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente / Estilo</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrega</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
 
         planData.sort((a, b) => (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1);
 
         planData.forEach(item => {
             const pieces = (item.cantidad || 0) + (item.childPieces || 0);
             totalPieces += pieces;
-            const statusBadge = item.isLate ? '<span class="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 text-xs px-2 py-1 rounded font-bold">ATRASADA</span>' : item.isAboutToExpire ? '<span class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 text-xs px-2 py-1 rounded font-bold">URGENTE</span>' : '<span class="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 text-xs px-2 py-1 rounded">Normal</span>';
-            html += `<tr class="hover:bg-gray-50 dark:hover:bg-slate-700 transition"><td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td><td class="px-6 py-4"><div class="text-sm font-medium text-gray-900 dark:text-white">${escapeHTML(item.cliente)}</div><div class="text-xs text-gray-500 dark:text-gray-400">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${escapeHTML(item.designer || 'Sin asignar')}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700 dark:text-gray-200">${pieces.toLocaleString()}</td><td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 btn-remove-from-plan transition-colors" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+            const statusBadge = item.isLate ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">ATRASADA</span>' : item.isAboutToExpire ? '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">URGENTE</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Normal</span>';
+            html += `<tr class="hover:bg-gray-50 transition"><td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td><td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${escapeHTML(item.cliente)}</div><div class="text-xs text-gray-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(item.designer || 'Sin asignar')}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">${pieces.toLocaleString()}</td><td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button class="text-red-600 hover:text-red-900 btn-remove-from-plan transition-colors" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button></td></tr>`;
         });
         html += `</tbody></table></div>`;
         container.innerHTML = html;
