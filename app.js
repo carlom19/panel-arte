@@ -107,13 +107,12 @@ const STORAGE_KEY_FILE = 'panelArte_FileName';
 
 function saveLocalData() {
     try {
-        // Guardamos solo lo necesario para reconstruir la vista
         localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(allOrders));
         const fileName = document.getElementById('fileName').textContent;
         localStorage.setItem(STORAGE_KEY_FILE, fileName);
         console.log("💾 Datos guardados en memoria local.");
     } catch (e) {
-        console.warn("No se pudo guardar en local (posiblemente límite de cuota):", e);
+        console.warn("No se pudo guardar en local:", e);
     }
 }
 
@@ -126,7 +125,6 @@ function loadLocalData() {
             console.log("📂 Cargando datos desde memoria local...");
             const parsed = JSON.parse(cachedData);
             
-            // Recuperar objetos Date (JSON los guarda como string)
             allOrders = parsed.map(o => ({
                 ...o,
                 fechaDespacho: o.fechaDespacho ? new Date(o.fechaDespacho) : null
@@ -215,7 +213,7 @@ function checkAndCloseModalStack() {
     if (activeModals.length === 0) document.body.classList.remove('modal-open');
 }
 
-// === MODAL DE CONFIRMACIÓN MEJORADO ===
+// === MODAL DE CONFIRMACIÓN ===
 let confirmCallback = null;
 let isStrictConfirm = false;
 
@@ -242,7 +240,6 @@ function showConfirmModal(message, onConfirmCallback, strict = false) {
     document.getElementById('confirmModal').classList.add('active');
     document.body.classList.add('modal-open');
     
-    // Clonar botón para eliminar listeners previos
     const newConfirmBtn = confirmBtn.cloneNode(true);
     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
     
@@ -282,7 +279,7 @@ function openLegendModal() {
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM cargado. App v5.2 (Final UX)...');
+    console.log('DOM cargado. Inicializando App v5.2 (Final Fix)...');
     
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
@@ -294,12 +291,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         if (user) {
             usuarioActual = user;
-            console.log("Usuario conectado:", usuarioActual.displayName);
             document.getElementById('userName').textContent = usuarioActual.displayName;
             
             loginSection.style.display = 'none';
             
-            // Carga inteligente: Si hay datos en caché, saltamos el upload
             if (loadLocalData()) {
                 uploadSection.style.display = 'none';
                 dashboard.style.display = 'block';
@@ -316,9 +311,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         } else {
             desconectarDatosDeFirebase();
+            
             usuarioActual = null;
             isExcelLoaded = false;
             allOrders = []; 
+            console.log("Usuario desconectado.");
+
             loginSection.style.display = 'block';
             uploadSection.style.display = 'none';
             dashboard.style.display = 'none';
@@ -418,13 +416,33 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     }
 
+    // --- CORRECCIÓN DEL BUG DE ESCAPE ---
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal(); closeMultiModal(); closeWeeklyReportModal();
-            hideWorkPlanView(); closeDesignerManager(); hideMetricsView(); 
-            hideDepartmentMetrics(); closeConfirmModal(); closeCompareModals(); closeAddChildModal();
-            document.getElementById('legendModal').classList.remove('active');
+            // 1. Modales (Seguro cerrarlos siempre)
+            closeModal(); 
+            closeMultiModal(); 
+            closeWeeklyReportModal();
+            closeDesignerManager(); 
+            closeConfirmModal(); 
+            closeCompareModals(); 
+            closeAddChildModal();
+            
+            const legend = document.getElementById('legendModal');
+            if(legend) legend.classList.remove('active');
+
+            // 2. Vistas Secundarias (SOLO cerrarlas si están visibles)
+            // Esto evita forzar el dashboard si estás en el Login
+            const wp = document.getElementById('workPlanView');
+            if(wp && wp.style.display === 'block') hideWorkPlanView();
+
+            const dm = document.getElementById('designerMetricsView');
+            if(dm && dm.style.display === 'block') hideMetricsView();
+
+            const dpm = document.getElementById('departmentMetricsView');
+            if(dpm && dpm.style.display === 'block') hideDepartmentMetrics();
         }
+        
         if (e.ctrlKey && e.key === 's') {
             const assignModal = document.getElementById('assignModal');
             if (assignModal && assignModal.classList.contains('active')) {
@@ -550,7 +568,6 @@ function mergeYActualizar() {
             order.completedDate = null;
         }
 
-        // Lógica de Auto-Completado
         if (fbData && 
             (fbData.customStatus === 'Bandeja' || fbData.customStatus === 'Producción' || fbData.customStatus === 'Auditoría') &&
             order.departamento !== 'P_Art' && 
@@ -577,7 +594,7 @@ function mergeYActualizar() {
 }
 
 // ======================================================
-// ===== FUNCIONES CRUD DE FIREBASE =====
+// ===== FUNCIONES CRUD =====
 // ======================================================
 
 async function ejecutarAutoCompleteBatch() {
@@ -838,8 +855,7 @@ async function processFile(file) {
 
         allOrders = processedOrders;
         isExcelLoaded = true; 
-        // Guardar en caché al cargar exitosamente
-        saveLocalData();
+        saveLocalData(); // Persistir
         
         needsRecalculation = true; 
         recalculateChildPieces(); 
@@ -858,15 +874,79 @@ async function processFile(file) {
 }
 
 // ======================================================
-// ===== FUNCIONES DE INTERFAZ (TABLA Y FILTROS) =====
+// ===== UI Y FILTROS =====
 // ======================================================
 
-async function recalculateChildPieces() {
-    if (!needsRecalculation) return;
-    let temp = new Map();
-    firebaseChildOrdersMap.forEach((list, pid) => { temp.set(pid, list.reduce((s, c) => s + (c.cantidad || 0), 0)); });
-    for (const o of allOrders) { o.childPieces = temp.get(o.orderId) || 0; }
-    needsRecalculation = false;
+function updateAllDesignerDropdowns() {
+    const optionsHTML = '<option value="">Todos</option>' + designerList.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
+    const modalOptionsHTML = '<option value="">Sin asignar</option>' + designerList.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
+    
+    const designerFilter = document.getElementById('designerFilter');
+    if (designerFilter) { designerFilter.innerHTML = optionsHTML; designerFilter.value = currentDesignerFilter; }
+    
+    const modalDesigner = document.getElementById('modalDesigner');
+    if (modalDesigner) modalDesigner.innerHTML = modalOptionsHTML;
+    
+    const multiModalDesigner = document.getElementById('multiModalDesigner');
+    if (multiModalDesigner) multiModalDesigner.innerHTML = modalOptionsHTML;
+    
+    const compareSelect = document.getElementById('compareDesignerSelect');
+    if (compareSelect && currentCompareDesigner1) {
+        const others = designerList.filter(d => d !== currentCompareDesigner1);
+        compareSelect.innerHTML = '<option value="">Selecciona uno...</option>' + others.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
+    }
+}
+
+function populateMetricsSidebar() {
+    const sidebarList = document.getElementById('metricsSidebarList');
+    if (!sidebarList) return;
+    sidebarList.innerHTML = '';
+    
+    const unassignedCount = allOrders.filter(o => o.departamento === 'P_Art' && !o.designer).length;
+    if (unassignedCount > 0) {
+        sidebarList.innerHTML += `<button class="filter-btn" data-designer="Sin asignar" id="btn-metric-Sin-asignar"><span>Sin asignar</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${unassignedCount}</span></button>`;
+    }
+    
+    designerList.forEach(name => {
+        const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
+        const count = allOrders.filter(o => o.departamento === 'P_Art' && o.designer === name).length;
+        if (count > 0) {
+            sidebarList.innerHTML += `<button class="filter-btn" data-designer="${escapeHTML(name)}" id="btn-metric-${safeId}"><span>${escapeHTML(name)}</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${count}</span></button>`;
+        }
+    });
+}
+
+function populateDesignerManagerModal() {
+    const listDiv = document.getElementById('designerManagerList');
+    if (!listDiv) return;
+    listDiv.innerHTML = '';
+    if (firebaseDesignersMap.size === 0) { listDiv.innerHTML = '<p class="text-gray-500 text-center">No hay diseñadores</p>'; return; }
+    
+    firebaseDesignersMap.forEach((data, docId) => {
+        listDiv.innerHTML += `<div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50"><div class="leading-tight"><div class="font-medium text-gray-900">${escapeHTML(data.name)}</div><div class="text-xs text-gray-500">${escapeHTML(data.email || 'Sin correo')}</div></div><button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50" data-name="${escapeHTML(data.name)}" data-id="${docId}">Eliminar</button></div>`;
+    });
+}
+
+function openDesignerManager() {
+    populateDesignerManagerModal(); 
+    document.getElementById('designerManagerModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+function closeDesignerManager() {
+    document.getElementById('designerManagerModal').classList.remove('active');
+    checkAndCloseModalStack();
+}
+
+async function updateDashboard() {
+    if (!isExcelLoaded) return;
+    if (needsRecalculation) recalculateChildPieces();
+    const artOrders = allOrders.filter(o => o.departamento === 'P_Art');
+    const stats = calculateStats(artOrders);
+    updateStats(stats); 
+    updateAlerts(stats); 
+    populateFilterDropdowns(); 
+    updateTable(); 
+    generateReports();
 }
 
 function updateTable() {
@@ -985,7 +1065,10 @@ function clearAllFilters() {
     currentDateTo = '';
     currentFilter = 'all';
 
-    document.querySelectorAll('.filter-item select, .filter-item input').forEach(el => { el.value = ''; });
+    document.querySelectorAll('.filter-item select, .filter-item input').forEach(el => {
+        el.value = '';
+    });
+
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
 
@@ -994,9 +1077,12 @@ function clearAllFilters() {
 }
 
 function setFilter(f) { currentFilter = f; currentPage = 1; updateDashboard(); }
-function sortTable(k) { sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc'; sortConfig.key = k; updateTable(); }
+function sortTable(k) { 
+    sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc';
+    sortConfig.key = k; 
+    updateTable(); 
+}
 
-// === NUEVA FUNCIONALIDAD: Exportar a Excel ===
 function exportTableToExcel() {
     if (allOrders.length === 0) { showCustomAlert('No hay datos para exportar.', 'error'); return; }
     
@@ -1020,7 +1106,6 @@ function exportTableToExcel() {
     XLSX.writeFile(wb, `Reporte_Panel_Arte_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-// --- CORRECCIÓN: Implementación de generateSummary ---
 function generateSummary() {
     const summaryBox = document.getElementById('summaryBox');
     if (!summaryBox) return;
@@ -1054,7 +1139,13 @@ function generateWorkloadReport() {
     const html = designerList.map(d => {
         const v = s[d];
         const pct = (t > 0 && d !== EXCLUDE_DESIGNER_NAME) ? ((v.p / t) * 100).toFixed(1) : 0;
-        return `<div class="mb-3"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-gray-700">${d}</span><span class="text-gray-600">${v.p.toLocaleString()} (${d===EXCLUDE_DESIGNER_NAME?'-':pct+'%'})</span></div><div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500 rounded-full" style="width:${d===EXCLUDE_DESIGNER_NAME?0:pct}%"></div></div></div>`;
+        return `
+        <div class="mb-3">
+            <div class="flex justify-between text-sm mb-1">
+                <span class="font-medium text-gray-700">${d}</span><span class="text-gray-600">${v.p.toLocaleString()} (${d===EXCLUDE_DESIGNER_NAME?'-':pct+'%'})</span>
+            </div>
+            <div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500 rounded-full" style="width:${d===EXCLUDE_DESIGNER_NAME?0:pct}%"></div></div>
+        </div>`;
     }).join('');
     document.getElementById('workloadList').innerHTML = html;
 }
@@ -1067,25 +1158,63 @@ function generateReports() {
     document.getElementById('clientReport').innerHTML = t.map(([k,v], i) => `<div class="flex justify-between items-center border-b border-gray-100 py-2 last:border-0"><div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-400 w-4">${i+1}</span><span class="text-sm text-gray-700 truncate max-w-[150px]" title="${k}">${k}</span></div><strong class="text-sm text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${v}</strong></div>`).join('');
 }
 
-// === GESTIÓN DE MODALES ===
-
-function openWeeklyReportModal() { document.getElementById('weeklyReportModal').classList.add('active'); document.body.classList.add('modal-open'); }
-function closeWeeklyReportModal() { document.getElementById('weeklyReportModal').classList.remove('active'); checkAndCloseModalStack(); }
+function openWeeklyReportModal() {
+    document.getElementById('weeklyReportModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+function closeWeeklyReportModal() {
+    document.getElementById('weeklyReportModal').classList.remove('active');
+    checkAndCloseModalStack();
+}
 function destroyAllCharts() { if(designerDoughnutChart){designerDoughnutChart.destroy();designerDoughnutChart=null;} if(designerBarChart){designerBarChart.destroy();designerBarChart=null;} if(deptLoadPieChart){deptLoadPieChart.destroy();deptLoadPieChart=null;} if(deptLoadBarChart){deptLoadBarChart.destroy();deptLoadBarChart=null;} if(compareChart){compareChart.destroy();compareChart=null;} }
-function showMetricsView() { document.getElementById('dashboard').style.display='none'; document.getElementById('designerMetricsView').style.display='block'; populateMetricsSidebar(); }
-function hideMetricsView() { document.getElementById('designerMetricsView').style.display='none'; document.getElementById('dashboard').style.display='block'; destroyAllCharts(); }
-function showDepartmentMetrics() { document.getElementById('dashboard').style.display='none'; document.getElementById('departmentMetricsView').style.display='block'; generateDepartmentMetrics(); }
-function hideDepartmentMetrics() { document.getElementById('departmentMetricsView').style.display='none'; document.getElementById('dashboard').style.display='block'; destroyAllCharts(); }
-function openCompareModal(n) { currentCompareDesigner1=n; document.getElementById('compareDesigner1Name').textContent=n; updateAllDesignerDropdowns(); document.getElementById('selectCompareModal').classList.add('active'); document.body.classList.add('modal-open'); }
-function closeCompareModals() { document.getElementById('selectCompareModal').classList.remove('active'); document.getElementById('compareModal').classList.remove('active'); checkAndCloseModalStack(); destroyAllCharts(); }
-function startComparison() { const n2=document.getElementById('compareDesignerSelect').value; if(!n2) return; generateCompareReport(currentCompareDesigner1, n2); }
+
+function showMetricsView() {
+    document.getElementById('dashboard').style.display='none';
+    document.getElementById('designerMetricsView').style.display='block';
+    populateMetricsSidebar();
+}
+function hideMetricsView() {
+    document.getElementById('designerMetricsView').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    destroyAllCharts();
+}
+
+function showDepartmentMetrics() {
+    document.getElementById('dashboard').style.display='none';
+    document.getElementById('departmentMetricsView').style.display='block';
+    generateDepartmentMetrics();
+}
+function hideDepartmentMetrics() {
+    document.getElementById('departmentMetricsView').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    destroyAllCharts();
+}
+
+function openCompareModal(n) {
+    currentCompareDesigner1=n;
+    document.getElementById('compareDesigner1Name').textContent=n;
+    updateAllDesignerDropdowns();
+    document.getElementById('selectCompareModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+function closeCompareModals() {
+    document.getElementById('selectCompareModal').classList.remove('active');
+    document.getElementById('compareModal').classList.remove('active');
+    checkAndCloseModalStack();
+    destroyAllCharts();
+}
+
+function startComparison() {
+    const n2=document.getElementById('compareDesignerSelect').value;
+    if(!n2) return;
+    generateCompareReport(currentCompareDesigner1, n2);
+}
 
 function resetApp() {
-    // LÓGICA MODIFICADA: Ahora limpia también la memoria local
     showConfirmModal("¿Subir nuevo Excel? Esto borrará los datos actuales.", () => {
         allOrders = [];
         isExcelLoaded = false;
-        clearLocalData(); // Borrar caché
+        clearLocalData(); 
         
         document.getElementById('dashboard').style.display = 'none';
         document.getElementById('uploadSection').style.display = 'block';
@@ -1096,11 +1225,80 @@ function resetApp() {
     });
 }
 
-function showWorkPlanView() { document.getElementById('dashboard').style.display='none'; document.getElementById('workPlanView').style.display='block'; generateWorkPlan(); }
-function hideWorkPlanView() { document.getElementById('workPlanView').style.display='none'; document.getElementById('dashboard').style.display='block'; }
+function showWorkPlanView() {
+    document.getElementById('dashboard').style.display='none';
+    document.getElementById('workPlanView').style.display='block';
+    generateWorkPlan();
+}
+function hideWorkPlanView() {
+    document.getElementById('workPlanView').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+}
 
-// ... [Funciones de manejo de órdenes hijas (openAddChildModal, etc.) ya están arriba en su sección] ...
-// Solo aseguramos que las funciones auxiliares pequeñas estén presentes
-function openAddChildModal() { if(!currentEditingOrderId) return; const p=allOrders.find(o=>o.orderId===currentEditingOrderId); if(!p) return; document.getElementById('parentOrderInfo').textContent=`Padre: ${p.codigoContrato} - ${p.cliente}`; document.getElementById('childOrderCode').value=p.codigoContrato+'-'; document.getElementById('childOrderNumber').value=''; document.getElementById('childPieces').value=''; document.getElementById('childDeliveryDate').value=''; document.getElementById('childNotes').value=''; document.getElementById('addChildModal').classList.add('active'); document.body.classList.add('modal-open'); }
-function updateChildOrderCode() { const p=allOrders.find(o=>o.orderId===currentEditingOrderId); if(!p) return; const n=document.getElementById('childOrderNumber').value; document.getElementById('childOrderCode').value=`${p.codigoContrato}-${n?n:''}`; }
-function closeAddChildModal() { document.getElementById('addChildModal').classList.remove('active'); checkAndCloseModalStack(); }
+function openAddChildModal() {
+    if(!currentEditingOrderId) return;
+    const p=allOrders.find(o=>o.orderId===currentEditingOrderId);
+    if(!p) return;
+    document.getElementById('parentOrderInfo').textContent=`Padre: ${p.codigoContrato} - ${p.cliente}`;
+    document.getElementById('childOrderCode').value=p.codigoContrato+'-';
+    document.getElementById('childOrderNumber').value='';
+    document.getElementById('childPieces').value='';
+    document.getElementById('childDeliveryDate').value='';
+    document.getElementById('childNotes').value='';
+    document.getElementById('addChildModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+
+function updateChildOrderCode() {
+    const p=allOrders.find(o=>o.orderId===currentEditingOrderId);
+    if(!p) return;
+    const n=document.getElementById('childOrderNumber').value;
+    document.getElementById('childOrderCode').value=`${p.codigoContrato}-${n?n:''}`;
+}
+
+function closeAddChildModal() {
+    document.getElementById('addChildModal').classList.remove('active');
+    checkAndCloseModalStack();
+}
+
+function toggleOrderSelection(orderId) {
+    if (selectedOrders.has(orderId)) selectedOrders.delete(orderId); else selectedOrders.add(orderId);
+    updateMultiSelectBar(); updateCheckboxes();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const ordersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art').map(o => o.orderId);
+    if (selectAllCheckbox.checked) ordersOnPage.forEach(id => selectedOrders.add(id));
+    else ordersOnPage.forEach(id => selectedOrders.delete(id));
+    updateMultiSelectBar(); updateCheckboxes();
+}
+
+function clearSelection() {
+    selectedOrders.clear(); updateMultiSelectBar(); updateCheckboxes();
+}
+
+function updateMultiSelectBar() {
+    const bar = document.getElementById('multiSelectBar');
+    const count = document.getElementById('selectedCount');
+    const pageCount = paginatedOrders.filter(o => selectedOrders.has(o.orderId)).length;
+    if (selectedOrders.size > 0) {
+        bar.classList.add('active'); 
+        count.innerHTML = `${selectedOrders.size} <span class="text-xs font-normal text-gray-500">(${pageCount} en esta pág)</span>`;
+    } else { bar.classList.remove('active'); }
+}
+
+function updateCheckboxes() {
+    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    checkboxes.forEach((checkbox) => {
+        const orderId = checkbox.dataset.orderId;
+        if (orderId) checkbox.checked = selectedOrders.has(orderId);
+    });
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const pArtOrdersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art');
+    const allOnPageSelected = pArtOrdersOnPage.length > 0 && pArtOrdersOnPage.every(order => selectedOrders.has(order.orderId));
+    if(selectAllCheckbox) {
+        selectAllCheckbox.checked = allOnPageSelected;
+        selectAllCheckbox.indeterminate = !allOnPageSelected && pArtOrdersOnPage.some(order => selectedOrders.has(order.orderId));
+    }
+}
