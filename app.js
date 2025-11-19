@@ -199,25 +199,6 @@ if (typeof firebase !== 'undefined') {
 } else {
     console.error("Error: El SDK de Firebase no se ha cargado correctamente.");
 }
-
-// ======================================================
-// ===== CONFIGURACIÓN DE TAILWIND =====
-// ======================================================
-// Configuración de Tailwind (para gráficos y colores personalizados)
-tailwind.config = {
-    theme: {
-        extend: {
-            fontFamily: { sans: ['Inter', 'sans-serif'] },
-            colors: {
-                'chart-bandeja': '#F59E0B',
-                'chart-produccion': '#8B5CF6',
-                'chart-auditoria': '#3B82F6',
-                'chart-completada': '#10B981',
-                'chart-sin-estado': '#6B7280',
-            }
-        },
-    },
-};
 // ======================================================
 // ===== VARIABLES GLOBALES =====
 // ======================================================
