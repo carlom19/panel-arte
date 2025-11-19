@@ -213,7 +213,7 @@ function checkAndCloseModalStack() {
     if (activeModals.length === 0) document.body.classList.remove('modal-open');
 }
 
-// === MODAL DE CONFIRMACIÓN ===
+// === MODAL DE CONFIRMACIÓN MEJORADO ===
 let confirmCallback = null;
 let isStrictConfirm = false;
 
@@ -240,6 +240,7 @@ function showConfirmModal(message, onConfirmCallback, strict = false) {
     document.getElementById('confirmModal').classList.add('active');
     document.body.classList.add('modal-open');
     
+    // Clonar botón para eliminar listeners previos
     const newConfirmBtn = confirmBtn.cloneNode(true);
     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
     
@@ -874,7 +875,260 @@ async function processFile(file) {
 }
 
 // ======================================================
-// ===== UI Y FILTROS =====
+// ===== LÓGICA DE ÓRDENES HIJAS =====
+// ======================================================
+
+// --- CORRECCIÓN: SE AGREGA LA FUNCIÓN RECALCULATECHILDPIECES FALTANTE ---
+async function recalculateChildPieces() {
+    if (!needsRecalculation) return;
+    let tempChildPiecesCache = new Map();
+    firebaseChildOrdersMap.forEach((childList, parentId) => {
+        const totalPieces = childList.reduce((sum, child) => sum + (child.cantidad || 0), 0);
+        tempChildPiecesCache.set(parentId, totalPieces);
+    });
+    for (const order of allOrders) {
+        order.childPieces = tempChildPiecesCache.get(order.orderId) || 0;
+    }
+    needsRecalculation = false;
+}
+
+function openAddChildModal() {
+    if (!currentEditingOrderId) return;
+    const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
+    if (!parentOrder) return;
+    
+    document.getElementById('parentOrderInfo').textContent = `Padre: ${parentOrder.codigoContrato} - ${parentOrder.cliente}`;
+    document.getElementById('childOrderCode').value = parentOrder.codigoContrato + '-';
+    document.getElementById('childOrderNumber').value = '';
+    document.getElementById('childPieces').value = '';
+    document.getElementById('childDeliveryDate').value = '';
+    document.getElementById('childNotes').value = '';
+    
+    document.getElementById('addChildModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+
+function updateChildOrderCode() {
+    const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
+    if (!parentOrder) return;
+    
+    const childNumber = document.getElementById('childOrderNumber').value;
+    document.getElementById('childOrderCode').value = `${parentOrder.codigoContrato}-${childNumber ? childNumber : ''}`;
+}
+
+async function saveChildOrder() {
+    try {
+        if (!currentEditingOrderId) return;
+        
+        const childNumber = document.getElementById('childOrderNumber').value;
+        const childPieces = parseInt(document.getElementById('childPieces').value);
+        const childDeliveryDate = document.getElementById('childDeliveryDate').value;
+        const childNotes = document.getElementById('childNotes').value;
+        
+        if (!childNumber || childNumber < 1) { showCustomAlert('Ingresa un número válido.', 'error'); return; }
+        if (!childPieces || childPieces < 1) { showCustomAlert('Ingresa la cantidad.', 'error'); return; }
+        
+        const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
+        
+        const childCode = `${parentOrder.codigoContrato}-${childNumber}`;
+        const deliveryDate = childDeliveryDate ? new Date(childDeliveryDate + 'T00:00:00Z') 
+            : (parentOrder.fechaDespacho ? new Date(parentOrder.fechaDespacho) : new Date());
+
+        const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        const childOrder = {
+            childOrderId: `${parentOrder.orderId}_child_${uniqueSuffix}`,
+            parentOrderId: parentOrder.orderId,
+            childCode: childCode,
+            cliente: parentOrder.cliente,
+            estilo: parentOrder.estilo,
+            teamName: parentOrder.teamName,
+            designer: parentOrder.designer,
+            customStatus: parentOrder.customStatus,
+            fechaDespacho: deliveryDate,
+            cantidad: childPieces,
+            notes: childNotes,
+            createdAt: new Date().toISOString()
+        };
+        
+        await saveChildOrderToDB(childOrder);
+        await saveAssignmentToDB_Firestore(parentOrder.orderId, {}, [`Orden hija creada: ${childCode}`]);
+
+        closeAddChildModal();
+        showCustomAlert(`Orden hija ${childCode} creada.`, 'success');
+    } catch (error) { console.error('Error en saveChildOrder:', error); showCustomAlert(`Error: ${error.message}`, 'error'); logToFirestore('child:save', error); }
+}
+
+async function deleteChildOrder(childOrderId, childCode) {
+    showConfirmModal(`¿Eliminar orden hija ${childCode}?`, async () => {
+        try {
+            await deleteChildOrderFromDB(childOrderId);
+            await saveAssignmentToDB_Firestore(currentEditingOrderId, {}, [`Orden hija eliminada: ${childCode}`]);
+        } catch (e) { showCustomAlert(e.message, 'error'); }
+    });
+}
+
+function closeAddChildModal() {
+    document.getElementById('addChildModal').classList.remove('active');
+    checkAndCloseModalStack(); 
+}
+
+async function loadChildOrders() {
+    try {
+        if (!currentEditingOrderId) return;
+        const childOrders = firebaseChildOrdersMap.get(currentEditingOrderId) || [];
+        
+        document.getElementById('childOrderCount').textContent = childOrders.length;
+        const list = document.getElementById('childOrdersList');
+        
+        if (childOrders.length === 0) { list.innerHTML = '<p class="text-gray-400 text-xs text-center">Sin órdenes hijas</p>'; return; }
+        
+        list.innerHTML = childOrders.map(child => {
+            const date = child.fechaDespacho ? new Date(child.fechaDespacho) : null;
+            const isLate = date && date < new Date().setHours(0,0,0,0);
+            return `<div class="bg-white p-2 rounded border text-xs mb-1 flex justify-between items-center">
+                <div>
+                    <strong class="text-blue-600">${escapeHTML(child.childCode)}</strong><br>
+                    <span class="${isLate?'text-red-600':'text-green-600'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</span>
+                </div>
+                <button class="btn-delete-child text-red-600 hover:text-red-800 px-2" data-child-id="${child.childOrderId}" data-child-code="${child.childCode}">✕</button>
+            </div>`;
+        }).join('');
+    } catch (e) { console.error(e); }
+}
+
+// ======================================================
+// ===== LÓGICA DE ASIGNACIÓN =====
+// ======================================================
+
+window.openAssignModal = async function(orderId) {
+    currentEditingOrderId = orderId;
+    const order = allOrders.find(o => o.orderId === orderId);
+    if (!order) return;
+    
+    document.getElementById('detailCliente').textContent = order.cliente || '-';
+    document.getElementById('detailCodigo').textContent = order.codigoContrato || '-';
+    document.getElementById('detailEstilo').textContent = order.estilo || '-';
+    document.getElementById('detailDepartamento').textContent = order.departamento || '-';
+    document.getElementById('detailFecha').textContent = formatDate(order.fechaDespacho);
+    
+    const totalPieces = (order.cantidad || 0) + (order.childPieces || 0);
+    document.getElementById('detailPiezas').textContent = `${order.cantidad.toLocaleString()} (+${order.childPieces} hijas) = ${totalPieces.toLocaleString()} pzs`;
+    
+    document.getElementById('modalDesigner').value = order.designer || '';
+    document.getElementById('modalStatus').value = order.customStatus || '';
+    document.getElementById('modalReceivedDate').value = order.receivedDate || '';
+    document.getElementById('modalNotes').value = order.notes || '';
+    
+    const isPArt = order.departamento === 'P_Art';
+    document.getElementById('modalDesigner').disabled = !isPArt;
+    document.getElementById('modalStatus').disabled = !isPArt;
+    document.getElementById('addChildOrderBtn').disabled = !isPArt;
+
+    const history = firebaseHistoryMap.get(orderId) || [];
+    document.getElementById('modalHistory').innerHTML = history.length 
+        ? history.map(h => `<div class="text-xs border-b py-1"><span class="text-gray-500">${new Date(h.timestamp).toLocaleDateString()}</span> - ${escapeHTML(h.change)}</div>`).join('') 
+        : '<p class="text-gray-400 text-xs text-center">Sin historial</p>';
+    
+    await loadChildOrders();
+    document.getElementById('assignModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+
+window.closeModal = function() {
+    document.getElementById('assignModal').classList.remove('active');
+    checkAndCloseModalStack(); 
+    currentEditingOrderId = null;
+}
+
+async function asignarmeAmi() {
+    if (!usuarioActual) return;
+    document.getElementById('modalDesigner').value = usuarioActual.displayName;
+}
+
+window.saveAssignment = async function() {
+    if (!currentEditingOrderId) return;
+    setButtonLoading('saveAssignmentButton', true);
+    
+    try {
+        const order = allOrders.find(o => o.orderId === currentEditingOrderId);
+        const newDesigner = document.getElementById('modalDesigner').value;
+        const newStatus = document.getElementById('modalStatus').value;
+        const newReceivedDate = document.getElementById('modalReceivedDate').value;
+        const newNotes = document.getElementById('modalNotes').value;
+
+        if (newReceivedDate && !/^\d{4}-\d{2}-\d{2}$/.test(newReceivedDate)) {
+            showCustomAlert('Formato de fecha inválido (YYYY-MM-DD).', 'error');
+            return;
+        }
+
+        let changes = [];
+        let dataToSave = {};
+
+        if (order.designer !== newDesigner) { changes.push(`Diseñador: ${order.designer} -> ${newDesigner}`); dataToSave.designer = newDesigner; }
+        if (order.customStatus !== newStatus) { 
+            changes.push(`Estado: ${order.customStatus} -> ${newStatus}`); 
+            dataToSave.customStatus = newStatus;
+            if(newStatus === 'Completada') dataToSave.completedDate = new Date().toISOString();
+        }
+        if (order.receivedDate !== newReceivedDate) { changes.push(`Fecha: ${newReceivedDate}`); dataToSave.receivedDate = newReceivedDate; }
+        if (order.notes !== newNotes) { changes.push(`Notas actualizadas`); dataToSave.notes = newNotes; }
+
+        if (changes.length > 0) {
+            await saveAssignmentToDB_Firestore(currentEditingOrderId, dataToSave, changes);
+            showCustomAlert('Guardado.', 'success');
+            closeModal();
+        } else { showCustomAlert('Sin cambios.', 'info'); }
+    } catch (e) { showCustomAlert(e.message, 'error'); logToFirestore('saveAssignment', e); } finally { setButtonLoading('saveAssignmentButton', false); }
+}
+
+function openMultiAssignModal() {
+    if (selectedOrders.size === 0) return;
+    document.getElementById('multiModalCount').textContent = selectedOrders.size;
+    document.getElementById('multiAssignModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+function closeMultiModal() {
+    document.getElementById('multiAssignModal').classList.remove('active');
+    checkAndCloseModalStack(); 
+}
+
+async function saveMultiAssignment() {
+    if (selectedOrders.size === 0) return;
+    setButtonLoading('saveMultiAssignmentButton', true);
+
+    try {
+        const newDesigner = document.getElementById('multiModalDesigner').value;
+        const newStatus = document.getElementById('multiModalStatus').value;
+        const newDate = document.getElementById('multiModalReceivedDate').value;
+        const newNotes = document.getElementById('multiModalNotes').value;
+
+        const batch = db_firestore.batch();
+        let count = 0;
+
+        selectedOrders.forEach(orderId => {
+            const order = allOrders.find(o => o.orderId === orderId);
+            if(order && order.departamento === 'P_Art') {
+                const ref = db_firestore.collection('assignments').doc(orderId);
+                let update = { schemaVersion: DB_SCHEMA_VERSION };
+                if(newDesigner) update.designer = newDesigner;
+                if(newStatus) update.customStatus = newStatus;
+                if(newDate) update.receivedDate = newDate;
+                if(newNotes) update.notes = (order.notes ? order.notes + '\n' : '') + newNotes; // Append note
+                
+                batch.set(ref, update, { merge: true });
+                count++;
+            }
+        });
+
+        if(count > 0) await batch.commit();
+        closeMultiModal();
+        clearSelection();
+        showCustomAlert(`${count} órdenes actualizadas.`, 'success');
+    } catch (e) { showCustomAlert(e.message, 'error'); logToFirestore('saveMulti', e); } finally { setButtonLoading('saveMultiAssignmentButton', false); }
+}
+// ======================================================
+// ===== LÓGICA DE UI (GENERAL) =====
 // ======================================================
 
 function updateAllDesignerDropdowns() {
@@ -914,6 +1168,8 @@ function populateMetricsSidebar() {
             sidebarList.innerHTML += `<button class="filter-btn" data-designer="${escapeHTML(name)}" id="btn-metric-${safeId}"><span>${escapeHTML(name)}</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${count}</span></button>`;
         }
     });
+    
+    if (sidebarList.innerHTML === '') sidebarList.innerHTML = '<p class="text-gray-500 text-center text-sm">No hay diseñadores con órdenes activas</p>';
 }
 
 function populateDesignerManagerModal() {
@@ -937,6 +1193,97 @@ function closeDesignerManager() {
     checkAndCloseModalStack();
 }
 
+function toggleOrderSelection(orderId) {
+    if (selectedOrders.has(orderId)) selectedOrders.delete(orderId); else selectedOrders.add(orderId);
+    updateMultiSelectBar(); updateCheckboxes();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const ordersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art').map(o => o.orderId);
+    if (selectAllCheckbox.checked) ordersOnPage.forEach(id => selectedOrders.add(id));
+    else ordersOnPage.forEach(id => selectedOrders.delete(id));
+    updateMultiSelectBar(); updateCheckboxes();
+}
+
+function clearSelection() {
+    selectedOrders.clear(); updateMultiSelectBar(); updateCheckboxes();
+}
+
+function updateMultiSelectBar() {
+    const bar = document.getElementById('multiSelectBar');
+    const count = document.getElementById('selectedCount');
+    const pageCount = paginatedOrders.filter(o => selectedOrders.has(o.orderId)).length;
+    if (selectedOrders.size > 0) {
+        bar.classList.add('active'); 
+        count.innerHTML = `${selectedOrders.size} <span class="text-xs font-normal text-gray-500">(${pageCount} en esta pág)</span>`;
+    } else { bar.classList.remove('active'); }
+}
+
+function updateCheckboxes() {
+    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    checkboxes.forEach((checkbox) => {
+        const orderId = checkbox.dataset.orderId;
+        if (orderId) checkbox.checked = selectedOrders.has(orderId);
+    });
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const pArtOrdersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art');
+    const allOnPageSelected = pArtOrdersOnPage.length > 0 && pArtOrdersOnPage.every(order => selectedOrders.has(order.orderId));
+    if(selectAllCheckbox) {
+        selectAllCheckbox.checked = allOnPageSelected;
+        selectAllCheckbox.indeterminate = !allOnPageSelected && pArtOrdersOnPage.some(order => selectedOrders.has(order.orderId));
+    }
+}
+
+function getWeekIdentifierString(d) {
+    const date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+    var week1 = new Date(date.getFullYear(), 0, 4);
+    var week = 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    return `${date.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+async function addSelectedToWorkPlan() {
+    if (selectedOrders.size === 0) return;
+    const weekIdentifier = getWeekIdentifierString(new Date());
+    let addedCount = 0;
+    for (const orderId of selectedOrders) {
+        const order = allOrders.find(o => o.orderId === orderId);
+        if (order && order.departamento === 'P_Art' && order.designer) {
+            if (await addOrderToWorkPlanDB(order, weekIdentifier)) addedCount++;
+        }
+    }
+    showCustomAlert(`Se agregaron ${addedCount} órdenes al plan ${weekIdentifier}.`, 'success');
+    clearSelection();
+}
+
+function setupPagination(filteredOrders) {
+    const totalItems = filteredOrders.length;
+    const totalPages = Math.ceil(totalItems / rowsPerPage);
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+    if (currentPage < 1) currentPage = 1;
+    const start = (currentPage - 1) * rowsPerPage;
+    paginatedOrders = filteredOrders.slice(start, start + rowsPerPage);
+    document.getElementById('currentPage').textContent = currentPage;
+    document.getElementById('totalPages').textContent = totalPages || 1;
+    renderPaginationControls(totalPages);
+}
+
+function renderPaginationControls(totalPages) {
+    const controlsDiv = document.getElementById('paginationControls');
+    if (!controlsDiv) return;
+    let html = `<button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + 4);
+    if (end - start < 4) start = Math.max(1, end - 4);
+    for (let i = start; i <= end; i++) { html += `<button onclick="changePage(${i})" class="${i === currentPage ? 'active' : ''}">${i}</button>`; }
+    html += `<button onclick="changePage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>&raquo;</button>`;
+    controlsDiv.innerHTML = html;
+}
+window.changePage = function(page) { currentPage = page; updateTable(); }
+window.changeRowsPerPage = function() { rowsPerPage = parseInt(document.getElementById('rowsPerPage').value); currentPage = 1; updateTable(); }
+
 async function updateDashboard() {
     if (!isExcelLoaded) return;
     if (needsRecalculation) recalculateChildPieces();
@@ -949,6 +1296,37 @@ async function updateDashboard() {
     generateReports();
 }
 
+function calculateStats(orders) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const weekEnd = new Date(today); weekEnd.setDate(today.getDate()+7);
+    return {
+        total: orders.length,
+        totalPieces: orders.reduce((s, o) => s + (o.cantidad||0) + (o.childPieces||0), 0),
+        late: orders.filter(o => o.isLate).length,
+        veryLate: orders.filter(o => o.isVeryLate).length,
+        aboutToExpire: orders.filter(o => o.isAboutToExpire).length,
+        onTime: orders.filter(o => !o.isLate && !o.isAboutToExpire).length,
+        thisWeek: orders.filter(o => o.fechaDespacho && o.fechaDespacho >= today && o.fechaDespacho <= weekEnd).length
+    };
+}
+
+function updateStats(stats) {
+    document.getElementById('statTotal').textContent = stats.total;
+    document.getElementById('statTotalPieces').textContent = stats.totalPieces.toLocaleString();
+    document.getElementById('statLate').textContent = stats.late;
+    document.getElementById('statExpiring').textContent = stats.aboutToExpire;
+    document.getElementById('statOnTime').textContent = stats.onTime;
+    document.getElementById('statThisWeek').textContent = stats.thisWeek;
+}
+
+function updateAlerts(stats) {
+    const div = document.getElementById('alerts');
+    div.innerHTML = '';
+    if (stats.veryLate > 0) div.innerHTML += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 shadow-sm rounded-r"><strong>URGENTE:</strong> ${stats.veryLate} muy atrasadas.</div>`;
+    else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 shadow-sm rounded-r"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
+}
+
+// === MODIFICACIÓN CRÍTICA: updateTable para Móvil y Empty States ===
 function updateTable() {
     const filtered = getFilteredOrders();
     const body = document.getElementById('tableBody');
@@ -960,7 +1338,17 @@ function updateTable() {
     document.getElementById('resultPieces').textContent = filtered.reduce((s,o)=>s+(o.cantidad||0)+(o.childPieces||0),0).toLocaleString();
 
     if (paginatedOrders.length === 0) {
-        body.innerHTML = `<tr><td colspan="14" class="text-center py-12"><div class="flex flex-col items-center justify-center text-gray-400"><i class="fa-solid fa-magnifying-glass text-4xl mb-4 text-gray-300"></i><p class="text-lg font-medium">No se encontraron órdenes</p><p class="text-sm">Intenta ajustar los filtros o la búsqueda.</p><button onclick="clearAllFilters()" class="mt-4 text-blue-600 hover:underline font-medium">Limpiar filtros</button></div></td></tr>`;
+        body.innerHTML = `
+            <tr>
+                <td colspan="14" class="text-center py-12">
+                    <div class="flex flex-col items-center justify-center text-gray-400">
+                        <i class="fa-solid fa-magnifying-glass text-4xl mb-4 text-gray-300"></i>
+                        <p class="text-lg font-medium">No se encontraron órdenes</p>
+                        <p class="text-sm">Intenta ajustar los filtros o la búsqueda.</p>
+                        <button onclick="clearAllFilters()" class="mt-4 text-blue-600 hover:underline font-medium">Limpiar filtros</button>
+                    </div>
+                </td>
+            </tr>`;
     } else {
         body.innerHTML = paginatedOrders.map(order => {
             const hasChildren = order.childPieces > 0;
