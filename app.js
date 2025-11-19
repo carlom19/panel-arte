@@ -522,7 +522,7 @@ function mergeYActualizar() {
         // Lógica de Auto-Completado
         if (fbData && 
             (fbData.customStatus === 'Bandeja' || fbData.customStatus === 'Producción' || fbData.customStatus === 'Auditoría') &&
-            order.departamento !== 'P_Art' && order.departamento !== 'Sin Departamento') 
+            orderdepartamento !== 'P_Art' && orderdepartamento !== 'Sin Departamento') 
         {
             if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(order.orderId)) {
                 order.customStatus = 'Completada';
@@ -531,7 +531,7 @@ function mergeYActualizar() {
                 autoCompleteBatchWrites.push({
                     orderId: order.orderId,
                     data: { customStatus: 'Completada', completedDate: newCompletedDate, lastModified: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION },
-                    history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${order.departamento})`]
+                    history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${orderdepartamento})`]
                 });
                 autoCompletedOrderIds.add(order.orderId);
             }
@@ -842,7 +842,7 @@ async function processFile(file) {
                     autoCompleteBatchWrites.push({
                         orderId: orderId,
                         data: { customStatus: 'Completada', completedDate: currentCompletedDate, lastModified: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION },
-                        history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${order.departamento})`]
+                        history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${orderDepartamento})`]
                     });
                     autoCompletedOrderIds.add(orderId);
                 }
@@ -1011,7 +1011,7 @@ window.openAssignModal = async function(orderId) {
     document.getElementById('detailCliente').textContent = order.cliente || '-';
     document.getElementById('detailCodigo').textContent = order.codigoContrato || '-';
     document.getElementById('detailEstilo').textContent = order.estilo || '-';
-    document.getElementById('detailDepartamento').textContent = order.departamento || '-';
+    document.getElementById('detailDepartamento').textContent = orderdepartamento || '-';
     document.getElementById('detailFecha').textContent = formatDate(order.fechaDespacho);
     
     const totalPieces = (order.cantidad || 0) + (order.childPieces || 0);
@@ -1022,7 +1022,7 @@ window.openAssignModal = async function(orderId) {
     document.getElementById('modalReceivedDate').value = order.receivedDate || '';
     document.getElementById('modalNotes').value = order.notes || '';
     
-    const isPArt = order.departamento === 'P_Art';
+    const isPArt = orderdepartamento === 'P_Art';
     document.getElementById('modalDesigner').disabled = !isPArt;
     document.getElementById('modalStatus').disabled = !isPArt;
     document.getElementById('addChildOrderBtn').disabled = !isPArt;
@@ -1110,7 +1110,7 @@ async function saveMultiAssignment() {
 
         selectedOrders.forEach(orderId => {
             const order = allOrders.find(o => o.orderId === orderId);
-            if(order && order.departamento === 'P_Art') {
+            if(order && orderdepartamento === 'P_Art') {
                 const ref = db_firestore.collection('assignments').doc(orderId);
                 let update = { schemaVersion: DB_SCHEMA_VERSION };
                 if(newDesigner) update.designer = newDesigner;
@@ -1266,7 +1266,7 @@ async function addSelectedToWorkPlan() {
     let addedCount = 0;
     for (const orderId of selectedOrders) {
         const order = allOrders.find(o => o.orderId === orderId);
-        if (order && order.departamento === 'P_Art' && order.designer) {
+        if (order && orderdepartamento === 'P_Art' && order.designer) {
             if (await addOrderToWorkPlanDB(order, weekIdentifier)) addedCount++;
         }
     }
@@ -1370,7 +1370,7 @@ function updateTable() {
             return `
             <tr class="${rowClass} cursor-pointer transition-colors hover:bg-blue-50" onclick="openAssignModal('${order.orderId}')">
                 <td class="px-6 py-4" data-label="Seleccionar" onclick="event.stopPropagation()">
-                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
+                    ${orderdepartamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap" data-label="Estado">${getStatusBadge(order)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
@@ -1378,7 +1378,7 @@ function updateTable() {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Código">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-blue-600 text-xs font-bold">(Hijas)</span>' : ''}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Team">${escapeHTML(order.teamName)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 px-2 py-1 rounded border">${escapeHTML(order.departamento)}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 px-2 py-1 rounded border">${escapeHTML(orderdepartamento)}</span></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm" data-label="Diseñador">${order.designer ? `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
                 <td class="px-6 py-4 whitespace-nowrap" data-label="Estado Orden">${getCustomStatusBadge(order.customStatus)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Recibida">${receivedDateStr}</td>
