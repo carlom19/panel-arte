@@ -1,22 +1,61 @@
 /* ====================================================== */
-/* ===== ESTILOS CSS - Panel Arte v5.2 (UX MEJORADA) ===== */
+/* ===== ESTILOS CSS - Panel Arte v5.2 (Dark Mode Ready) ===== */
 /* ====================================================== */
 
-/* --- 1. Control de Modales (Blindado) --- */
+/* --- 1. Ajustes Generales y Scrollbar Personalizado --- */
+/* Funciona tanto en Light como en Dark Mode */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; 
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1; /* Slate-300 */
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8; /* Slate-400 */
+}
+
+/* Scrollbar para Modo Oscuro (cuando la clase .dark está activa en html) */
+.dark ::-webkit-scrollbar-thumb {
+    background-color: #475569; /* Slate-600 */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background-color: #64748b; /* Slate-500 */
+}
+
+/* Utilitarios para ocultar scrollbar pero permitir scroll */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* --- 2. Control de Modales (Estructural) --- */
+/* Nota: Los colores ahora se manejan con Tailwind en el HTML */
 body.modal-open { overflow: hidden; }
 
 .modal { 
     display: flex; 
     opacity: 0; 
     pointer-events: none; 
-    transition: opacity 0.2s ease-in-out;
-    /* Asegura que el modal cubra toda la pantalla y centre el contenido */
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: fixed; 
     inset: 0; 
-    z-index: 1000; /* Z-index alto para estar sobre todo */
+    z-index: 1000; 
     align-items: center; 
     justify-content: center;
-    background: rgba(0,0,0,0.5); /* Fondo oscuro */
+    background: rgba(0, 0, 0, 0.6); /* Fondo backdrop más oscuro */
+    backdrop-filter: blur(4px); /* Efecto borroso moderno detrás del modal */
 }
 
 .modal.active { 
@@ -25,55 +64,43 @@ body.modal-open { overflow: hidden; }
 }
 
 .modal-content { 
-    transform: scale(0.95); 
-    transition: transform 0.2s; 
-    /* CORRECCIÓN CLAVE: Evita que modales largos se salgan de la pantalla */
+    transform: scale(0.95) translateY(10px); 
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
     max-height: 90vh; 
     overflow-y: auto; 
-    width: 100%;
     margin: auto;
-    /* Scrollbar suave */
-    scrollbar-width: thin;
-    scrollbar-color: #CBD5E1 transparent;
+    /* width se maneja en HTML con Tailwind */
 }
 
 .modal.active .modal-content { 
-    transform: scale(1); 
+    transform: scale(1) translateY(0); 
 }
 
-/* --- 2. Barra de Selección Múltiple (CORREGIDA) --- */
-.multi-select-bar {
-    /* Estado Base: OCULTO y desplazado hacia abajo */
-    position: fixed;
-    bottom: 2rem; 
-    left: 50%;
-    transform: translateX(-50%) translateY(200%); /* Empujado hacia abajo */
-    opacity: 0;
-    pointer-events: none; /* IMPORTANTE: Evita clics cuando está invisible */
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Rebote suave */
-    z-index: 40;
-    
-    /* Estilo visual moderno (Píldora Flotante) */
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 9999px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    border: 1px solid #E5E7EB;
-    background-color: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(4px);
+/* --- 3. Animaciones --- */
+
+/* Spinner de Carga */
+.spinner {
+    border: 3px solid rgba(255, 255, 255, 0.1); 
+    border-left-color: #14b8a6; /* Brand-500 (Teal) */
+    border-radius: 50%;
+    width: 40px; 
+    height: 40px; 
+    animation: spin 1s linear infinite; 
+    margin: 0 auto;
 }
 
-.multi-select-bar.active {
-    /* Estado Activo: VISIBLE y en posición */
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-    pointer-events: auto; /* Reactiva la interacción */
+/* Overlay de Carga Global */
+.loading-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.8); /* Slate-900 con opacidad */
+    display: flex; align-items: center;
+    justify-content: center; z-index: 9999; flex-direction: column;
+    color: white;
 }
 
-/* --- 3. Resaltado de Filas y Animaciones --- */
-/* Animación suave al cargar filas */
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Animación suave al cargar filas de la tabla */
 @keyframes fadeInRow {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
@@ -83,141 +110,77 @@ tbody tr {
     animation: fadeInRow 0.2s ease-out forwards;
 }
 
-tr.very-late { background-color: #FEF2F2; border-left: 4px solid #EF4444; }
-tr.late { background-color: #FFF7ED; border-left: 4px solid #F97316; } /* Naranja suave */
-tr.expiring { background-color: #FEFCE8; border-left: 4px solid #EAB308; }
-tbody tr:hover { background-color: #F8FAFC; transform: scale-[1.01]; transition: background-color 0.1s; }
+/* --- 4. Estilos Específicos de Tablas (Overrides Críticos) --- */
+/* Eliminamos colores fijos para que Tailwind controle el Modo Oscuro */
 
-/* --- 4. Tabla Responsive (Card View) --- */
-/* En móviles, la tabla se convierte en tarjetas */
+/* Checkbox personalizado para mejor visibilidad */
+input[type="checkbox"] {
+    cursor: pointer;
+}
+
+/* --- 5. Responsive Card View (Móvil) --- */
+/* Transforma la tabla en tarjetas en pantallas pequeñas */
 @media (max-width: 768px) {
-    table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { 
-        display: block; 
-    }
+    .data-table thead { display: none; } /* Ocultar cabecera */
     
-    /* Ocultar cabecera original */
-    .data-table thead tr { 
-        position: absolute; top: -9999px; left: -9999px; 
+    .data-table tbody, .data-table tr, .data-table td { 
+        display: block; 
+        width: 100%; 
     }
     
     .data-table tr { 
         margin-bottom: 1rem; 
-        border: 1px solid #E5E7EB; 
-        border-radius: 0.5rem; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-radius: 0.75rem; /* rounded-xl */
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0; /* gray-200 */
         background: white;
         overflow: hidden;
     }
+
+    /* Soporte Dark Mode para Mobile Cards */
+    .dark .data-table tr {
+        background: #1e293b; /* slate-800 */
+        border-color: #334155; /* slate-700 */
+    }
     
     .data-table td { 
-        border: none;
-        border-bottom: 1px solid #F3F4F6; 
-        position: relative;
-        padding-left: 40% !important; /* Espacio para la etiqueta */
-        text-align: right;
-        min-height: 40px;
+        text-align: right; 
+        padding-left: 50% !important; 
+        position: relative; 
+        border-bottom: 1px solid #f1f5f9; /* gray-100 */
+    }
+
+    .dark .data-table td {
+        border-color: #334155; /* slate-700 */
     }
     
     .data-table td:last-child { border-bottom: none; }
     
-    /* La etiqueta viene del atributo data-label en el HTML */
-    .data-table td:before { 
-        position: absolute; top: 12px; left: 12px; width: 35%; 
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        font-weight: 600; color: #6B7280; text-align: left;
+    /* Pseudo-elemento para las etiquetas (Data Label) */
+    .data-table td::before { 
         content: attr(data-label); 
+        position: absolute; 
+        left: 1rem; 
+        width: 45%; 
+        text-align: left; 
+        font-weight: 600; 
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #64748b; /* slate-500 */
+    }
+
+    .dark .data-table td::before {
+        color: #94a3b8; /* slate-400 */
     }
     
-    /* Ajuste para el checkbox en móvil */
-    .data-table td:first-child { padding-left: 12px !important; text-align: left; background: #F9FAFB; }
-    .data-table td:first-child:before { content: "Seleccionar"; display: inline-block; position: static; margin-right: 10px; }
-}
-
-/* --- 5. Cabecera Sticky (Escritorio) --- */
-@media (min-width: 769px) {
-    .table-container { max-height: 75vh; overflow-y: auto; }
-    table.data-table thead th { 
-        position: sticky; top: 0; z-index: 10; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    /* Ajustes específicos para checkboxes y acciones en móvil */
+    .data-table td[data-label="Seleccionar"] {
+        text-align: left;
+        padding-left: 1rem !important;
+        background: #f8fafc; /* slate-50 */
     }
+    .dark .data-table td[data-label="Seleccionar"] {
+        background: #0f172a; /* slate-900 */
+    }
+    .data-table td[data-label="Seleccionar"]::before { display: none; }
 }
-
-/* --- 6. Estilos Generales y Overrides --- */
-.pagination-controls button {
-    background-color: white; border: 1px solid #D1D5DB; color: #374151;
-    padding: 6px 12px; margin: 0 2px; cursor: pointer; border-radius: 6px;
-    font-weight: 500; font-size: 0.875rem; transition: all 0.2s;
-}
-.pagination-controls button:hover:not(:disabled) { background-color: #F3F4F6; }
-.pagination-controls button:disabled { background-color: #F9FAFB; color: #9CA3AF; cursor: not-allowed; }
-.pagination-controls button.active { background-color: #2563EB; color: white; border-color: #2563EB; }
-
-.filter-btn {
-    display: flex; justify-content: space-between; align-items: center; width: 100%;
-    text-align: left; padding: 8px 12px; border: 1px solid #E5E7EB;
-    background: white; border-radius: 6px; cursor: pointer; transition: all 0.2s;
-    font-weight: 500; font-size: 0.875rem; color: #1F2937;
-}
-.filter-btn:hover { background: #F3F4F6; border-color: #D1D5DB; }
-.filter-btn.active { background: #2563EB; color: white; border-color: #2563EB; }
-.filter-btn.active span { background-color: #3B82F6; color: white; }
-
-/* --- 6. Estilos Específicos de Tablas (Blindado contra Tailwind) --- */
-/* Usamos .data-table para asegurar que estos estilos ganen a Tailwind */
-table.data-table th { 
-    background: #F9FAFB; 
-    color: #111827; 
-    padding: 12px !important; 
-    font-size: 0.75rem; 
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 600;
-}
-table.data-table td { 
-    padding: 12px !important; 
-    font-size: 0.875rem; 
-    vertical-align: middle;
-    color: #374151;
-}
-
-/* Tabla de Comparación (Especificidad extra) */
-#compareTableContainer table { min-width: 0; }
-#compareTableContainer th { background: #F9FAFB; color: #111827; text-transform: none; font-size: 0.9em; padding: 12px; }
-#compareTableContainer td { font-size: 0.9em; text-align: center; padding: 12px; }
-#compareTableContainer td:first-child { font-weight: 600; color: #111827; text-align: left; }
-#compareTableContainer .value-a { background: #EFF6FF; font-weight: 600; }
-#compareTableContainer .value-b { background: #FEFCE8; font-weight: 600; }
-
-/* --- 7. Spinner de Carga --- */
-.spinner {
-    border: 4px solid #E5E7EB; border-top: 4px solid #2563EB; border-radius: 50%;
-    width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px;
-}
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-.loading-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6); display: flex; align-items: center;
-    justify-content: center; z-index: 9999; flex-direction: column;
-}
-.loading-overlay .spinner { border-color: rgba(255,255,255,0.3); border-top-color: white; width: 60px; height: 60px; }
-.loading-overlay p { color: white; font-size: 1.1em; margin-top: 16px; }
-
-/* --- 8. Ajustes Globales de Tamaño (Overrides) --- */
-html { font-size: 14px; } /* Ligeramente más grande para legibilidad */
-.p-4 { padding: 1rem !important; }
-.p-6 { padding: 1.5rem !important; }
-.p-8 { padding: 1.65rem !important; }
-.mb-4 { margin-bottom: 0.825rem !important; }
-.mb-6 { margin-bottom: 1.2375rem !important; }
-.gap-4 { gap: 0.825rem !important; }
-.gap-6 { gap: 1.2375rem !important; }
-.text-2xl { font-size: 1.2375rem !important; }
-.text-lg { font-size: 1.03125rem !important; }
-.text-base { font-size: 0.89375rem !important; }
-.text-sm { font-size: 0.75625rem !important; }
-.text-xs { font-size: 0.6875rem !important; }
-input, select, textarea, button { font-size: 0.9rem !important; padding: 0.5rem 0.75rem !important; }
-.grid > div { padding: 1.1rem !important; }
-
-/* Regla general para tablas que no tengan la clase .data-table (Fallback) */
-table td, table th { padding: 0.55rem 1.1rem !important; font-size: 0.825rem !important; }

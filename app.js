@@ -12,12 +12,29 @@ const firebaseConfig = {
 // Inicializa Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Configuración de Tailwind (para gráficos)
+// ======================================================
+// ===== CONFIGURACIÓN TAILWIND (MODO OSCURO & BRAND) =====
+// ======================================================
 tailwind.config = {
+    darkMode: 'class', // Activa el modo oscuro manual via clase .dark
     theme: {
         extend: {
             fontFamily: { sans: ['Inter', 'sans-serif'] },
             colors: {
+                // Paleta "Calma y Control" (Teal / Slate)
+                brand: {
+                    50: '#f0fdfa',
+                    100: '#ccfbf1',
+                    500: '#14b8a6', // Color de Acción Principal
+                    600: '#0d9488',
+                    800: '#115e59',
+                    900: '#0f172a', // Fondos oscuros profundos
+                },
+                slate: {
+                    800: '#1e293b', // Fondo de tarjetas oscuro
+                    900: '#0f172a', // Fondo body oscuro
+                },
+                // Mapeo de estados
                 'chart-bandeja': '#F59E0B',
                 'chart-produccion': '#8B5CF6',
                 'chart-auditoria': '#3B82F6',
@@ -99,55 +116,6 @@ let currentWorkPlanWeek = '';
 let currentCompareDesigner1 = '';
 
 // ======================================================
-// ===== PERSISTENCIA DE DATOS (Caché Local) =====
-// ======================================================
-
-const STORAGE_KEY_DATA = 'panelArte_Data_v5';
-const STORAGE_KEY_FILE = 'panelArte_FileName';
-
-function saveLocalData() {
-    try {
-        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(allOrders));
-        const fileName = document.getElementById('fileName').textContent;
-        localStorage.setItem(STORAGE_KEY_FILE, fileName);
-        console.log("💾 Datos guardados en memoria local.");
-    } catch (e) {
-        console.warn("No se pudo guardar en local:", e);
-    }
-}
-
-function loadLocalData() {
-    const cachedData = localStorage.getItem(STORAGE_KEY_DATA);
-    const cachedFile = localStorage.getItem(STORAGE_KEY_FILE);
-
-    if (cachedData) {
-        try {
-            console.log("📂 Cargando datos desde memoria local...");
-            const parsed = JSON.parse(cachedData);
-            
-            allOrders = parsed.map(o => ({
-                ...o,
-                fechaDespacho: o.fechaDespacho ? new Date(o.fechaDespacho) : null
-            }));
-
-            document.getElementById('fileName').textContent = cachedFile || 'Datos Recuperados';
-            isExcelLoaded = true;
-            return true;
-        } catch (e) {
-            console.error("Error al leer caché:", e);
-            return false;
-        }
-    }
-    return false;
-}
-
-function clearLocalData() {
-    localStorage.removeItem(STORAGE_KEY_DATA);
-    localStorage.removeItem(STORAGE_KEY_FILE);
-    console.log("🗑️ Memoria local borrada.");
-}
-
-// ======================================================
 // ===== FUNCIONES AUXILIARES DE SEGURIDAD Y UX =====
 // ======================================================
 
@@ -178,7 +146,14 @@ function escapeHTML(str) {
 function showCustomAlert(message, type = 'info') {
     const alertDiv = document.getElementById('customAlert');
     if(!alertDiv) return;
-    let bgClass = type === 'error' ? 'bg-red-100 border-red-500 text-red-800' : type === 'success' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-blue-100 border-blue-500 text-blue-800';
+    
+    // Estilos Dark Mode integrados
+    let bgClass = type === 'error' 
+        ? 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/80 dark:text-red-100' 
+        : type === 'success' 
+            ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/80 dark:text-green-100' 
+            : 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/80 dark:text-blue-100';
+    
     let icon = type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
     
     alertDiv.className = `fixed top-5 right-5 z-[2000] max-w-sm w-full shadow-2xl rounded-lg border-l-4 p-4 transform transition-all duration-300 ${bgClass}`;
@@ -193,7 +168,7 @@ function setButtonLoading(buttonId, isLoading, originalText = 'Guardar') {
     if (!btn) return;
     if (isLoading) {
         btn.dataset.originalText = btn.innerHTML; btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Guardando...`;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
     } else {
         btn.disabled = false; btn.innerHTML = btn.dataset.originalText || originalText;
     }
@@ -202,8 +177,8 @@ function setButtonLoading(buttonId, isLoading, originalText = 'Guardar') {
 function showLoading(message = 'Cargando...') {
     if (document.getElementById('loadingOverlay')) return;
     const overlay = document.createElement('div');
-    overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay'; 
-    overlay.innerHTML = `<div class="spinner"></div><p>${escapeHTML(message)}</p>`;
+    overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay backdrop-blur-sm'; 
+    overlay.innerHTML = `<div class="spinner"></div><p class="font-medium">${escapeHTML(message)}</p>`;
     document.body.appendChild(overlay);
 }
 function hideLoading() { const overlay = document.getElementById('loadingOverlay'); if (overlay) overlay.remove(); }
@@ -211,6 +186,18 @@ function hideLoading() { const overlay = document.getElementById('loadingOverlay
 function checkAndCloseModalStack() {
     const activeModals = document.querySelectorAll('.modal.active');
     if (activeModals.length === 0) document.body.classList.remove('modal-open');
+}
+
+// === GESTIÓN DE TEMA (DARK MODE) ===
+window.toggleTheme = function() {
+    const html = document.documentElement;
+    if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+    }
 }
 
 // === MODAL DE CONFIRMACIÓN MEJORADO ===
@@ -254,8 +241,7 @@ function closeConfirmModal() {
     document.getElementById('confirmModal').classList.remove('active');
     checkAndCloseModalStack(); 
     confirmCallback = null;
-    const strictInput = document.getElementById('confirmStrictInput');
-    if (strictInput) strictInput.value = ''; 
+    document.getElementById('confirmStrictInput').value = ''; 
 }
 
 function checkStrictInput() {
@@ -280,10 +266,18 @@ function openLegendModal() {
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM cargado. Inicializando App v5.2 (Final Fix)...');
+    console.log('DOM cargado. Inicializando App v5.2 (Final UX + Dark Mode)...');
     
+    // Check Theme Preference
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
+    // Si agregas un botón de toggleTheme en el HTML, su listener iría aquí
 
     firebase.auth().onAuthStateChanged((user) => {
         const loginSection = document.getElementById('loginSection');
@@ -292,22 +286,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         if (user) {
             usuarioActual = user;
+            console.log("Usuario conectado:", usuarioActual.displayName);
             document.getElementById('userName').textContent = usuarioActual.displayName;
             
             loginSection.style.display = 'none';
-            
-            if (loadLocalData()) {
-                uploadSection.style.display = 'none';
-                dashboard.style.display = 'block';
-                needsRecalculation = true;
-                recalculateChildPieces();
-                updateDashboard();
-                generateSummary();
+            if (!isExcelLoaded) {
+                uploadSection.style.display = 'block'; 
             } else {
-                uploadSection.style.display = 'block';
-                dashboard.style.display = 'none';
+                dashboard.style.display = 'block'; 
             }
-            
             conectarDatosDeFirebase();
 
         } else {
@@ -356,11 +343,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
     
     if (dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
-        dropZone.addEventListener('dragenter', () => dropZone.classList.add('border-blue-500', 'bg-gray-100'), false);
-        dropZone.addEventListener('dragover', () => dropZone.classList.add('border-blue-500', 'bg-gray-100'), false);
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-blue-500', 'bg-gray-100'), false);
+        dropZone.addEventListener('dragenter', () => dropZone.classList.add('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
+        dropZone.addEventListener('dragover', () => dropZone.classList.add('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800'), false);
         dropZone.addEventListener('drop', (e) => {
-            dropZone.classList.remove('border-blue-500', 'bg-gray-100');
+            dropZone.classList.remove('border-brand-500', 'bg-gray-100', 'dark:bg-slate-800');
             handleDrop(e);
         }, false);
         
@@ -368,6 +355,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         fileInput.addEventListener('change', handleFileSelect);
     }
 
+    // Listeners delegados (mejor rendimiento)
     const designerManagerList = document.getElementById('designerManagerList');
     if(designerManagerList) {
         designerManagerList.addEventListener('click', function(e) {
@@ -417,33 +405,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     }
 
-    // --- CORRECCIÓN DEL BUG DE ESCAPE ---
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            // 1. Modales (Seguro cerrarlos siempre)
-            closeModal(); 
-            closeMultiModal(); 
-            closeWeeklyReportModal();
-            closeDesignerManager(); 
-            closeConfirmModal(); 
-            closeCompareModals(); 
-            closeAddChildModal();
-            
-            const legend = document.getElementById('legendModal');
-            if(legend) legend.classList.remove('active');
-
-            // 2. Vistas Secundarias (SOLO cerrarlas si están visibles)
-            // Esto evita forzar el dashboard si estás en el Login
-            const wp = document.getElementById('workPlanView');
-            if(wp && wp.style.display === 'block') hideWorkPlanView();
-
-            const dm = document.getElementById('designerMetricsView');
-            if(dm && dm.style.display === 'block') hideMetricsView();
-
-            const dpm = document.getElementById('departmentMetricsView');
-            if(dpm && dpm.style.display === 'block') hideDepartmentMetrics();
+            closeModal(); closeMultiModal(); closeWeeklyReportModal();
+            hideWorkPlanView(); closeDesignerManager(); hideMetricsView(); 
+            hideDepartmentMetrics(); closeConfirmModal(); closeCompareModals(); closeAddChildModal();
+            document.getElementById('legendModal').classList.remove('active');
         }
-        
         if (e.ctrlKey && e.key === 's') {
             const assignModal = document.getElementById('assignModal');
             if (assignModal && assignModal.classList.contains('active')) {
@@ -477,7 +445,7 @@ function conectarDatosDeFirebase() {
     const dbStatus = document.getElementById('dbStatus');
     if(dbStatus) {
         dbStatus.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-xs"></i> Conectando...';
-        dbStatus.className = "ml-3 font-medium text-yellow-600";
+        dbStatus.className = "ml-3 font-medium text-yellow-600 dark:text-yellow-400";
     }
     
     unsubscribeAssignments = db_firestore.collection('assignments').onSnapshot((snapshot) => {
@@ -486,7 +454,7 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded) mergeYActualizar(); 
         if(dbStatus) {
             dbStatus.textContent = '● Conectado';
-            dbStatus.className = "ml-3 font-medium text-green-600";
+            dbStatus.className = "ml-3 font-medium text-green-600 dark:text-green-400";
         }
     }, (e) => { console.error("Error assignments:", e); logToFirestore('firebase:assignments', e); });
 
@@ -562,17 +530,13 @@ function mergeYActualizar() {
             order.notes = fbData.notes || '';
             order.completedDate = fbData.completedDate || null;
         } else {
-            order.designer = '';
-            order.customStatus = '';
-            order.receivedDate = '';
-            order.notes = '';
-            order.completedDate = null;
+            order.designer = ''; order.customStatus = ''; order.receivedDate = ''; order.notes = ''; order.completedDate = null;
         }
 
+        // Lógica de Auto-Completado
         if (fbData && 
             (fbData.customStatus === 'Bandeja' || fbData.customStatus === 'Producción' || fbData.customStatus === 'Auditoría') &&
-            order.departamento !== 'P_Art' && 
-            order.departamento !== 'Sin Departamento') 
+            order.departamento !== 'P_Art' && order.departamento !== 'Sin Departamento') 
         {
             if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(order.orderId)) {
                 order.customStatus = 'Completada';
@@ -587,15 +551,12 @@ function mergeYActualizar() {
             }
         }
     }
-    
     updateDashboard();
-    if (autoCompleteBatchWrites.length > 0) {
-        ejecutarAutoCompleteBatch();
-    }
+    if (autoCompleteBatchWrites.length > 0) ejecutarAutoCompleteBatch();
 }
 
 // ======================================================
-// ===== FUNCIONES CRUD =====
+// ===== FUNCIONES CRUD DE FIREBASE =====
 // ======================================================
 
 async function ejecutarAutoCompleteBatch() {
@@ -623,12 +584,14 @@ async function ejecutarAutoCompleteBatch() {
 
 async function saveAssignmentToDB_Firestore(orderId, dataToSave, historyChanges = []) {
     if (!usuarioActual) throw new Error("No estás autenticado.");
+    
     const assignmentRef = db_firestore.collection('assignments').doc(orderId);
     const batch = db_firestore.batch();
 
     dataToSave.lastModified = new Date().toISOString();
     if (dataToSave.designer === undefined) dataToSave.designer = '';
     dataToSave.schemaVersion = DB_SCHEMA_VERSION; 
+    
     batch.set(assignmentRef, dataToSave, { merge: true });
 
     if (historyChanges.length > 0) {
@@ -643,20 +606,24 @@ async function saveAssignmentToDB_Firestore(orderId, dataToSave, historyChanges 
 
 async function saveChildOrderToDB(childOrder) {
     childOrder.schemaVersion = DB_SCHEMA_VERSION;
-    return await db_firestore.collection('childOrders').doc(childOrder.childOrderId).set(childOrder);
+    const childRef = db_firestore.collection('childOrders').doc(childOrder.childOrderId);
+    return await childRef.set(childOrder);
 }
 
 async function deleteChildOrderFromDB(childOrderId) {
-    return await db_firestore.collection('childOrders').doc(childOrderId).delete();
+    const childRef = db_firestore.collection('childOrders').doc(childOrderId);
+    return await childRef.delete();
 }
 
 async function addDesigner() {
     const nameInput = document.getElementById('newDesignerName');
     const emailInput = document.getElementById('newDesignerEmail');
+    
     const name = nameInput.value.trim();
     const email = emailInput.value.trim().toLowerCase();
 
     if (!name || !email) { showCustomAlert('Por favor, ingresa nombre y correo.', 'error'); return; }
+
     const emailRegex = /^[a-zA-Z0-9._-]+@fitwellus\.com$/;
     if (!emailRegex.test(email)) { showCustomAlert('Formato de correo inválido. Debe ser: usuario@fitwellus.com', 'error'); return; }
 
@@ -665,18 +632,29 @@ async function addDesigner() {
     if (emailExists) { showCustomAlert('Este correo ya está registrado.', 'error'); return; }
 
     try {
-        await db_firestore.collection('designers').add({ name: name, email: email, createdAt: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION });
+        await db_firestore.collection('designers').add({ 
+            name: name, email: email, createdAt: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION 
+        });
         nameInput.value = ''; emailInput.value = '';
         showCustomAlert(`Usuario "${name}" agregado correctamente.`, 'success');
     } catch (error) { showCustomAlert(`Error al agregar: ${error.message}`, 'error'); logToFirestore('designer:add', error); }
 }
 
+// --- deleteDesigner con validación estricta ---
 async function deleteDesigner(docId, name) {
-    if (!firebaseDesignersMap.has(docId)) { showCustomAlert('El diseñador no existe.', 'error'); return; }
+    if (!firebaseDesignersMap.has(docId)) {
+        showCustomAlert('El diseñador no existe.', 'error');
+        return;
+    }
+
     const ordersToUpdate = allOrders.filter(o => o.designer === name && o.departamento === 'P_Art');
     let message = `¿Eliminar a "${name}"?`;
     let strict = false;
-    if (ordersToUpdate.length > 0) { message += `\n⚠️ TIENE ${ordersToUpdate.length} ÓRDENES ASIGNADAS.\nPara confirmar, escribe "CONFIRMAR".`; strict = true; }
+    
+    if (ordersToUpdate.length > 0) {
+        message += `\n⚠️ TIENE ${ordersToUpdate.length} ÓRDENES ASIGNADAS.\nPara confirmar, escribe "CONFIRMAR".`;
+        strict = true;
+    }
 
     showConfirmModal(message, async () => {
         try {
@@ -688,7 +666,10 @@ async function deleteDesigner(docId, name) {
                 for (let i = 0; i < orderIds.length; i += BATCH_SIZE) {
                     const batch = db_firestore.batch();
                     const chunk = orderIds.slice(i, i + BATCH_SIZE);
-                    chunk.forEach(oid => { const docRef = db_firestore.collection('assignments').doc(oid); batch.update(docRef, { designer: '' }); });
+                    chunk.forEach(oid => {
+                        const docRef = db_firestore.collection('assignments').doc(oid);
+                        batch.update(docRef, { designer: '' });
+                    });
                     await batch.commit();
                 }
             }
@@ -704,23 +685,45 @@ async function addOrderToWorkPlanDB(order, weekIdentifier) {
     if (doc.exists) return false; 
 
     const planEntry = {
-        planEntryId: planEntryId, orderId: order.orderId, weekIdentifier: weekIdentifier, designer: order.designer,
-        planStatus: 'Pendiente', addedAt: new Date().toISOString(), cliente: order.cliente, codigoContrato: order.codigoContrato,
-        estilo: order.estilo, fechaDespacho: order.fechaDespacho ? new Date(order.fechaDespacho).toISOString() : null,
-        cantidad: order.cantidad, childPieces: order.childPieces, isLate: order.isLate, isAboutToExpire: order.isAboutToExpire,
+        planEntryId: planEntryId,
+        orderId: order.orderId,
+        weekIdentifier: weekIdentifier,
+        designer: order.designer,
+        planStatus: 'Pendiente', 
+        addedAt: new Date().toISOString(),
+        cliente: order.cliente,
+        codigoContrato: order.codigoContrato,
+        estilo: order.estilo,
+        fechaDespacho: order.fechaDespacho ? new Date(order.fechaDespacho).toISOString() : null,
+        cantidad: order.cantidad,
+        childPieces: order.childPieces,
+        isLate: order.isLate,
+        isAboutToExpire: order.isAboutToExpire,
         schemaVersion: DB_SCHEMA_VERSION
     };
-    await planRef.set(planEntry); return true; 
+    await planRef.set(planEntry);
+    return true; 
 }
 
 async function removeOrderFromWorkPlanDB(planEntryId) {
-    return await db_firestore.collection('weeklyPlan').doc(planEntryId).delete();
+    const planRef = db_firestore.collection('weeklyPlan').doc(planEntryId);
+    return await planRef.delete();
 }
 
 async function logToFirestore(context, error) {
     if (!usuarioActual) return;
     const errorMessage = (error instanceof Error) ? error.message : String(error);
-    try { await db_firestore.collection('logs').add({ timestamp: new Date().toISOString(), user: usuarioActual.displayName || usuarioActual.email, context: context, message: errorMessage, severity: 'ERROR' }); } catch (e) { console.error("Fallo al loguear error:", e); }
+    try {
+        await db_firestore.collection('logs').add({
+            timestamp: new Date().toISOString(),
+            user: usuarioActual.displayName || usuarioActual.email,
+            context: context,
+            message: errorMessage,
+            severity: 'ERROR'
+        });
+    } catch (e) {
+        console.error("Fallo al loguear error:", e);
+    }
 }
 
 // ======================================================
@@ -787,7 +790,7 @@ async function processFile(file) {
         
         let processedOrders = []; 
         let currentDate = null;
-        let curCli="", curCod="", curSty="", curTeam="";
+        let currentClient = ""; let currentContrato = ""; let currentStyle = ""; let currentTeam = "";
         
         autoCompleteBatchWrites = [];
 
@@ -799,65 +802,80 @@ async function processFile(file) {
             if (colIndices.fecha >= 0 && row[colIndices.fecha] !== "" && row[colIndices.fecha] !== null) {
                 const rawFecha = row[colIndices.fecha];
                 let deliveryDate = null;
-                if (typeof rawFecha === 'number') { deliveryDate = new Date((rawFecha - 25569) * 86400 * 1000); } 
-                else { const d = new Date(rawFecha); if (!isNaN(d)) deliveryDate = d; }
-                if (deliveryDate && !isNaN(deliveryDate)) { currentDate = new Date(Date.UTC(deliveryDate.getFullYear(), deliveryDate.getMonth(), deliveryDate.getDate())); }
+                if (typeof rawFecha === 'number') {
+                    deliveryDate = new Date((rawFecha - 25569) * 86400 * 1000);
+                } else {
+                    const d = new Date(rawFecha);
+                    if (!isNaN(d)) deliveryDate = d;
+                }
+                if (deliveryDate && !isNaN(deliveryDate)) {
+                    deliveryDate = new Date(Date.UTC(deliveryDate.getFullYear(), deliveryDate.getMonth(), deliveryDate.getDate()));
+                    currentDate = deliveryDate;
+                }
             }
-            if (colIndices.cliente >= 0 && row[colIndices.cliente]) curCli = String(row[colIndices.cliente]).trim();
-            if (colIndices.codigo >= 0 && row[colIndices.codigo]) curCod = String(row[colIndices.codigo]).trim();
-            if (colIndices.estilo >= 0 && row[colIndices.estilo]) curSty = String(row[colIndices.estilo]).trim();
-            if (colIndices.team >= 0 && row[colIndices.team]) curTeam = String(row[colIndices.team]).trim();
+            if (colIndices.cliente >= 0 && row[colIndices.cliente]) currentClient = String(row[colIndices.cliente]).trim();
+            if (colIndices.codigo >= 0 && row[colIndices.codigo]) currentContrato = String(row[colIndices.codigo]).trim();
+            if (colIndices.estilo >= 0 && row[colIndices.estilo]) currentStyle = String(row[colIndices.estilo]).trim();
+            if (colIndices.team >= 0 && row[colIndices.team]) currentTeam = String(row[colIndices.team]).trim();
 
-            if (!curCli || !curCod) continue;
+            if (!currentClient || !currentContrato) continue;
 
-            let cant = 0; let dept = "";
+            let orderCantidad = 0;
+            let orderDepartamento = "";
+            
             for (let i = departmentIndices.length - 1; i >= 0; i--) {
                 const col = departmentIndices[i];
                 const rawValue = row[col.index];
                 if (rawValue !== "" && rawValue !== null) {
                     const n = Number(String(rawValue).replace(/,|\s/g, ''));
-                    if (!isNaN(n) && n > 0) { cant = n; dept = col.name; break; }
+                    if (!isNaN(n) && n > 0) { orderCantidad = n; orderDepartamento = col.name; break; }
                 }
             }
-            if (cant <= 0) { cant = 0; dept = "Sin Departamento"; }
+            if (orderCantidad <= 0) { orderCantidad = 0; orderDepartamento = "Sin Departamento"; }
 
-            const fd = currentDate ? new Date(currentDate) : null;
-            const oid = `${curCli}_${curCod}_${fd ? fd.getTime() : 'nodate'}_${curSty}`;
+            const fechaDespacho = currentDate ? new Date(currentDate) : null;
+            const orderId = `${currentClient}_${currentContrato}_${fechaDespacho ? fechaDespacho.getTime() : 'nodate'}_${currentStyle}`;
 
             const today = new Date(); today.setHours(0,0,0,0);
-            let dl = 0;
-            const isLate = fd && fd < today;
-            if (isLate) dl = Math.ceil((today.getTime() - fd.getTime()) / (1000*60*60*24));
+            let daysLate = 0;
+            const isLate = fechaDespacho && fechaDespacho < today;
+            if (isLate) {
+                const diffTime = today.getTime() - fechaDespacho.getTime();
+                daysLate = Math.ceil(diffTime / (1000*60*60*24));
+            }
+            const isVeryLate = daysLate > 7;
+            const isAboutToExpire = fechaDespacho && !isLate && ((fechaDespacho.getTime() - today.getTime()) / (1000*60*60*24)) <= 2;
             
-            const fb = firebaseAssignmentsMap.get(oid);
-            let st = fb ? fb.customStatus : '';
-            let cd = fb ? fb.completedDate : null;
+            const fbData = firebaseAssignmentsMap.get(orderId);
+            let currentStatus = fbData ? fbData.customStatus : '';
+            let currentCompletedDate = fbData ? fbData.completedDate : null;
 
-            if (fb && (['Bandeja','Producción','Auditoría'].includes(fb.customStatus)) && dept !== 'P_Art' && dept !== 'Sin Departamento') {
-                if (fb.customStatus !== 'Completada' && !autoCompletedOrderIds.has(oid)) {
-                    st = 'Completada'; cd = new Date().toISOString();
+            if (fbData && (fbData.customStatus === 'Bandeja' || fbData.customStatus === 'Producción' || fbData.customStatus === 'Auditoría') && orderDepartamento !== 'P_Art' && orderDepartamento !== 'Sin Departamento') {
+                if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(orderId)) {
+                    currentStatus = 'Completada';
+                    currentCompletedDate = new Date().toISOString();
                     autoCompleteBatchWrites.push({
-                        orderId: oid,
-                        data: { customStatus: 'Completada', completedDate: cd, lastModified: cd, schemaVersion: DB_SCHEMA_VERSION },
-                        history: [`Estado automático: ${fb.customStatus} → Completada (movido a ${dept})`]
+                        orderId: orderId,
+                        data: { customStatus: 'Completada', completedDate: currentCompletedDate, lastModified: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION },
+                        history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${order.departamento})`]
                     });
-                    autoCompletedOrderIds.add(oid);
+                    autoCompletedOrderIds.add(orderId);
                 }
             }
 
             processedOrders.push({
-                orderId: oid, fechaDespacho: fd, cliente: curCli, codigoContrato: curCod,
-                estilo: curSty, teamName: curTeam, departamento: dept,
-                cantidad: cant, childPieces: 0, isLate, daysLate: dl, isVeryLate: dl > 7, isAboutToExpire: fd && !isLate && ((fd.getTime() - today.getTime()) / 86400000) <= 2,
-                designer: fb ? fb.designer : '', customStatus: st,
-                receivedDate: fb ? fb.receivedDate : '', notes: fb ? fb.notes : '', completedDate: cd
+                orderId, fechaDespacho, cliente: currentClient, codigoContrato: currentContrato,
+                estilo: currentStyle, teamName: currentTeam, departamento: orderDepartamento,
+                cantidad: orderCantidad, childPieces: 0, isLate, daysLate, isVeryLate, isAboutToExpire,
+                designer: fbData ? fbData.designer : '', customStatus: currentStatus,
+                receivedDate: fbData ? fbData.receivedDate : '', notes: fbData ? fbData.notes : '',
+                completedDate: currentCompletedDate
             });
         }
 
         allOrders = processedOrders;
         isExcelLoaded = true; 
-        saveLocalData(); // Persistir
-        
+        console.log(`✅ Órdenes procesadas del Excel: ${allOrders.length}`);
         needsRecalculation = true; 
         recalculateChildPieces(); 
         if (autoCompleteBatchWrites.length > 0) await ejecutarAutoCompleteBatch();
@@ -878,7 +896,6 @@ async function processFile(file) {
 // ===== LÓGICA DE ÓRDENES HIJAS =====
 // ======================================================
 
-// --- CORRECCIÓN: SE AGREGA LA FUNCIÓN RECALCULATECHILDPIECES FALTANTE ---
 async function recalculateChildPieces() {
     if (!needsRecalculation) return;
     let tempChildPiecesCache = new Map();
@@ -986,10 +1003,10 @@ async function loadChildOrders() {
         list.innerHTML = childOrders.map(child => {
             const date = child.fechaDespacho ? new Date(child.fechaDespacho) : null;
             const isLate = date && date < new Date().setHours(0,0,0,0);
-            return `<div class="bg-white p-2 rounded border text-xs mb-1 flex justify-between items-center">
+            return `<div class="bg-white dark:bg-slate-700 p-2 rounded border dark:border-slate-600 text-xs mb-1 flex justify-between items-center">
                 <div>
-                    <strong class="text-blue-600">${escapeHTML(child.childCode)}</strong><br>
-                    <span class="${isLate?'text-red-600':'text-green-600'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</span>
+                    <strong class="text-blue-600 dark:text-blue-400">${escapeHTML(child.childCode)}</strong><br>
+                    <span class="${isLate?'text-red-600 dark:text-red-400':'text-green-600 dark:text-green-400'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</span>
                 </div>
                 <button class="btn-delete-child text-red-600 hover:text-red-800 px-2" data-child-id="${child.childOrderId}" data-child-code="${child.childCode}">✕</button>
             </div>`;
@@ -1027,7 +1044,7 @@ window.openAssignModal = async function(orderId) {
 
     const history = firebaseHistoryMap.get(orderId) || [];
     document.getElementById('modalHistory').innerHTML = history.length 
-        ? history.map(h => `<div class="text-xs border-b py-1"><span class="text-gray-500">${new Date(h.timestamp).toLocaleDateString()}</span> - ${escapeHTML(h.change)}</div>`).join('') 
+        ? history.map(h => `<div class="text-xs border-b dark:border-gray-600 py-1"><span class="text-gray-500 dark:text-gray-400">${new Date(h.timestamp).toLocaleDateString()}</span> - ${escapeHTML(h.change)}</div>`).join('') 
         : '<p class="text-gray-400 text-xs text-center">Sin historial</p>';
     
     await loadChildOrders();
@@ -1158,14 +1175,14 @@ function populateMetricsSidebar() {
     
     const unassignedCount = allOrders.filter(o => o.departamento === 'P_Art' && !o.designer).length;
     if (unassignedCount > 0) {
-        sidebarList.innerHTML += `<button class="filter-btn" data-designer="Sin asignar" id="btn-metric-Sin-asignar"><span>Sin asignar</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${unassignedCount}</span></button>`;
+        sidebarList.innerHTML += `<button class="filter-btn dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200" data-designer="Sin asignar" id="btn-metric-Sin-asignar"><span>Sin asignar</span><span class="bg-gray-200 dark:bg-gray-600 dark:text-white px-2 py-1 rounded text-xs font-bold">${unassignedCount}</span></button>`;
     }
     
     designerList.forEach(name => {
         const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
         const count = allOrders.filter(o => o.departamento === 'P_Art' && o.designer === name).length;
         if (count > 0) {
-            sidebarList.innerHTML += `<button class="filter-btn" data-designer="${escapeHTML(name)}" id="btn-metric-${safeId}"><span>${escapeHTML(name)}</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${count}</span></button>`;
+            sidebarList.innerHTML += `<button class="filter-btn dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200" data-designer="${escapeHTML(name)}" id="btn-metric-${safeId}"><span>${escapeHTML(name)}</span><span class="bg-gray-200 dark:bg-gray-600 dark:text-white px-2 py-1 rounded text-xs font-bold">${count}</span></button>`;
         }
     });
     
@@ -1179,7 +1196,7 @@ function populateDesignerManagerModal() {
     if (firebaseDesignersMap.size === 0) { listDiv.innerHTML = '<p class="text-gray-500 text-center">No hay diseñadores</p>'; return; }
     
     firebaseDesignersMap.forEach((data, docId) => {
-        listDiv.innerHTML += `<div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50"><div class="leading-tight"><div class="font-medium text-gray-900">${escapeHTML(data.name)}</div><div class="text-xs text-gray-500">${escapeHTML(data.email || 'Sin correo')}</div></div><button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50" data-name="${escapeHTML(data.name)}" data-id="${docId}">Eliminar</button></div>`;
+        listDiv.innerHTML += `<div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-slate-700 dark:border-gray-600"><div class="leading-tight"><div class="font-medium text-gray-900 dark:text-gray-100">${escapeHTML(data.name)}</div><div class="text-xs text-gray-500 dark:text-gray-400">${escapeHTML(data.email || 'Sin correo')}</div></div><button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30" data-name="${escapeHTML(data.name)}" data-id="${docId}">Eliminar</button></div>`;
     });
 }
 
@@ -1289,11 +1306,7 @@ async function updateDashboard() {
     if (needsRecalculation) recalculateChildPieces();
     const artOrders = allOrders.filter(o => o.departamento === 'P_Art');
     const stats = calculateStats(artOrders);
-    updateStats(stats); 
-    updateAlerts(stats); 
-    populateFilterDropdowns(); 
-    updateTable(); 
-    generateReports();
+    updateStats(stats); updateAlerts(stats); populateFilterDropdowns(); updateTable(); generateReports();
 }
 
 function calculateStats(orders) {
@@ -1311,22 +1324,27 @@ function calculateStats(orders) {
 }
 
 function updateStats(stats) {
-    document.getElementById('statTotal').textContent = stats.total;
-    document.getElementById('statTotalPieces').textContent = stats.totalPieces.toLocaleString();
-    document.getElementById('statLate').textContent = stats.late;
-    document.getElementById('statExpiring').textContent = stats.aboutToExpire;
-    document.getElementById('statOnTime').textContent = stats.onTime;
-    document.getElementById('statThisWeek').textContent = stats.thisWeek;
+    // Asumiendo que el HTML ha sido actualizado a la estructura Bento, actualizamos por ID
+    // Si los IDs no existen, JS simplemente no hace nada, evitando errores.
+    const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+    
+    setTxt('statTotal', stats.total);
+    setTxt('statTotalPieces', stats.totalPieces.toLocaleString());
+    setTxt('statLate', stats.late);
+    setTxt('statExpiring', stats.aboutToExpire);
+    setTxt('statOnTime', stats.onTime);
+    setTxt('statThisWeek', stats.thisWeek);
 }
 
 function updateAlerts(stats) {
     const div = document.getElementById('alerts');
+    if(!div) return;
     div.innerHTML = '';
-    if (stats.veryLate > 0) div.innerHTML += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 shadow-sm rounded-r"><strong>URGENTE:</strong> ${stats.veryLate} muy atrasadas.</div>`;
-    else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 shadow-sm rounded-r"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
+    if (stats.veryLate > 0) div.innerHTML += `<div class="bg-red-100 dark:bg-red-900/50 border-l-4 border-red-500 text-red-700 dark:text-red-200 p-4 mb-4 shadow-sm rounded-r"><strong>URGENTE:</strong> ${stats.veryLate} muy atrasadas.</div>`;
+    else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="bg-yellow-100 dark:bg-yellow-900/50 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-200 p-4 mb-4 shadow-sm rounded-r"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
 }
 
-// === MODIFICACIÓN CRÍTICA: updateTable para Móvil y Empty States ===
+// === MODIFICACIÓN: updateTable con soporte Dark Mode ===
 function updateTable() {
     const filtered = getFilteredOrders();
     const body = document.getElementById('tableBody');
@@ -1340,39 +1358,46 @@ function updateTable() {
     if (paginatedOrders.length === 0) {
         body.innerHTML = `
             <tr>
-                <td colspan="14" class="text-center py-12">
-                    <div class="flex flex-col items-center justify-center text-gray-400">
-                        <i class="fa-solid fa-magnifying-glass text-4xl mb-4 text-gray-300"></i>
+                <td colspan="14" class="text-center py-12 dark:bg-slate-800">
+                    <div class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                        <i class="fa-solid fa-magnifying-glass text-4xl mb-4 text-gray-300 dark:text-gray-600"></i>
                         <p class="text-lg font-medium">No se encontraron órdenes</p>
                         <p class="text-sm">Intenta ajustar los filtros o la búsqueda.</p>
-                        <button onclick="clearAllFilters()" class="mt-4 text-blue-600 hover:underline font-medium">Limpiar filtros</button>
+                        <button onclick="clearAllFilters()" class="mt-4 text-brand-500 hover:underline font-medium">Limpiar filtros</button>
                     </div>
                 </td>
             </tr>`;
     } else {
         body.innerHTML = paginatedOrders.map(order => {
             const hasChildren = order.childPieces > 0;
-            const rowClass = order.isVeryLate ? 'very-late' : order.isLate ? 'late' : order.isAboutToExpire ? 'expiring' : '';
+            
+            // Clases de fila (incluyendo soporte oscuro)
+            let rowClass = "cursor-pointer transition-colors hover:bg-brand-50 dark:hover:bg-slate-700 ";
+            if (order.isVeryLate) rowClass += "bg-red-50 dark:bg-red-900/10 border-l-4 border-red-500 ";
+            else if (order.isLate) rowClass += "bg-orange-50 dark:bg-orange-900/10 border-l-4 border-orange-500 ";
+            else if (order.isAboutToExpire) rowClass += "bg-yellow-50 dark:bg-yellow-900/10 border-l-4 border-yellow-500 ";
+            else rowClass += "dark:bg-slate-800 dark:border-slate-700";
+
             const receivedDateStr = order.receivedDate ? order.receivedDate.split('-').reverse().join('/') : '-';
 
             return `
-            <tr class="${rowClass} cursor-pointer transition-colors hover:bg-blue-50" onclick="openAssignModal('${order.orderId}')">
-                <td class="px-6 py-4" data-label="Seleccionar" onclick="event.stopPropagation()">
-                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
+            <tr class="${rowClass}" onclick="openAssignModal('${order.orderId}')">
+                <td class="px-6 py-4 dark:text-gray-300" data-label="Seleccionar" onclick="event.stopPropagation()">
+                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap" data-label="Estado">${getStatusBadge(order)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" data-label="Cliente" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Código">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-blue-600 text-xs font-bold">(Hijas)</span>' : ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Team">${escapeHTML(order.teamName)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 px-2 py-1 rounded border">${escapeHTML(order.departamento)}</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm" data-label="Diseñador">${order.designer ? `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium dark:text-gray-100" data-label="Cliente" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" data-label="Código">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-brand-600 dark:text-brand-400 text-xs font-bold">(Hijas)</span>' : ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" data-label="Team">${escapeHTML(order.teamName)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 dark:bg-slate-700 dark:text-gray-300 px-2 py-1 rounded border dark:border-slate-600">${escapeHTML(order.departamento)}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm" data-label="Diseñador">${order.designer ? `<span class="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 px-2 py-1 rounded-full text-xs font-medium">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
                 <td class="px-6 py-4 whitespace-nowrap" data-label="Estado Orden">${getCustomStatusBadge(order.customStatus)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Recibida">${receivedDateStr}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600" data-label="Cant.">${(order.cantidad||0).toLocaleString()}</td>
-                <td class="px-6 py-4 text-center" data-label="Notas">${order.notes ? '📝' : '-'}</td>
-                <td class="px-6 py-4 text-sm" data-label="Acción"><button class="text-blue-600 hover:underline font-medium">Editar</button></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" data-label="Recibida">${receivedDateStr}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600 dark:text-brand-400" data-label="Cant.">${(order.cantidad||0).toLocaleString()}</td>
+                <td class="px-6 py-4 text-center dark:text-gray-300" data-label="Notas">${order.notes ? '📝' : '-'}</td>
+                <td class="px-6 py-4 text-sm" data-label="Acción"><button class="text-brand-600 dark:text-brand-400 hover:underline font-medium">Editar</button></td>
             </tr>`;
         }).join('');
     }
@@ -1413,19 +1438,25 @@ function getFilteredOrders() {
 }
 
 function getStatusBadge(order) {
-    if (order.isVeryLate) return `<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold border border-red-200">MUY ATRASADA</span>`;
-    if (order.isLate) return `<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-xs font-bold border border-orange-200">ATRASADA</span>`;
-    if (order.isAboutToExpire) return `<span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200">URGENTE</span>`;
-    return `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-medium border border-green-200">A TIEMPO</span>`;
+    if (order.isVeryLate) return `<span class="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 px-2 py-0.5 rounded text-xs font-bold border border-red-200 dark:border-red-800">MUY ATRASADA</span>`;
+    if (order.isLate) return `<span class="bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200 px-2 py-0.5 rounded text-xs font-bold border border-orange-200 dark:border-orange-800">ATRASADA</span>`;
+    if (order.isAboutToExpire) return `<span class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200 dark:border-yellow-800">URGENTE</span>`;
+    return `<span class="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 px-2 py-0.5 rounded text-xs font-medium border border-green-200 dark:border-green-800">A TIEMPO</span>`;
 }
 
 function getCustomStatusBadge(status) {
-    const map = { 'Bandeja': 'bg-yellow-100 text-yellow-800', 'Producción': 'bg-purple-100 text-purple-800', 'Auditoría': 'bg-blue-100 text-blue-800', 'Completada': 'bg-gray-100 text-gray-600' };
-    return status ? `<span class="${map[status] || 'bg-gray-100'} px-2 py-0.5 rounded text-xs font-bold border border-gray-200">${status}</span>` : '-';
+    const map = { 
+        'Bandeja': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200', 
+        'Producción': 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200', 
+        'Auditoría': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200', 
+        'Completada': 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' 
+    };
+    return status ? `<span class="${map[status] || 'bg-gray-100'} px-2 py-0.5 rounded text-xs font-bold border border-gray-200 dark:border-gray-600">${status}</span>` : '-';
 }
 
-function formatDate(date) { return date ? date.toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '-'; }
-
+function formatDate(date) {
+    return date ? date.toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '-';
+}
 function populateFilterDropdowns() {
     const populate = (id, key) => {
         const sel = document.getElementById(id);
@@ -1441,6 +1472,7 @@ function populateFilterDropdowns() {
     updateAllDesignerDropdowns();
 }
 
+// --- clearAllFilters ---
 function clearAllFilters() {
     currentSearch = '';
     currentClientFilter = '';
@@ -1471,6 +1503,7 @@ function sortTable(k) {
     updateTable(); 
 }
 
+// === NUEVA FUNCIONALIDAD: Exportar a Excel ===
 function exportTableToExcel() {
     if (allOrders.length === 0) { showCustomAlert('No hay datos para exportar.', 'error'); return; }
     
@@ -1494,45 +1527,59 @@ function exportTableToExcel() {
     XLSX.writeFile(wb, `Reporte_Panel_Arte_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
+// --- generateSummary (Refactorizado para Bento UI - Actualiza el DOM si existe el contenedor antiguo, pero el nuevo dashboard usa IDs directos) ---
 function generateSummary() {
     const summaryBox = document.getElementById('summaryBox');
-    if (!summaryBox) return;
+    if (!summaryBox) return; // Si usas el nuevo Bento Grid, este contenedor podría no existir, y está bien.
     
     const stats = calculateStats(allOrders.filter(o => o.departamento === 'P_Art'));
     summaryBox.innerHTML = `
         <div class="flex justify-between items-center">
             <div>
-                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-chart-line text-blue-600"></i> Resumen General</h3>
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-brand-600"></i> Resumen General
+                </h3>
                 <p class="text-xs text-gray-500 mt-1">Actualizado: ${new Date().toLocaleTimeString()}</p>
             </div>
             <div class="flex gap-8">
-                <div class="text-center"><div class="text-2xl font-bold text-blue-600">${stats.total}</div><div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Órdenes</div></div>
-                <div class="text-center"><div class="text-2xl font-bold text-purple-600">${stats.totalPieces.toLocaleString()}</div><div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Piezas</div></div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-brand-600 dark:text-brand-400">${stats.total}</div>
+                    <div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Órdenes</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">${stats.totalPieces.toLocaleString()}</div>
+                    <div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Piezas</div>
+                </div>
             </div>
         </div>`;
 }
 
 function generateWorkloadReport() {
-    const s = {};
-    designerList.forEach(d => s[d] = { c: 0, p: 0 });
-    let t = 0;
+    const designerStats = {};
+    designerList.forEach(d => designerStats[d] = { orders: 0, pieces: 0 });
+    let total = 0;
     allOrders.forEach(o => {
-        if (o.departamento === 'P_Art' && o.designer && s[o.designer]) {
+        if (o.departamento === 'P_Art' && o.designer && designerStats[o.designer]) {
             const p = (o.cantidad||0) + (o.childPieces||0);
-            s[o.designer].c++; s[o.designer].p += p;
-            if (o.designer !== EXCLUDE_DESIGNER_NAME) t += p;
+            designerStats[o.designer].orders++;
+            designerStats[o.designer].pieces += p;
+            if (o.designer !== EXCLUDE_DESIGNER_NAME) total += p;
         }
     });
-    document.getElementById('workloadTotal').textContent = `${t.toLocaleString()} pzs`;
+    document.getElementById('workloadTotal').textContent = `${total.toLocaleString()} pzs`;
     const html = designerList.map(d => {
-        const v = s[d];
-        const pct = (t > 0 && d !== EXCLUDE_DESIGNER_NAME) ? ((v.p / t) * 100).toFixed(1) : 0;
+        const s = designerStats[d];
+        const isEx = d === EXCLUDE_DESIGNER_NAME;
+        const pct = (total > 0 && !isEx) ? ((s.pieces/total)*100).toFixed(1) : 0;
         return `
         <div class="mb-3">
             <div class="flex justify-between text-sm mb-1">
-                <span class="font-medium text-gray-700">${d}</span><span class="text-gray-600">${v.p.toLocaleString()} (${d===EXCLUDE_DESIGNER_NAME?'-':pct+'%'})</span>
+                <span class="font-medium text-gray-700 dark:text-gray-300">${d}</span>
+                <span class="text-gray-600 dark:text-gray-400">${s.pieces.toLocaleString()} (${isEx?'-':pct+'%'})</span>
             </div>
-            <div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500 rounded-full" style="width:${d===EXCLUDE_DESIGNER_NAME?0:pct}%"></div></div>
+            <div class="h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div class="h-full bg-brand-500 rounded-full" style="width:${isEx?0:pct}%"></div>
+            </div>
         </div>`;
     }).join('');
     document.getElementById('workloadList').innerHTML = html;
@@ -1540,10 +1587,17 @@ function generateWorkloadReport() {
 
 function generateReports() {
     generateWorkloadReport();
-    const c = {};
-    allOrders.forEach(o => { if(o.cliente) c[o.cliente] = (c[o.cliente]||0)+1; });
-    const t = Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    document.getElementById('clientReport').innerHTML = t.map(([k,v], i) => `<div class="flex justify-between items-center border-b border-gray-100 py-2 last:border-0"><div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-400 w-4">${i+1}</span><span class="text-sm text-gray-700 truncate max-w-[150px]" title="${k}">${k}</span></div><strong class="text-sm text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${v}</strong></div>`).join('');
+    const clients = {};
+    allOrders.forEach(o => { if(o.cliente) clients[o.cliente] = (clients[o.cliente]||0)+1; });
+    const top = Object.entries(clients).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    document.getElementById('clientReport').innerHTML = top.map(([c,n], i) => `
+        <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 py-2 last:border-0">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-400 w-4">${i+1}</span>
+                <span class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[150px]" title="${c}">${c}</span>
+            </div>
+            <strong class="text-sm text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded-full">${n}</strong>
+        </div>`).join('');
 }
 
 function openWeeklyReportModal() {
@@ -1554,34 +1608,43 @@ function closeWeeklyReportModal() {
     document.getElementById('weeklyReportModal').classList.remove('active');
     checkAndCloseModalStack();
 }
-function destroyAllCharts() { if(designerDoughnutChart){designerDoughnutChart.destroy();designerDoughnutChart=null;} if(designerBarChart){designerBarChart.destroy();designerBarChart=null;} if(deptLoadPieChart){deptLoadPieChart.destroy();deptLoadPieChart=null;} if(deptLoadBarChart){deptLoadBarChart.destroy();deptLoadBarChart=null;} if(compareChart){compareChart.destroy();compareChart=null;} }
+
+function destroyAllCharts() {
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+    if (designerActivityChart) { designerActivityChart.destroy(); designerActivityChart = null; }
+    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
+    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
+    if (deptProductivityChart) { deptProductivityChart.destroy(); deptProductivityChart = null; }
+    if (compareChart) { compareChart.destroy(); compareChart = null; }
+}
 
 function showMetricsView() {
-    document.getElementById('dashboard').style.display='none';
-    document.getElementById('designerMetricsView').style.display='block';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('designerMetricsView').style.display = 'block';
     populateMetricsSidebar();
 }
 function hideMetricsView() {
-    document.getElementById('designerMetricsView').style.display='none';
-    document.getElementById('dashboard').style.display='block';
-    destroyAllCharts();
+    document.getElementById('designerMetricsView').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    destroyAllCharts(); 
 }
 
 function showDepartmentMetrics() {
-    document.getElementById('dashboard').style.display='none';
-    document.getElementById('departmentMetricsView').style.display='block';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('departmentMetricsView').style.display = 'block';
     generateDepartmentMetrics();
 }
 function hideDepartmentMetrics() {
-    document.getElementById('departmentMetricsView').style.display='none';
-    document.getElementById('dashboard').style.display='block';
-    destroyAllCharts();
+    document.getElementById('departmentMetricsView').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    destroyAllCharts(); 
 }
 
-function openCompareModal(n) {
-    currentCompareDesigner1=n;
-    document.getElementById('compareDesigner1Name').textContent=n;
-    updateAllDesignerDropdowns();
+function openCompareModal(name1) {
+    currentCompareDesigner1 = name1;
+    document.getElementById('compareDesigner1Name').textContent = name1;
+    updateAllDesignerDropdowns(); 
     document.getElementById('selectCompareModal').classList.add('active');
     document.body.classList.add('modal-open');
 }
@@ -1589,104 +1652,366 @@ function closeCompareModals() {
     document.getElementById('selectCompareModal').classList.remove('active');
     document.getElementById('compareModal').classList.remove('active');
     checkAndCloseModalStack();
-    destroyAllCharts();
+    destroyAllCharts(); 
 }
-
 function startComparison() {
-    const n2=document.getElementById('compareDesignerSelect').value;
-    if(!n2) return;
-    generateCompareReport(currentCompareDesigner1, n2);
+    const name2 = document.getElementById('compareDesignerSelect').value;
+    if(!name2) return;
+    generateCompareReport(currentCompareDesigner1, name2);
 }
 
 function resetApp() {
-    showConfirmModal("¿Subir nuevo Excel? Esto borrará los datos actuales.", () => {
-        allOrders = [];
-        isExcelLoaded = false;
-        clearLocalData(); 
-        
+    showConfirmModal("¿Subir nuevo Excel? Se limpiarán los datos locales.", () => {
+        allOrders = []; isExcelLoaded = false;
         document.getElementById('dashboard').style.display = 'none';
         document.getElementById('uploadSection').style.display = 'block';
         document.getElementById('fileInput').value = '';
         document.getElementById('fileName').textContent = '';
-        
-        desconectarDatosDeFirebase();
+        desconectarDatosDeFirebase(); 
     });
 }
 
 function showWorkPlanView() {
-    document.getElementById('dashboard').style.display='none';
-    document.getElementById('workPlanView').style.display='block';
-    generateWorkPlan();
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('workPlanView').style.display = 'block';
+    generateWorkPlan(); 
 }
 function hideWorkPlanView() {
-    document.getElementById('workPlanView').style.display='none';
-    document.getElementById('dashboard').style.display='block';
+    document.getElementById('workPlanView').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
 }
 
-function openAddChildModal() {
-    if(!currentEditingOrderId) return;
-    const p=allOrders.find(o=>o.orderId===currentEditingOrderId);
-    if(!p) return;
-    document.getElementById('parentOrderInfo').textContent=`Padre: ${p.codigoContrato} - ${p.cliente}`;
-    document.getElementById('childOrderCode').value=p.codigoContrato+'-';
-    document.getElementById('childOrderNumber').value='';
-    document.getElementById('childPieces').value='';
-    document.getElementById('childDeliveryDate').value='';
-    document.getElementById('childNotes').value='';
-    document.getElementById('addChildModal').classList.add('active');
-    document.body.classList.add('modal-open');
+function getWeekDateRange(year, week) {
+    const d = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+    const day = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 1 - day); 
+    const startDate = new Date(d);
+    const endDate = new Date(d);
+    endDate.setUTCDate(endDate.getUTCDate() + 6); 
+    return { startDate, endDate };
 }
 
-function updateChildOrderCode() {
-    const p=allOrders.find(o=>o.orderId===currentEditingOrderId);
-    if(!p) return;
-    const n=document.getElementById('childOrderNumber').value;
-    document.getElementById('childOrderCode').value=`${p.codigoContrato}-${n?n:''}`;
+function generateWeeklyReport() {
+    const spinner = document.getElementById('weeklyReportSpinner');
+    const contentDiv = document.getElementById('weeklyReportContent');
+    spinner.style.display = 'block'; contentDiv.innerHTML = ''; 
+
+    setTimeout(() => {
+        try {
+            const weekValue = document.getElementById('weekSelector').value;
+            if (!weekValue) { contentDiv.innerHTML = '<p class="text-center py-4 text-gray-500">Por favor, selecciona una semana.</p>'; spinner.style.display = 'none'; return; }
+            
+            const [year, week] = weekValue.split('-W').map(Number);
+            const { startDate, endDate } = getWeekDateRange(year, week);
+            endDate.setUTCHours(23, 59, 59, 999);
+
+            const filteredOrders = allOrders.filter(order => {
+                if (!order.receivedDate) return false;
+                const receivedDate = new Date(order.receivedDate + 'T00:00:00Z'); 
+                return receivedDate >= startDate && receivedDate <= endDate;
+            });
+
+            let reportHTML = `<h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-4 border-b dark:border-gray-600 pb-2">Semana: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</h4><div class="table-container border dark:border-gray-600 rounded-lg overflow-hidden mt-4 max-h-96 overflow-y-auto"><table id="weeklyReportTable" class="min-w-full divide-y divide-gray-200 dark:divide-gray-600"><thead class="bg-gray-50 dark:bg-slate-700"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Fecha</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Código</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Diseñador</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Piezas</th></tr></thead><tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+
+            if (filteredOrders.length > 0) {
+                filteredOrders.sort((a,b) => new Date(a.receivedDate) - new Date(b.receivedDate));
+                let totalPieces = 0;
+                filteredOrders.forEach(order => {
+                    const p = (order.cantidad || 0) + (order.childPieces || 0);
+                    totalPieces += p;
+                    reportHTML += `<tr><td class="px-4 py-2 text-sm dark:text-gray-300">${new Date(order.receivedDate + 'T00:00:00Z').toLocaleDateString()}</td><td class="px-4 py-2 text-sm font-medium dark:text-gray-200">${escapeHTML(order.cliente)}</td><td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${escapeHTML(order.codigoContrato)}</td><td class="px-4 py-2 text-sm dark:text-gray-300">${escapeHTML(order.designer) || '-'}</td><td class="px-4 py-2 text-sm font-bold text-gray-800 dark:text-gray-100">${p.toLocaleString()}</td></tr>`;
+                });
+                reportHTML += `<tr class="bg-gray-100 dark:bg-slate-700 font-bold"><td colspan="4" class="px-4 py-2 text-right dark:text-gray-300">Total:</td><td class="px-4 py-2 dark:text-gray-100">${totalPieces.toLocaleString()}</td></tr>`;
+            } else { reportHTML += '<tr><td colspan="5" class="text-center py-12 text-gray-400"><i class="fa-regular fa-folder-open text-2xl mb-2 block"></i>No hay órdenes recibidas esta semana.</td></tr>'; }
+            reportHTML += `</tbody></table></div>`;
+            contentDiv.innerHTML = reportHTML;
+        } catch (e) { console.error(e); contentDiv.innerHTML = '<p class="text-red-500">Error generando reporte.</p>'; }
+        finally { spinner.style.display = 'none'; }
+    }, 50);
 }
 
-function closeAddChildModal() {
-    document.getElementById('addChildModal').classList.remove('active');
-    checkAndCloseModalStack();
+async function generateDesignerMetrics(designerName) {
+    const contentDiv = document.getElementById('metricsDetail');
+    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center mt-4 text-gray-500">Cargando métricas...</p>';
+    
+    destroyAllCharts(); 
+    currentDesignerTableFilter = { search: '', cliente: '', estado: '', fechaDesde: '', fechaHasta: '' };
+    
+    document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(btn => btn.classList.remove('active'));
+    const safeId = designerName.replace(/[^a-zA-Z0-9]/g, '-');
+    const btn = document.getElementById(`btn-metric-${safeId}`);
+    if(btn) btn.classList.add('active');
+
+    const isUnassigned = designerName === 'Sin asignar';
+    const designerOrders = allOrders.filter(o => o.departamento === 'P_Art' && (isUnassigned ? !o.designer : o.designer === designerName));
+    
+    setTimeout(() => {
+        const safeName = escapeHTML(designerName);
+        contentDiv.innerHTML = `
+            <div class="flex justify-between items-center mb-6 border-b pb-4 dark:border-gray-600">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">${safeName}</h2>
+                <div class="flex gap-2">
+                    <button class="px-3 py-2 bg-brand-600 text-white rounded shadow text-sm hover:bg-brand-700 transition" onclick="exportDesignerMetricsPDF('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-file-pdf mr-1"></i> PDF</button>
+                    <button class="px-3 py-2 bg-white dark:bg-slate-700 dark:text-white border dark:border-slate-600 rounded shadow text-sm hover:bg-gray-50 transition" onclick="openCompareModal('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-scale-balanced mr-1"></i> Comparar</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="chart-container h-64 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700 relative">
+                    <canvas id="designerDoughnutChartCanvas"></canvas>
+                </div>
+                <div class="chart-container h-64 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700 relative">
+                    <canvas id="designerBarChartCanvas"></canvas>
+                </div>
+            </div>
+            <div id="designerOrdersTableContainer" class="mt-6"></div>
+        `;
+        renderDesignerOrdersTable(designerName);
+        initDesignerCharts(designerOrders);
+    }, 100);
 }
 
-function toggleOrderSelection(orderId) {
-    if (selectedOrders.has(orderId)) selectedOrders.delete(orderId); else selectedOrders.add(orderId);
-    updateMultiSelectBar(); updateCheckboxes();
-}
-
-function toggleSelectAll() {
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const ordersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art').map(o => o.orderId);
-    if (selectAllCheckbox.checked) ordersOnPage.forEach(id => selectedOrders.add(id));
-    else ordersOnPage.forEach(id => selectedOrders.delete(id));
-    updateMultiSelectBar(); updateCheckboxes();
-}
-
-function clearSelection() {
-    selectedOrders.clear(); updateMultiSelectBar(); updateCheckboxes();
-}
-
-function updateMultiSelectBar() {
-    const bar = document.getElementById('multiSelectBar');
-    const count = document.getElementById('selectedCount');
-    const pageCount = paginatedOrders.filter(o => selectedOrders.has(o.orderId)).length;
-    if (selectedOrders.size > 0) {
-        bar.classList.add('active'); 
-        count.innerHTML = `${selectedOrders.size} <span class="text-xs font-normal text-gray-500">(${pageCount} en esta pág)</span>`;
-    } else { bar.classList.remove('active'); }
-}
-
-function updateCheckboxes() {
-    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-    checkboxes.forEach((checkbox) => {
-        const orderId = checkbox.dataset.orderId;
-        if (orderId) checkbox.checked = selectedOrders.has(orderId);
-    });
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const pArtOrdersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art');
-    const allOnPageSelected = pArtOrdersOnPage.length > 0 && pArtOrdersOnPage.every(order => selectedOrders.has(order.orderId));
-    if(selectAllCheckbox) {
-        selectAllCheckbox.checked = allOnPageSelected;
-        selectAllCheckbox.indeterminate = !allOnPageSelected && pArtOrdersOnPage.some(order => selectedOrders.has(order.orderId));
+function renderDesignerOrdersTable(designerName) {
+    const container = document.getElementById('designerOrdersTableContainer');
+    if (!container) return;
+    const isUnassigned = designerName === 'Sin asignar';
+    let orders = allOrders.filter(o => (isUnassigned ? !o.designer : o.designer === designerName) && o.departamento === 'P_Art');
+    
+    let html = `<div class="overflow-x-auto border border-gray-200 dark:border-slate-600 rounded-lg shadow-sm">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600 text-sm">
+            <thead class="bg-gray-50 dark:bg-slate-700">
+                <tr>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs">Estado</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs">Cliente</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs">Estilo</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs">Piezas</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+            
+    if (orders.length === 0) html += `<tr><td colspan="4" class="p-8 text-center text-gray-400">Sin órdenes activas</td></tr>`;
+    else {
+        orders.forEach(o => { 
+            html += `
+            <tr class="hover:bg-gray-50 dark:hover:bg-slate-700 transition">
+                <td class="px-4 py-2">${getStatusBadge(o)}</td>
+                <td class="px-4 py-2 font-medium dark:text-gray-200">${escapeHTML(o.cliente)}</td>
+                <td class="px-4 py-2 text-gray-500 dark:text-gray-400">${escapeHTML(o.estilo)}</td>
+                <td class="px-4 py-2 font-bold text-brand-600 dark:text-brand-400">${((o.cantidad||0)+(o.childPieces||0)).toLocaleString()}</td>
+            </tr>`; 
+        });
     }
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+}
+
+function initDesignerCharts(orders) {
+    // Configuración Global de ChartJS para Dark Mode
+    if (document.documentElement.classList.contains('dark')) {
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = '#334155';
+    } else {
+        Chart.defaults.color = '#666';
+        Chart.defaults.borderColor = '#e2e8f0';
+    }
+
+    const statusCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
+    const piecesCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
+    orders.forEach(o => {
+        const s = o.customStatus || 'Sin estado';
+        const p = (o.cantidad||0) + (o.childPieces||0);
+        if(statusCounts[s] !== undefined) { statusCounts[s]++; piecesCounts[s] += p; }
+    });
+    const colors = ['#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#6B7280']; 
+    const ctx1 = document.getElementById('designerDoughnutChartCanvas')?.getContext('2d');
+    if (ctx1) {
+        designerDoughnutChart = new Chart(ctx1, {
+            type: 'doughnut',
+            data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: colors }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Órdenes por Estado' }, legend: { position: 'right' } } }
+        });
+    }
+    const ctx2 = document.getElementById('designerBarChartCanvas')?.getContext('2d');
+    if (ctx2) {
+        designerBarChart = new Chart(ctx2, {
+            type: 'bar',
+            data: { labels: Object.keys(piecesCounts), datasets: [{ label: 'Piezas', data: Object.values(piecesCounts), backgroundColor: colors }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Carga de Piezas' }, legend: {display: false} }, scales: { y: { beginAtZero: true } } }
+        });
+    }
+}
+
+function generateCompareReport(name1, name2) {
+    const pArt = allOrders.filter(o => o.departamento === 'P_Art');
+    const o1 = pArt.filter(o => o.designer === name1);
+    const o2 = pArt.filter(o => o.designer === name2);
+    const s1 = calculateStats(o1);
+    const s2 = calculateStats(o2);
+    
+    document.getElementById('compareTableContainer').innerHTML = `
+        <table class="min-w-full divide-y divide-gray-200 mt-4 text-sm border border-gray-200 dark:border-slate-600 rounded-lg overflow-hidden">
+            <thead class="bg-gray-50 dark:bg-slate-700">
+                <tr>
+                    <th class="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Métrica</th>
+                    <th class="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">${escapeHTML(name1)}</th>
+                    <th class="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">${escapeHTML(name2)}</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-600 bg-white dark:bg-slate-800">
+                <tr><td class="px-4 py-3 text-gray-600 dark:text-gray-400">Total Órdenes</td><td class="px-4 py-3 text-center font-bold value-a dark:text-gray-200">${s1.total}</td><td class="px-4 py-3 text-center font-bold value-b dark:text-gray-200">${s2.total}</td></tr>
+                <tr><td class="px-4 py-3 text-gray-600 dark:text-gray-400">Total Piezas</td><td class="px-4 py-3 text-center text-blue-600 dark:text-blue-400 font-bold value-a">${s1.totalPieces.toLocaleString()}</td><td class="px-4 py-3 text-center text-blue-600 dark:text-blue-400 font-bold value-b">${s2.totalPieces.toLocaleString()}</td></tr>
+                <tr><td class="px-4 py-3 text-gray-600 dark:text-gray-400">Atrasadas</td><td class="px-4 py-3 text-center text-red-600 dark:text-red-400 font-bold value-a">${s1.late}</td><td class="px-4 py-3 text-center text-red-600 dark:text-red-400 font-bold value-b">${s2.late}</td></tr>
+            </tbody>
+        </table>`;
+    
+    const ctx = document.getElementById('compareChartCanvas').getContext('2d');
+    if(compareChart) compareChart.destroy();
+    
+    // Asegurar colores correctos para el gráfico
+    if (document.documentElement.classList.contains('dark')) {
+        Chart.defaults.color = '#94a3b8';
+    }
+
+    compareChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: ['Total Piezas', 'Atrasadas'], datasets: [{ label: name1, data: [s1.totalPieces, s1.late], backgroundColor: 'rgba(59, 130, 246, 0.7)' }, { label: name2, data: [s2.totalPieces, s2.late], backgroundColor: 'rgba(245, 158, 11, 0.7)' }] },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+    document.getElementById('selectCompareModal').classList.remove('active');
+    document.getElementById('compareModal').classList.add('active');
+}
+
+function exportWeeklyReportAsPDF() {
+    try {
+        const table = document.getElementById('weeklyReportTable');
+        if (!table) { showCustomAlert('No hay datos para exportar.', 'error'); return; }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const weekText = document.getElementById('weekSelector').value;
+        doc.text(`Reporte Semanal: ${weekText}`, 14, 15);
+        doc.autoTable({ html: '#weeklyReportTable', startY: 20, theme: 'grid' });
+        doc.save(`Reporte_${weekText}.pdf`);
+    } catch (e) { console.error(e); showCustomAlert('Error al exportar PDF.', 'error'); }
+}
+
+function exportDesignerMetricsPDF(name) {
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text(`Métricas: ${name}`, 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 22);
+        const orders = allOrders.filter(o => o.designer === name && o.departamento === 'P_Art');
+        const rows = orders.map(o => [o.cliente, o.codigoContrato, o.estilo, o.customStatus, (o.cantidad + o.childPieces).toLocaleString()]);
+        doc.autoTable({ head: [['Cliente', 'Código', 'Estilo', 'Estado', 'Piezas']], body: rows, startY: 30 });
+        doc.save(`Metricas_${name.replace(/\s/g,'_')}.pdf`);
+    } catch (e) { console.error(e); showCustomAlert('Error exportando PDF.', 'error'); }
+}
+
+function generateDepartmentMetrics() {
+    const contentDiv = document.getElementById('departmentMetricsContent');
+    if (!contentDiv) return;
+    destroyAllCharts(); 
+    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center text-gray-500 mt-4">Calculando métricas globales...</p>';
+    setTimeout(() => {
+        const activeOrders = allOrders.filter(o => o.departamento === 'P_Art');
+        const totalOrders = activeOrders.length;
+        const totalPieces = activeOrders.reduce((sum, o) => sum + (o.cantidad || 0) + (o.childPieces || 0), 0);
+        const statusCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
+        activeOrders.forEach(o => {
+            const s = o.customStatus || 'Sin estado';
+            if (statusCounts[s] !== undefined) statusCounts[s]++; else statusCounts['Sin estado']++;
+        });
+        const designerLoad = {};
+        activeOrders.forEach(o => {
+            if (o.designer && o.designer !== EXCLUDE_DESIGNER_NAME) {
+                if (!designerLoad[o.designer]) designerLoad[o.designer] = 0;
+                designerLoad[o.designer] += (o.cantidad || 0) + (o.childPieces || 0);
+            }
+        });
+
+        contentDiv.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow border-l-4 border-blue-600"><h3 class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold tracking-wider">Órdenes Activas</h3><p class="text-3xl font-bold text-gray-900 dark:text-white mt-2">${totalOrders}</p></div><div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow border-l-4 border-purple-600"><h3 class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold tracking-wider">Piezas Totales</h3><p class="text-3xl font-bold text-gray-900 dark:text-white mt-2">${totalPieces.toLocaleString()}</p></div><div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow border-l-4 border-green-600"><h3 class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold tracking-wider">Diseñadores Activos</h3><p class="text-3xl font-bold text-gray-900 dark:text-white mt-2">${Object.keys(designerLoad).length}</p></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow border border-gray-100 dark:border-slate-700"><h4 class="font-bold mb-4 text-gray-700 dark:text-gray-200">Distribución por Estado</h4><div class="h-64"><canvas id="deptLoadPieChartCanvas"></canvas></div></div><div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow border border-gray-100 dark:border-slate-700"><h4 class="font-bold mb-4 text-gray-700 dark:text-gray-200">Carga por Diseñador (Piezas)</h4><div class="h-64"><canvas id="deptLoadBarChartCanvas"></canvas></div></div></div>`;
+
+        if (document.documentElement.classList.contains('dark')) Chart.defaults.color = '#94a3b8';
+
+        const ctxPie = document.getElementById('deptLoadPieChartCanvas').getContext('2d');
+        deptLoadPieChart = new Chart(ctxPie, {
+            type: 'pie',
+            data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#9CA3AF'] }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        });
+        const ctxBar = document.getElementById('deptLoadBarChartCanvas').getContext('2d');
+        const sortedDesigners = Object.entries(designerLoad).sort((a,b) => b[1] - a[1]);
+        deptLoadBarChart = new Chart(ctxBar, {
+            type: 'bar',
+            data: { labels: sortedDesigners.map(d => d[0]), datasets: [{ label: 'Piezas Asignadas', data: sortedDesigners.map(d => d[1]), backgroundColor: '#3B82F6' }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+        });
+    }, 100);
+}
+
+function generateWorkPlan() {
+    const container = document.getElementById('view-workPlanContent');
+    const weekInput = document.getElementById('view-workPlanWeekSelector');
+    const summarySpan = document.getElementById('view-workPlanSummary');
+    if (!weekInput.value) weekInput.value = getWeekIdentifierString(new Date());
+    const weekIdentifier = weekInput.value;
+    container.innerHTML = '<div class="spinner"></div>';
+
+    const planData = firebaseWeeklyPlanMap.get(weekIdentifier) || [];
+
+    setTimeout(() => {
+        if (planData.length === 0) {
+            container.innerHTML = `<div class="text-center py-12 bg-gray-50 dark:bg-slate-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600"><i class="fa-solid fa-calendar-xmark text-4xl text-gray-300 dark:text-gray-500 mb-3"></i><p class="text-gray-500 dark:text-gray-400 mb-2 font-medium">El plan para la semana ${weekIdentifier} está vacío.</p><p class="text-xs text-gray-400">Usa el botón "Cargar Urgentes" o selecciona órdenes desde el Dashboard.</p></div>`;
+            summarySpan.textContent = '0 órdenes'; return;
+        }
+
+        let totalPieces = 0;
+        let html = `<div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden border border-gray-200 dark:border-slate-700"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-slate-700"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Prioridad</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente / Estilo</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Diseñador</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Entrega</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Piezas</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Acción</th></tr></thead><tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+
+        planData.sort((a, b) => (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1);
+
+        planData.forEach(item => {
+            const pieces = (item.cantidad || 0) + (item.childPieces || 0);
+            totalPieces += pieces;
+            const statusBadge = item.isLate ? '<span class="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 text-xs px-2 py-1 rounded font-bold">ATRASADA</span>' : item.isAboutToExpire ? '<span class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 text-xs px-2 py-1 rounded font-bold">URGENTE</span>' : '<span class="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 text-xs px-2 py-1 rounded">Normal</span>';
+            html += `<tr class="hover:bg-gray-50 dark:hover:bg-slate-700 transition"><td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td><td class="px-6 py-4"><div class="text-sm font-medium text-gray-900 dark:text-white">${escapeHTML(item.cliente)}</div><div class="text-xs text-gray-500 dark:text-gray-400">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${escapeHTML(item.designer || 'Sin asignar')}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700 dark:text-gray-200">${pieces.toLocaleString()}</td><td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 btn-remove-from-plan transition-colors" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+        summarySpan.textContent = `${planData.length} órdenes | ${totalPieces.toLocaleString()} piezas`;
+    }, 50);
+}
+
+async function loadUrgentOrdersToPlan() {
+    const weekInput = document.getElementById('view-workPlanWeekSelector');
+    if (!weekInput.value) { showCustomAlert('Selecciona una semana primero.', 'error'); return; }
+    const weekIdentifier = weekInput.value;
+    const urgentOrders = allOrders.filter(o => o.departamento === 'P_Art' && (o.isLate || o.isAboutToExpire));
+    if (urgentOrders.length === 0) { showCustomAlert('No hay órdenes urgentes o atrasadas en este momento.', 'info'); return; }
+    
+    const batch = db_firestore.batch(); 
+    let batchCount = 0;
+    const toProcess = urgentOrders.slice(0, 400);
+    for (const order of toProcess) {
+        const planEntryId = `${order.orderId}_${weekIdentifier}`;
+        const ref = db_firestore.collection('weeklyPlan').doc(planEntryId);
+        batch.set(ref, {
+            planEntryId: planEntryId, orderId: order.orderId, weekIdentifier: weekIdentifier, designer: order.designer,
+            planStatus: 'Pendiente', addedAt: new Date().toISOString(), cliente: order.cliente, codigoContrato: order.codigoContrato,
+            estilo: order.estilo, fechaDespacho: order.fechaDespacho ? order.fechaDespacho.toISOString() : null,
+            cantidad: order.cantidad, childPieces: order.childPieces, isLate: order.isLate, isAboutToExpire: order.isAboutToExpire,
+            schemaVersion: DB_SCHEMA_VERSION
+        }, { merge: true });
+        batchCount++;
+    }
+    if (batchCount > 0) {
+        try { await batch.commit(); showCustomAlert(`Se cargaron ${batchCount} órdenes urgentes al plan.`, 'success'); } 
+        catch (e) { console.error(e); showCustomAlert('Error al cargar urgentes.', 'error'); }
+    }
+}
+
+async function removeOrderFromPlan(planEntryId, orderCode) {
+    if (!confirm(`¿Quitar la orden ${orderCode} del plan?`)) return;
+    try { await removeOrderFromWorkPlanDB(planEntryId); showCustomAlert('Orden quitada del plan.', 'success'); } 
+    catch (e) { showCustomAlert('Error al quitar orden.', 'error'); }
 }
