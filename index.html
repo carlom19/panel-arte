@@ -253,7 +253,7 @@
             <h2 class="text-xl font-bold mb-4">Crear Orden Hija</h2>
             <p id="parentOrderInfo" class="text-sm text-gray-600 mb-4"></p>
             <div class="flex gap-2 mb-2"><input id="childOrderCode" readonly class="bg-gray-100 border px-2 py-1 flex-1">
-            <input id="childOrderNumber" type="number" placeholder="#" class="border px-2 py-1 w-20" oninput="updateChildOrderCode()" onchange="updateChildOrderCode()">
+            <input id="childOrderNumber" type="number" min="1" placeholder="#" class="border px-2 py-1 w-20" oninput="updateChildOrderCode()" onchange="updateChildOrderCode()">
             </div>
             <input id="childPieces" type="number" placeholder="Piezas" class="w-full border mb-2 px-3 py-2">
             <input id="childDeliveryDate" type="date" class="w-full border mb-2 px-3 py-2">

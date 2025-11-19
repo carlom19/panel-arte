@@ -463,7 +463,6 @@ async function deleteChildOrderFromDB(childOrderId) {
     return await childRef.delete();
 }
 
-// --- CORRECCIÓN: addDesigner con Regex ---
 async function addDesigner() {
     const nameInput = document.getElementById('newDesignerName');
     const emailInput = document.getElementById('newDesignerEmail');
@@ -489,9 +488,7 @@ async function addDesigner() {
     } catch (error) { showCustomAlert(`Error al agregar: ${error.message}`, 'error'); logToFirestore('designer:add', error); }
 }
 
-// --- MEJORA: deleteDesigner con validación ---
 async function deleteDesigner(docId, name) {
-    // Validación de existencia
     if (!firebaseDesignersMap.has(docId)) {
         showCustomAlert('El diseñador ya no existe o fue eliminado.', 'error');
         return;
@@ -555,7 +552,6 @@ async function removeOrderFromWorkPlanDB(planEntryId) {
     return await planRef.delete();
 }
 
-// --- CORRECCIÓN: logToFirestore implementado ---
 async function logToFirestore(context, error) {
     if (!usuarioActual) return;
     const errorMessage = (error instanceof Error) ? error.message : String(error);
@@ -770,7 +766,7 @@ async function processFile(file) {
                     autoCompleteBatchWrites.push({
                         orderId: orderId,
                         data: { customStatus: 'Completada', completedDate: currentCompletedDate, lastModified: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION },
-                        history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${orderDepartamento})`]
+                        history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${order.departamento})`]
                     });
                     autoCompletedOrderIds.add(orderId);
                 }
@@ -1360,11 +1356,35 @@ function populateFilterDropdowns() {
     populate('departamentoFilter', 'departamento');
     updateAllDesignerDropdowns();
 }
+
+// --- CORRECCIÓN: Función clearAllFilters REPARADA ---
 function clearAllFilters() {
-    currentSearch = ''; currentClientFilter = ''; currentFilter = 'all'; 
-    document.querySelectorAll('.filter-item select, .filter-item input').forEach(el => el.value = '');
+    // 1. Reiniciar TODAS las variables globales de filtro
+    currentSearch = '';
+    currentClientFilter = '';
+    currentStyleFilter = '';
+    currentTeamFilter = '';
+    currentDepartamentoFilter = ''; 
+    currentDesignerFilter = '';
+    currentCustomStatusFilter = '';
+    currentDateFrom = '';
+    currentDateTo = '';
+    currentFilter = 'all';
+
+    // 2. Limpiar visualmente los inputs y selects
+    document.querySelectorAll('.filter-item select, .filter-item input').forEach(el => {
+        el.value = '';
+    });
+
+    // 3. Limpiar el input de búsqueda principal si existe
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+
+    // 4. Reiniciar a página 1 y actualizar
+    currentPage = 1;
     updateTable();
 }
+
 function setFilter(f) { currentFilter = f; currentPage = 1; updateDashboard(); }
 function sortTable(k) { 
     sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc';
