@@ -1,4 +1,185 @@
-// ======================================================
+/* ====================================================== */
+/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) ===== */
+/* ====================================================== */
+
+/* --- 1. Control de Modales (Animaciones Suaves) --- */
+body.modal-open { overflow: hidden; }
+
+.modal { 
+    display: flex; 
+    opacity: 0; 
+    pointer-events: none; 
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1); /* Curva de animación estilo iOS */
+    position: fixed; 
+    inset: 0; 
+    z-index: 1000; 
+    align-items: center; 
+    justify-content: center;
+    /* El fondo oscuro se maneja con clases de Tailwind (bg-slate-900/50) */
+}
+
+.modal.active { 
+    opacity: 1; 
+    pointer-events: auto; 
+}
+
+.modal-content { 
+    transform: scale(0.98) translateY(10px); 
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+    max-height: 90vh; 
+    overflow-y: auto; 
+    width: 100%;
+    margin: auto;
+    /* Scrollbar fino para el contenido del modal */
+    scrollbar-width: thin;
+}
+
+.modal.active .modal-content { 
+    transform: scale(1) translateY(0); 
+}
+
+/* --- 2. Barra de Selección Múltiple (Efecto Flotante) --- */
+.multi-select-bar {
+    position: fixed;
+    bottom: 2rem; 
+    left: 50%;
+    transform: translateX(-50%) translateY(200%); /* Oculto abajo */
+    opacity: 0;
+    pointer-events: none; 
+    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1); /* Animación de entrada elástica */
+    z-index: 50;
+}
+
+.multi-select-bar.active {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto; 
+}
+
+/* --- 3. Tablas Estilo Salient (Personalización Fina) --- */
+/* Separamos los bordes para permitir bordes redondeados en las filas */
+table.data-table {
+    border-collapse: separate; 
+    border-spacing: 0; 
+}
+
+table.data-table th {
+    background-color: #F8FAFC; /* slate-50 */
+    color: #475569; /* slate-600 */
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #E2E8F0; /* slate-200 */
+    white-space: nowrap;
+}
+
+table.data-table td {
+    border-bottom: 1px solid #F1F5F9; /* slate-100 */
+    vertical-align: middle;
+    color: #334155; /* slate-700 */
+    transition: background-color 0.1s;
+}
+
+/* Hover suave en las filas */
+table.data-table tr:hover td {
+    background-color: #F8FAFC; /* slate-50 */
+}
+
+/* Badge Styles (Etiquetas de estado) */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* --- 4. Utilerías de Animación --- */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fadeIn 0.3s ease-out forwards; }
+
+/* --- 5. Spinner de Carga --- */
+.spinner {
+    border: 3px solid #E2E8F0; 
+    border-top: 3px solid #2563EB; /* Azul primario */
+    border-radius: 50%;
+    width: 32px; height: 32px; 
+    animation: spin 0.8s linear infinite; 
+    margin: 0 auto 1rem;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.loading-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.8); 
+    backdrop-filter: blur(4px); /* Efecto borroso de fondo */
+    display: flex; align-items: center;
+    justify-content: center; z-index: 9999; flex-direction: column;
+}
+.loading-overlay p {
+    color: #1e293b; font-weight: 500; margin-top: 10px;
+}
+
+/* --- 6. Scrollbars Modernos (Webkit) --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* --- 7. Overrides para Tabla Responsiva (Mobile Cards) --- */
+/* En móviles, transformamos la tabla en tarjetas individuales */
+@media (max-width: 768px) {
+    table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { 
+        display: block; 
+    }
+    /* Ocultar cabecera original */
+    .data-table thead tr { position: absolute; top: -9999px; left: -9999px; }
+    
+    /* Estilo de tarjeta para la fila */
+    .data-table tr { 
+        margin-bottom: 1rem; 
+        border: 1px solid #E2E8F0; 
+        border-radius: 1rem; 
+        background: white;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        padding: 0.5rem;
+    }
+    
+    .data-table td { 
+        border: none;
+        border-bottom: 1px solid #F1F5F9; 
+        position: relative;
+        padding-left: 40% !important; /* Espacio para la etiqueta */
+        text-align: right;
+        min-height: 30px;
+        font-size: 0.875rem;
+    }
+    
+    .data-table td:last-child { border-bottom: none; }
+    
+    /* Pseudo-elemento para la etiqueta del dato (data-label) */
+    .data-table td:before { 
+        position: absolute; top: 12px; left: 12px; width: 35%; 
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        font-weight: 600; color: #64748B; text-align: left;
+        content: attr(data-label); 
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+    
+    /* Ajuste especial para el checkbox en móvil */
+    .data-table td:first-child { 
+        padding-left: 1rem !important; 
+        text-align: left; 
+        background: #F8FAFC; 
+        border-radius: 0.5rem; 
+        margin-bottom: 0.5rem;
+    }
+    .data-table td:first-child:before { display: none; }
+}// ======================================================
 // ===== CONFIGURACIÓN DE FIREBASE =====
 // ======================================================
 const firebaseConfig = {
@@ -360,7 +541,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     }
 
-    // --- CORRECCIÓN CRÍTICA: EVENTO KEYDOWN (ESCAPE) BLINDADO ---
+    // --- EVENTO KEYDOWN (ESCAPE) ---
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             // 1. Prioridad: Cerrar modales críticos, alertas y confirmaciones
@@ -368,8 +549,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             const legendModal = document.getElementById('legendModal');
             if (legendModal) legendModal.classList.remove('active');
 
-            // 2. IMPORTANTE: Solo gestionamos el cierre de vistas si el Excel ya fue cargado
-            // Esto evita que se muestre el dashboard cuando estamos en el login.
+            // 2. Solo gestionamos el cierre de vistas si el Excel ya fue cargado
             if (isExcelLoaded) {
                 closeModal(); 
                 closeMultiModal(); 
@@ -377,7 +557,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 closeDesignerManager();
                 closeAddChildModal();
                 
-                // Cierre inteligente de vistas: Solo ocultar si están visibles
+                // Cierre inteligente de vistas
                 const compareModal = document.getElementById('compareModal');
                 if (compareModal && compareModal.classList.contains('active')) closeCompareModals();
 
@@ -394,7 +574,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         
         // Atajo Guardar (Ctrl+S)
         if (e.ctrlKey && e.key === 's') {
-            e.preventDefault(); // Prevenir dialogo del navegador
+            e.preventDefault(); 
             const assignModal = document.getElementById('assignModal');
             const multiAssignModal = document.getElementById('multiAssignModal');
             
@@ -522,7 +702,7 @@ function mergeYActualizar() {
         // Lógica de Auto-Completado
         if (fbData && 
             (fbData.customStatus === 'Bandeja' || fbData.customStatus === 'Producción' || fbData.customStatus === 'Auditoría') &&
-            orderdepartamento !== 'P_Art' && orderdepartamento !== 'Sin Departamento') 
+            order.departamento !== 'P_Art' && order.departamento !== 'Sin Departamento') 
         {
             if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(order.orderId)) {
                 order.customStatus = 'Completada';
@@ -531,7 +711,7 @@ function mergeYActualizar() {
                 autoCompleteBatchWrites.push({
                     orderId: order.orderId,
                     data: { customStatus: 'Completada', completedDate: newCompletedDate, lastModified: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION },
-                    history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${orderdepartamento})`]
+                    history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${order.departamento})`]
                 });
                 autoCompletedOrderIds.add(order.orderId);
             }
@@ -717,10 +897,18 @@ async function logToFirestore(context, error) {
 
 function handleDrop(e){ const dt = e.dataTransfer; handleFiles(dt.files); }
 function handleFileSelect(e){ handleFiles(e.target.files); }
+
+// --- FUNCIÓN CORREGIDA PARA EVITAR ERROR NULL ---
 function handleFiles(files){
     if (!files || files.length === 0) return;
     const file = files[0];
-    document.getElementById('fileName').textContent = file.name;
+    
+    // Verificación de seguridad para actualizar el nombre del archivo
+    const fileNameElement = document.getElementById('fileName');
+    if (fileNameElement) {
+        fileNameElement.textContent = file.name;
+    }
+    
     processFile(file);
 }
 
@@ -1011,7 +1199,7 @@ window.openAssignModal = async function(orderId) {
     document.getElementById('detailCliente').textContent = order.cliente || '-';
     document.getElementById('detailCodigo').textContent = order.codigoContrato || '-';
     document.getElementById('detailEstilo').textContent = order.estilo || '-';
-    document.getElementById('detailDepartamento').textContent = orderdepartamento || '-';
+    document.getElementById('detailDepartamento').textContent = order.departamento || '-';
     document.getElementById('detailFecha').textContent = formatDate(order.fechaDespacho);
     
     const totalPieces = (order.cantidad || 0) + (order.childPieces || 0);
@@ -1022,7 +1210,7 @@ window.openAssignModal = async function(orderId) {
     document.getElementById('modalReceivedDate').value = order.receivedDate || '';
     document.getElementById('modalNotes').value = order.notes || '';
     
-    const isPArt = orderdepartamento === 'P_Art';
+    const isPArt = order.departamento === 'P_Art';
     document.getElementById('modalDesigner').disabled = !isPArt;
     document.getElementById('modalStatus').disabled = !isPArt;
     document.getElementById('addChildOrderBtn').disabled = !isPArt;
@@ -1110,7 +1298,7 @@ async function saveMultiAssignment() {
 
         selectedOrders.forEach(orderId => {
             const order = allOrders.find(o => o.orderId === orderId);
-            if(order && orderdepartamento === 'P_Art') {
+            if(order && order.departamento === 'P_Art') {
                 const ref = db_firestore.collection('assignments').doc(orderId);
                 let update = { schemaVersion: DB_SCHEMA_VERSION };
                 if(newDesigner) update.designer = newDesigner;
@@ -1222,16 +1410,13 @@ function updateMultiSelectBar() {
     } else { bar.classList.remove('active'); }
 }
 
-// --- CORRECCIÓN CRÍTICA: LÓGICA DE CHECKBOXES ---
 function updateCheckboxes() {
-    // 1. Actualizar filas individuales
     const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
     checkboxes.forEach((checkbox) => {
         const orderId = checkbox.dataset.orderId;
         if (orderId) checkbox.checked = selectedOrders.has(orderId);
     });
 
-    // 2. Lógica inteligente para el checkbox maestro
     const selectAllCheckbox = document.getElementById('selectAll');
     if(selectAllCheckbox) {
         const pArtOrdersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art');
@@ -1239,7 +1424,7 @@ function updateCheckboxes() {
         if (pArtOrdersOnPage.length === 0) {
             selectAllCheckbox.checked = false;
             selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.disabled = true; // Deshabilitar si no hay nada seleccionable
+            selectAllCheckbox.disabled = true; 
         } else {
             selectAllCheckbox.disabled = false;
             const allSelected = pArtOrdersOnPage.every(order => selectedOrders.has(order.orderId));
@@ -1266,7 +1451,7 @@ async function addSelectedToWorkPlan() {
     let addedCount = 0;
     for (const orderId of selectedOrders) {
         const order = allOrders.find(o => o.orderId === orderId);
-        if (order && orderdepartamento === 'P_Art' && order.designer) {
+        if (order && order.departamento === 'P_Art' && order.designer) {
             if (await addOrderToWorkPlanDB(order, weekIdentifier)) addedCount++;
         }
     }
@@ -1338,7 +1523,6 @@ function updateAlerts(stats) {
     else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 shadow-sm rounded-r"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
 }
 
-// === MODIFICACIÓN CRÍTICA: updateTable para Móvil y Empty States ===
 function updateTable() {
     const filtered = getFilteredOrders();
     const body = document.getElementById('tableBody');
@@ -1370,7 +1554,7 @@ function updateTable() {
             return `
             <tr class="${rowClass} cursor-pointer transition-colors hover:bg-blue-50" onclick="openAssignModal('${order.orderId}')">
                 <td class="px-6 py-4" data-label="Seleccionar" onclick="event.stopPropagation()">
-                    ${orderdepartamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
+                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap" data-label="Estado">${getStatusBadge(order)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
@@ -1378,7 +1562,7 @@ function updateTable() {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Código">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-blue-600 text-xs font-bold">(Hijas)</span>' : ''}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Team">${escapeHTML(order.teamName)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 px-2 py-1 rounded border">${escapeHTML(orderdepartamento)}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 px-2 py-1 rounded border">${escapeHTML(order.departamento)}</span></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm" data-label="Diseñador">${order.designer ? `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
                 <td class="px-6 py-4 whitespace-nowrap" data-label="Estado Orden">${getCustomStatusBadge(order.customStatus)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Recibida">${receivedDateStr}</td>
@@ -1391,7 +1575,6 @@ function updateTable() {
     updateCheckboxes();
 }
 
-// --- CORRECCIÓN: getFilteredOrders con filtro Depto mejorado ---
 function getFilteredOrders() {
     let res = allOrders;
     if (currentSearch) {
@@ -1453,7 +1636,6 @@ function populateFilterDropdowns() {
     updateAllDesignerDropdowns();
 }
 
-// --- CORRECCIÓN: Función clearAllFilters REPARADA ---
 function clearAllFilters() {
     currentSearch = '';
     currentClientFilter = '';
@@ -1508,7 +1690,6 @@ function exportTableToExcel() {
     XLSX.writeFile(wb, `Reporte_Panel_Arte_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-// --- CORRECCIÓN: Implementación de generateSummary ---
 function generateSummary() {
     const summaryBox = document.getElementById('summaryBox');
     if (!summaryBox) return;
@@ -1785,7 +1966,6 @@ function renderDesignerOrdersTable(designerName) {
     container.innerHTML = html;
 }
 
-// --- CORRECCIÓN CRÍTICA: DESTRUCCIÓN DE GRÁFICOS ---
 function initDesignerCharts(orders) {
     const statusCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
     const piecesCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
@@ -1796,7 +1976,6 @@ function initDesignerCharts(orders) {
     });
     const colors = ['#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#6B7280']; 
     
-    // Asegurar destrucción previa para evitar glitches
     if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
     if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
 
