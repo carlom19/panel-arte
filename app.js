@@ -1326,10 +1326,37 @@ function updateStats(stats) {
 }
 
 function updateAlerts(stats) {
-    const div = document.getElementById('alerts');
-    div.innerHTML = '';
-    if (stats.veryLate > 0) div.innerHTML += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 shadow-sm rounded-r"><strong>URGENTE:</strong> ${stats.veryLate} muy atrasadas.</div>`;
-    else if (stats.aboutToExpire > 0) div.innerHTML += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 shadow-sm rounded-r"><strong>ATENCIÓN:</strong> ${stats.aboutToExpire} vencen pronto.</div>`;
+    // Calcular el total de notificaciones (Muy atrasadas + Por vencer)
+    const totalAlerts = stats.veryLate + stats.aboutToExpire;
+    
+    // Referencias a los elementos de la campana
+    const badge = document.getElementById('notificationBadge');
+    const btn = document.getElementById('notificationBtn');
+    
+    if (badge && btn) {
+        if (totalAlerts > 0) {
+            // Mostrar badge y número
+            badge.textContent = totalAlerts > 99 ? '99+' : totalAlerts;
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+            
+            // Cambiar color de campana si hay alertas
+            btn.classList.remove('text-slate-400');
+            btn.classList.add('text-red-500', 'animate-pulse'); // Efecto pulso sutil
+            
+            // Tooltip descriptivo al pasar el mouse
+            btn.title = `Atención: ${stats.veryLate} atrasadas, ${stats.aboutToExpire} por vencer`;
+        } else {
+            // Ocultar badge si no hay alertas
+            badge.classList.add('hidden');
+            badge.classList.remove('flex');
+            
+            // Restaurar color original
+            btn.classList.add('text-slate-400');
+            btn.classList.remove('text-red-500', 'animate-pulse');
+            btn.title = "Sin alertas pendientes";
+        }
+    }
 }
 
 function updateTable() {
