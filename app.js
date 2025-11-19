@@ -2000,3 +2000,101 @@ async function removeOrderFromPlan(planEntryId, orderCode) {
     try { await removeOrderFromWorkPlanDB(planEntryId); showCustomAlert('Orden quitada del plan.', 'success'); } 
     catch (e) { showCustomAlert('Error al quitar orden.', 'error'); }
 }
+// --- FUNCIONES DE NOTIFICACIONES MEJORADAS ---
+
+// 1. Función para abrir/cerrar el menú
+function toggleNotifications() {
+    const dropdown = document.getElementById('notificationDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+    }
+}
+
+// Cerrar el menú si haces clic fuera de él
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('notificationDropdown');
+    const btn = document.getElementById('notificationBtn');
+    if (!dropdown || !btn) return;
+    
+    // Si el clic NO fue en el botón NI dentro del menú, cierra el menú
+    if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.classList.add('hidden');
+    }
+});
+
+// 2. Función Actualizada que llena el menú
+function updateAlerts(stats) {
+    const totalAlerts = stats.veryLate + stats.aboutToExpire + stats.late;
+    
+    const badge = document.getElementById('notificationBadge');
+    const btn = document.getElementById('notificationBtn');
+    const list = document.getElementById('notificationList');
+    
+    if (!badge || !btn || !list) return;
+
+    // A. Actualizar el Badge (Globito rojo)
+    if (totalAlerts > 0) {
+        badge.textContent = totalAlerts > 99 ? '99+' : totalAlerts;
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+        
+        btn.classList.remove('text-slate-400');
+        btn.classList.add('text-slate-700'); // Color activo
+    } else {
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+        btn.classList.add('text-slate-400');
+        btn.classList.remove('text-slate-700');
+    }
+
+    // B. Construir la lista de mensajes dentro del menú
+    let htmlContent = '';
+
+    // Alerta de Muy Atrasadas
+    if (stats.veryLate > 0) {
+        htmlContent += `
+            <div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 cursor-pointer transition flex gap-3 items-start group">
+                <div class="mt-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_0_4px_rgba(239,68,68,0.2)]"></div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800 group-hover:text-red-700">Muy Atrasadas (>7 días)</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Tienes <span class="font-bold text-red-600">${stats.veryLate}</span> órdenes críticas.</p>
+                </div>
+            </div>`;
+    }
+
+    // Alerta de Por Vencer
+    if (stats.aboutToExpire > 0) {
+        htmlContent += `
+            <div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 cursor-pointer transition flex gap-3 items-start group">
+                <div class="mt-0.5 h-2 w-2 rounded-full bg-yellow-400 shadow-[0_0_0_4px_rgba(250,204,21,0.2)]"></div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800 group-hover:text-yellow-700">Vencen Pronto (≤2 días)</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Atención a <span class="font-bold text-yellow-600">${stats.aboutToExpire}</span> órdenes.</p>
+                </div>
+            </div>`;
+    }
+    
+    // Alerta de Atrasadas (Normales)
+    if (stats.late > 0) {
+         htmlContent += `
+            <div onclick="setFilter('late'); toggleNotifications();" class="p-3 hover:bg-orange-50 cursor-pointer transition flex gap-3 items-start group">
+                <div class="mt-0.5 h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.2)]"></div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800 group-hover:text-orange-700">Atrasadas</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5"><span class="font-bold text-orange-600">${stats.late}</span> órdenes fuera de fecha.</p>
+                </div>
+            </div>`;
+    }
+
+    // Estado Vacío
+    if (htmlContent === '') {
+        htmlContent = `
+            <div class="flex flex-col items-center justify-center py-8 px-4 text-center">
+                <i class="fa-regular fa-circle-check text-3xl text-green-500 mb-2 opacity-50"></i>
+                <p class="text-xs font-medium text-slate-600">¡Todo al día!</p>
+                <p class="text-[10px] text-slate-400">No hay alertas pendientes.</p>
+            </div>`;
+    }
+
+    list.innerHTML = htmlContent;
+}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v5.4 (Full Width)</title>
+    <title>Panel de Control - Arte v5.5 (Full & Compact)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -49,9 +49,10 @@
 
         <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
             <div class="bg-white py-8 px-4 shadow-sm ring-1 ring-slate-900/5 sm:rounded-xl sm:px-10">
-                <button id="loginButton" class="w-full flex justify-center items-center gap-3 rounded-full bg-slate-900 px-3 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 transition-all">
+                <button id="loginButton" class="w-full flex justify-center items-center gap-3 rounded-full bg-slate-900 px-3 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 transition-all">
                     <i class="fa-brands fa-google text-lg"></i> Iniciar Sesión con Google
                 </button>
+                <p class="mt-6 text-center text-xs text-slate-400">Acceso restringido a personal autorizado.</p>
             </div>
         </div>
     </div>
@@ -77,7 +78,8 @@
         
         <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm">
             <div class="w-full px-4 sm:px-6">
-                <div class="flex justify-between h-14"> <div class="flex items-center gap-4">
+                <div class="flex justify-between h-14">
+                    <div class="flex items-center gap-4">
                         <div class="flex-shrink-0 bg-blue-600 text-white w-8 h-8 rounded-lg flex items-center justify-center">
                             <i class="fa-solid fa-layer-group text-xs"></i>
                         </div>
@@ -91,15 +93,25 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        
                         <div class="relative mr-3">
-                            <button id="notificationBtn" class="text-slate-400 hover:text-blue-600 transition p-2" title="Sin alertas">
+                            <button id="notificationBtn" onclick="toggleNotifications()" class="text-slate-400 hover:text-blue-600 transition p-2 focus:outline-none" title="Notificaciones">
                                 <i class="fa-regular fa-bell text-lg"></i>
                             </button>
-                            <span id="notificationBadge" class="absolute top-0 right-0 hidden h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">0</span>
+                            <span id="notificationBadge" class="absolute top-0 right-0 hidden h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white pointer-events-none">0</span>
+
+                            <div id="notificationDropdown" class="hidden absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-2xl ring-1 ring-slate-900/10 z-50 origin-top-right overflow-hidden">
+                                <div class="p-3 border-b border-slate-50 bg-slate-50/80 backdrop-blur-sm">
+                                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Centro de Alertas</h3>
+                                </div>
+                                <div id="notificationList" class="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                                    <div class="p-4 text-center text-slate-400 text-xs">Cargando...</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="hidden md:flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-200 mr-2">
-                            <button onclick="openLegendModal()" title="Ayuda" class="text-slate-500 hover:text-blue-600 p-1.5 rounded-full hover:bg-white transition"><i class="fa-solid fa-circle-question"></i></button>
+                            <button onclick="openLegendModal()" title="Ayuda / Leyenda" class="text-slate-500 hover:text-blue-600 p-1.5 rounded-full hover:bg-white transition"><i class="fa-solid fa-circle-question"></i></button>
                             <button onclick="showWorkPlanView()" title="Plan Semanal" class="text-slate-500 hover:text-orange-600 p-1.5 rounded-full hover:bg-white transition"><i class="fa-solid fa-calendar-days"></i></button>
                             <button onclick="showMetricsView()" title="Métricas Diseñador" class="text-slate-500 hover:text-purple-600 p-1.5 rounded-full hover:bg-white transition"><i class="fa-solid fa-chart-column"></i></button>
                             <button onclick="showDepartmentMetrics()" title="Métricas Globales Depto" class="text-slate-500 hover:text-green-600 p-1.5 rounded-full hover:bg-white transition"><i class="fa-solid fa-chart-pie"></i></button>
@@ -110,7 +122,7 @@
                             <i class="fa-solid fa-file-excel text-green-600"></i> <span class="hidden sm:inline">Excel</span>
                         </button>
                         
-                        <button onclick="resetApp()" class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-blue-500 transition">
+                        <button onclick="resetApp()" class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-blue-500 transition" title="Sincronizar / Subir nuevo">
                             <i class="fa-solid fa-rotate"></i>
                         </button>
                         
