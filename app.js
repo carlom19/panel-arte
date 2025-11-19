@@ -179,7 +179,8 @@ table.data-table tr:hover td {
         margin-bottom: 0.5rem;
     }
     .data-table td:first-child:before { display: none; }
-}// ======================================================
+}
+// ======================================================
 // ===== CONFIGURACIÓN DE FIREBASE =====
 // ======================================================
 const firebaseConfig = {
@@ -190,10 +191,19 @@ const firebaseConfig = {
     messagingSenderId: "236381043860",
     appId: "1:236381043860:web:f6a9c2cb211dd9161d0881"
 };
-// Inicializa Firebase
-firebase.initializeApp(firebaseConfig);
 
-// Configuración de Tailwind (para gráficos)
+// Inicializa Firebase
+// Aseguramos que firebase esté definido antes de usarlo
+if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+} else {
+    console.error("Error: El SDK de Firebase no se ha cargado correctamente.");
+}
+
+// ======================================================
+// ===== CONFIGURACIÓN DE TAILWIND =====
+// ======================================================
+// Configuración de Tailwind (para gráficos y colores personalizados)
 tailwind.config = {
     theme: {
         extend: {
@@ -207,8 +217,7 @@ tailwind.config = {
             }
         },
     },
-}
-
+};
 // ======================================================
 // ===== VARIABLES GLOBALES =====
 // ======================================================
