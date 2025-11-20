@@ -243,8 +243,8 @@ table.data-table {
 /* Tamaño de letra y padding de las celdas de la tabla principal */
 table.data-table th,
 table.data-table td {
-    font-size: 12px;      /* ≈ text-xs */
-    padding: 6px 6px;     /* filas más compactas que px-6 py-4 */
+    font-size: 12px;      /* ≈ 12px como pediste */
+    padding: 6px 6px;     /* filas compactas */
 }
 
 /* Variante opcional aún más compacta si se usa .table-compact en alguna tabla */
@@ -253,4 +253,38 @@ table.data-table td {
     white-space: nowrap;
     padding: 2px 6px;
     font-size: 12px;
+}
+
+/* --- 9. Escala general del panel (más pequeño, basada en tu archivo referencia) --- */
+
+/* Reducir tamaño base de fuentes y espaciados */
+html {
+    font-size: 13.2px; /* Base más pequeña, igual a tu panel de referencia */
+}
+
+/* Ajustar padding y márgenes globales de utilidades Tailwind que usas mucho */
+.p-4 { padding: 0.825rem !important; }
+.p-6 { padding: 1.2375rem !important; }
+.p-8 { padding: 1.65rem !important; }
+.mb-4 { margin-bottom: 0.825rem !important; }
+.mb-6 { margin-bottom: 1.2375rem !important; }
+.gap-4 { gap: 0.825rem !important; }
+.gap-6 { gap: 1.2375rem !important; }
+
+/* Reducir tamaño de textos utilitarios */
+.text-2xl { font-size: 1.2375rem !important; }
+.text-lg  { font-size: 1.03125rem !important; }
+.text-base{ font-size: 0.89375rem !important; }
+.text-sm  { font-size: 0.75625rem !important; }
+.text-xs  { font-size: 0.6875rem !important; }
+
+/* Inputs, selects y botones más compactos */
+input, select, textarea, button {
+    font-size: 0.825rem !important;
+    padding: 0.4125rem 0.825rem !important;
+}
+
+/* Tarjetas (stats, etc.) un poco más pequeñas */
+.grid > div {
+    padding: 1.1rem !important;
 }
