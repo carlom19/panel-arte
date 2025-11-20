@@ -92,7 +92,7 @@ table.data-table tr:hover td {
     align-items: center;
     padding: 0.125rem 0.625rem;
     border-radius: 9999px;
-    font-size: 0.7rem;
+    font-size: 0.5rem;
     font-weight: 600;
     line-height: 1;
 }
@@ -244,7 +244,7 @@ table.data-table {
 table.data-table th,
 table.data-table td {
     font-size: 12px;      /* ≈ text-xs */
-    padding: 4px 6px;     /* filas más compactas que px-6 py-4 */
+    padding: 6px 6px;     /* filas más compactas que px-6 py-4 */
 }
 
 /* Variante opcional aún más compacta si se usa .table-compact en alguna tabla */
