@@ -106,37 +106,67 @@ table.data-table tr:hover td {
     border: 3px solid #E2E8F0; 
     border-top: 3px solid #2563EB; /* Azul primario */
     border-radius: 50%;
-    width: 32px; height: 32px; 
+    width: 32px; 
+    height: 32px; 
     animation: spin 0.8s linear infinite; 
     margin: 0 auto 1rem;
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 .loading-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
     background: rgba(255,255,255,0.8); 
     backdrop-filter: blur(4px); /* Efecto borroso de fondo */
-    display: flex; align-items: center;
-    justify-content: center; z-index: 9999; flex-direction: column;
+    display: flex; 
+    align-items: center;
+    justify-content: center; 
+    z-index: 9999; 
+    flex-direction: column;
 }
 .loading-overlay p {
-    color: #1e293b; font-weight: 500; margin-top: 10px;
+    color: #1e293b; 
+    font-weight: 500; 
+    margin-top: 10px;
 }
 
 /* --- 6. Scrollbars Modernos (Webkit) --- */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+::-webkit-scrollbar { 
+    width: 6px; 
+    height: 6px; 
+}
+::-webkit-scrollbar-track { 
+    background: transparent; 
+}
+::-webkit-scrollbar-thumb { 
+    background: #CBD5E1; 
+    border-radius: 3px; 
+}
+::-webkit-scrollbar-thumb:hover { 
+    background: #94A3B8; 
+}
 
 /* --- 7. Overrides para Tabla Responsiva (Mobile Cards) --- */
 /* En móviles, transformamos la tabla en tarjetas individuales */
 @media (max-width: 768px) {
-    table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { 
+    table.data-table, 
+    .data-table thead, 
+    .data-table tbody, 
+    .data-table th, 
+    .data-table td, 
+    .data-table tr { 
         display: block; 
     }
+
     /* Ocultar cabecera original */
-    .data-table thead tr { position: absolute; top: -9999px; left: -9999px; }
+    .data-table thead tr { 
+        position: absolute; 
+        top: -9999px; 
+        left: -9999px; 
+    }
     
     /* Estilo de tarjeta para la fila */
     .data-table tr { 
@@ -158,13 +188,22 @@ table.data-table tr:hover td {
         font-size: 0.875rem;
     }
     
-    .data-table td:last-child { border-bottom: none; }
+    .data-table td:last-child { 
+        border-bottom: none; 
+    }
     
     /* Pseudo-elemento para la etiqueta del dato (data-label) */
     .data-table td:before { 
-        position: absolute; top: 12px; left: 12px; width: 35%; 
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        font-weight: 600; color: #64748B; text-align: left;
+        position: absolute; 
+        top: 12px; 
+        left: 12px; 
+        width: 35%; 
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis;
+        font-weight: 600; 
+        color: #64748B; 
+        text-align: left;
         content: attr(data-label); 
         font-size: 0.75rem;
         text-transform: uppercase;
@@ -178,26 +217,32 @@ table.data-table tr:hover td {
         border-radius: 0.5rem; 
         margin-bottom: 0.5rem;
     }
-    .data-table td:first-child:before { display: none; }
+    .data-table td:first-child:before { 
+        display: none; 
+    }
 }
 
-/* --- 8. Tipografía y compactación de tabla --- */
-/* Aquí definimos que TODO el texto de la tabla sea de 12px */
-table.data-table th,
-table.data-table td {
-    font-size: 12px;
-    padding: 4px 6px;
+/* --- 8. Tipografía solo para la tabla principal --- */
+/* El resto de la página usa el tamaño base de Tailwind (~14px) */
+table.data-table thead th {
+    font-size: 10px;
+    padding: 3px 6px;
 }
 
-/* Versión aún más compacta si usas la clase .table-compact en la tabla */
+table.data-table tbody td {
+    font-size: 11px;
+    padding: 3px 6px;
+}
+
+/* Versión aún más compacta si usas la clase .table-compact en la tabla (opcional) */
 .table-compact td, 
 .table-compact th {
-    font-size: 12px;
+    font-size: 11px;
     white-space: nowrap;
-    padding: 4px 8px;
+    padding: 2px 6px;
 }
 
 /* Para ayudar a que quepan más columnas sin scroll horizontal */
-table {
+table.data-table {
     table-layout: fixed;
 }
