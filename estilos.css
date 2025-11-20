@@ -6,104 +6,155 @@
 body.modal-open { overflow: hidden; }
 
 .modal { 
-    display: flex; 
+    display: none; 
     opacity: 0; 
-    pointer-events: none; 
-    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1); /* Curva de animación estilo iOS */
-    position: fixed; 
-    inset: 0; 
-    z-index: 1000; 
-    align-items: center; 
-    justify-content: center;
-    /* El fondo oscuro se maneja con clases de Tailwind (bg-slate-900/50) */
+    pointer-events: none;
+    transition: opacity 0.18s ease-out;
 }
-
 .modal.active { 
+    display: flex; 
     opacity: 1; 
-    pointer-events: auto; 
+    pointer-events: auto;
 }
-
-.modal-content { 
-    transform: scale(0.98) translateY(10px); 
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
-    max-height: 90vh; 
-    overflow-y: auto; 
-    width: 100%;
-    margin: auto;
-    /* Scrollbar fino para el contenido del modal */
-    scrollbar-width: thin;
-}
-
-.modal.active .modal-content { 
-    transform: scale(1) translateY(0); 
-}
-
-/* --- 2. Barra de Selección Múltiple (Efecto Flotante) --- */
-.multi-select-bar {
-    position: fixed;
-    bottom: 2rem; 
-    left: 50%;
-    transform: translateX(-50%) translateY(200%); /* Oculto abajo */
+.modal-content {
+    transform: translateY(4px);
     opacity: 0;
-    pointer-events: none; 
-    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1); /* Animación de entrada elástica */
-    z-index: 50;
+    transition: transform 0.18s ease-out, opacity 0.18s ease-out;
 }
-
-.multi-select-bar.active {
+.modal.active .modal-content {
+    transform: translateY(0);
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
-    pointer-events: auto; 
 }
 
-/* --- 3. Tablas Estilo Salient (Personalización Fina) --- */
-/* Separamos los bordes para permitir bordes redondeados en las filas */
-table.data-table {
-    border-collapse: separate; 
-    border-spacing: 0; 
+/* --- 2. Loader Global --- */
+#loadingOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 2000;
 }
-
-table.data-table th {
-    background-color: #F8FAFC; /* slate-50 */
-    color: #475569; /* slate-600 */
-    font-weight: 600;
+#loadingMessage {
+    margin-top: 8px;
+    color: #E2E8F0;
+    font-size: 11px;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid #E2E8F0; /* slate-200 */
+}
+.loader {
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 2px solid rgba(148, 163, 184, 0.6);
+    border-top-color: #F97316;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* --- 3. Botones reutilizables --- */
+.btn-primary-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #0F172A, #111827);
+    color: white;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border: 1px solid rgba(15, 23, 42, 0.85);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.35);
+    cursor: pointer;
+}
+.btn-primary-sm:hover {
+    background: linear-gradient(135deg, #020617, #111827);
+}
+
+.btn-ghost-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    background: white;
+    color: #0F172A;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    border: 1px solid rgba(148, 163, 184, 0.9);
+    cursor: pointer;
+}
+.btn-ghost-sm:hover {
+    background: #F8FAFC;
+}
+
+.btn-ghost-xs {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid #E2E8F0;
+    background: white;
+    font-size: 0.625rem;
+    color: #475569;
+    cursor: pointer;
+}
+.btn-ghost-xs:hover {
+    background: #F8FAFC;
+}
+
+/* Botón ícono peligro */
+.btn-icon-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    color: #B91C1C;
+    background: #FEF2F2;
+    font-size: 0.625rem;
+    cursor: pointer;
+}
+.btn-icon-danger:hover {
+    background: #FEE2E2;
+}
+
+/* --- 4. Tabla Compacta --- */
+th, td {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+th.th-sm {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.6875rem;
+    text-align: left;
+    font-weight: 600;
+    color: #64748B;
+    white-space: nowrap;
+}
+td.td-sm {
+    padding: 0.28rem 0.5rem;
+    font-size: 0.6875rem;
+    color: #0F172A;
     white-space: nowrap;
 }
 
-table.data-table td {
-    border-bottom: 1px solid #F1F5F9; /* slate-100 */
-    vertical-align: middle;
-    color: #334155; /* slate-700 */
-    transition: background-color 0.1s;
+/* Tabla zebra */
+tbody tr:nth-child(odd) {
+    background-color: #F9FAFB;
 }
-
-/* Hover suave en las filas */
-table.data-table tr:hover td {
-    background-color: #F8FAFC; /* slate-50 */
-}
-
-/* Badge Styles (Etiquetas de estado) */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.125rem 0.625rem;
-    border-radius: 9999px;
-    font-size: 0.5rem;
-    font-weight: 600;
-    line-height: 1;
-}
-
-/* --- 4. Utilerías de Animación --- */
-@keyframes fadeIn { 
-    from { opacity: 0; } 
-    to { opacity: 1; } 
-}
-.fade-in { 
-    animation: fadeIn 0.3s ease-out forwards; 
+tbody tr:hover {
+    background-color: #EEF2FF;
 }
 
 /* --- 5. Spinner de Carga --- */
@@ -118,165 +169,145 @@ table.data-table tr:hover td {
 }
 @keyframes spin { 
     0% { transform: rotate(0deg); } 
-    100% { transform: rotate(360deg); } 
+    100% { transform: rotate(360deg); }
 }
 
-.loading-overlay {
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
-    height: 100%;
-    background: rgba(255,255,255,0.8); 
-    backdrop-filter: blur(4px); /* Efecto borroso de fondo */
-    display: flex; 
+/* --- 6. Cards / Paneles --- */
+.card-stat {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    padding: 0.85rem 0.9rem;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+.card-stat-header {
+    display: flex;
     align-items: center;
-    justify-content: center; 
-    z-index: 9999; 
+    justify-content: space-between;
+    margin-bottom: 0.15rem;
+}
+.card-stat-title {
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #64748B;
+    font-weight: 600;
+}
+.card-stat-icon {
+    font-size: 0.85rem;
+    color: #CBD5F5;
+}
+.card-stat-body {
+    display: flex;
     flex-direction: column;
+    gap: 0.1rem;
 }
-.loading-overlay p {
-    color: #1e293b; 
-    font-weight: 500; 
-    margin-top: 10px;
+.card-stat-number {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0F172A;
 }
-
-/* --- 6. Scrollbars Modernos (Webkit) --- */
-::-webkit-scrollbar { 
-    width: 6px; 
-    height: 6px; 
-}
-::-webkit-scrollbar-track { 
-    background: transparent; 
-}
-::-webkit-scrollbar-thumb { 
-    background: #CBD5E1; 
-    border-radius: 3px; 
-}
-::-webkit-scrollbar-thumb:hover { 
-    background: #94A3B8; 
+.card-stat-label {
+    font-size: 0.6875rem;
+    color: #94A3B8;
 }
 
-/* --- 7. Overrides para Tabla Responsiva (Mobile Cards) --- */
-/* En móviles, transformamos la tabla en tarjetas individuales */
-@media (max-width: 768px) {
-    table.data-table, 
-    .data-table thead, 
-    .data-table tbody, 
-    .data-table th, 
-    .data-table td, 
-    .data-table tr { 
-        display: block; 
-    }
-
-    /* Ocultar cabecera original */
-    .data-table thead tr { 
-        position: absolute; 
-        top: -9999px; 
-        left: -9999px; 
-    }
-    
-    /* Estilo de tarjeta para la fila */
-    .data-table tr { 
-        margin-bottom: 1rem; 
-        border: 1px solid #E2E8F0; 
-        border-radius: 1rem; 
-        background: white;
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        padding: 0.5rem;
-    }
-    
-    .data-table td { 
-        border: none;
-        border-bottom: 1px solid #F1F5F9; 
-        position: relative;
-        padding-left: 40% !important; /* Espacio para la etiqueta */
-        text-align: right;
-        min-height: 30px;
-        font-size: 0.875rem;
-    }
-    
-    .data-table td:last-child { 
-        border-bottom: none; 
-    }
-    
-    /* Pseudo-elemento para la etiqueta del dato (data-label) */
-    .data-table td:before { 
-        position: absolute; 
-        top: 12px; 
-        left: 12px; 
-        width: 35%; 
-        white-space: nowrap; 
-        overflow: hidden; 
-        text-overflow: ellipsis;
-        font-weight: 600; 
-        color: #64748B; 
-        text-align: left;
-        content: attr(data-label); 
-        font-size: 0.75rem;
-        text-transform: uppercase;
-    }
-    
-    /* Ajuste especial para el checkbox en móvil */
-    .data-table td:first-child { 
-        padding-left: 1rem !important; 
-        text-align: left; 
-        background: #F8FAFC; 
-        border-radius: 0.5rem; 
-        margin-bottom: 0.5rem;
-    }
-    .data-table td:first-child:before { 
-        display: none; 
-    }
+/* Panel genérico */
+.card-panel {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    padding: 0.85rem 0.9rem;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.03);
+}
+.card-panel-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #0F172A;
+}
+.card-panel-badge {
+    font-size: 0.625rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: #EEF2FF;
+    color: #4F46E5;
+    font-weight: 500;
 }
 
-/* --- 8. Tipografía y espaciado de tabla (basado en panel de referencia) --- */
-/* Aquí dejamos la fuente general a cargo de Tailwind, pero
-   fijamos tamaño y espaciado de la tabla para que se vea compacta. */
-
-table.data-table {
-    border-collapse: separate;
-    border-spacing: 0;
-    table-layout: fixed;
+/* --- 7. Inputs compactos --- */
+.input-sm {
+    font-size: 0.6875rem;
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid #CBD5F5;
+    background-color: white;
+    color: #0F172A;
+}
+.input-sm:focus {
+    outline: none;
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.25);
 }
 
-/* Tamaño de letra y padding de las celdas de la tabla principal */
-table.data-table th,
-table.data-table td {
-    font-size: 12px;      /* ≈ 12px como pediste */
-    padding: 6px 6px;     /* filas compactas */
+/* --- 8. Navegación lateral --- */
+.nav-tab {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    color: #64748B;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+}
+.nav-tab i {
+    font-size: 0.65rem;
+}
+.nav-tab.active {
+    background: linear-gradient(135deg, #0F172A, #020617);
+    color: #E5E7EB;
+    border-color: rgba(15, 23, 42, 0.95);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.45);
 }
 
-/* Variante opcional aún más compacta si se usa .table-compact en alguna tabla */
-.table-compact td, 
-.table-compact th {
-    white-space: nowrap;
-    padding: 2px 6px;
-    font-size: 12px;
+/* --- 9. Tabs de contenido --- */
+.tab-content {
+    display: none;
+}
+.tab-content.active {
+    display: block;
 }
 
-/* --- 9. Escala general del panel (más pequeño, basada en tu archivo referencia) --- */
-
-/* Reducir tamaño base de fuentes y espaciados */
-html {
-    font-size: 13.2px; /* Base más pequeña, igual a tu panel de referencia */
+/* --- 10. Scrollbar personalizado (Chrome/Edge) --- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.7);
+    border-radius: 999px;
 }
 
-/* Ajustar padding y márgenes globales de utilidades Tailwind que usas mucho */
-.p-4 { padding: 0.825rem !important; }
-.p-6 { padding: 1.2375rem !important; }
-.p-8 { padding: 1.65rem !important; }
-.mb-4 { margin-bottom: 0.825rem !important; }
-.mb-6 { margin-bottom: 1.2375rem !important; }
-.gap-4 { gap: 0.825rem !important; }
-.gap-6 { gap: 1.2375rem !important; }
+/* --- 11. Fuente base compacta --- */
+body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13.2px;
+    color: #0F172A;
+}
 
-/* Reducir tamaño de textos utilitarios */
-.text-2xl { font-size: 1.2375rem !important; }
-.text-lg  { font-size: 1.03125rem !important; }
-.text-base{ font-size: 0.89375rem !important; }
-.text-sm  { font-size: 0.75625rem !important; }
-.text-xs  { font-size: 0.6875rem !important; }
+/* Títulos pequeños */
+h1, h2, h3, h4 {
+    letter-spacing: -0.01em;
+}
+
+/* --- 12. Ajustes extra de compactación --- */
+th.th-sm, td.td-sm { font-size: 0.6875rem !important; }
 
 /* Inputs, selects y botones más compactos */
 input, select, textarea, button {
