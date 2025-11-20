@@ -180,11 +180,20 @@ table.data-table tr:hover td {
     }
     .data-table td:first-child:before { display: none; }
 }
-/* Compactación horizontal sin afectar altura */
-.table-compact td,
+
+/* Tipografía más pequeña y tabla compacta */
+body, table, td, th {
+    font-size: 13px !important;
+}
+td, th {
+    padding: 4px 6px !important;
+}
+.table-compact td, 
 .table-compact th {
     white-space: nowrap;
-    padding-left: 6px !important;
-    padding-right: 6px !important;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
 }
-#orderTable { table-layout: fixed; }
+table {
+    table-layout: fixed;
+}
