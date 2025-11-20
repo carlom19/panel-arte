@@ -226,7 +226,7 @@ table.data-table tr:hover td {
 /* El resto de la página usa el tamaño base de Tailwind (~14px) */
 table.data-table thead th {
     font-size: 10px;
-    padding: 3px 6px;
+    padding: 6px 6px;
 }
 
 table.data-table tbody td {
