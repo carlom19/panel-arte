@@ -181,21 +181,23 @@ table.data-table tr:hover td {
     .data-table td:first-child:before { display: none; }
 }
 
-/* Tipografía base tipo ChatGPT (~14px) y tabla compacta */
-/* Dejamos que Tailwind controle el tamaño de fuente; aquí solo
-   compactamos la tabla para que quepa mejor sin scroll horizontal. */
-
+/* --- 8. Tipografía y compactación de tabla --- */
+/* Aquí definimos que TODO el texto de la tabla sea de 12px */
 table.data-table th,
 table.data-table td {
+    font-size: 12px;
     padding: 4px 6px;
 }
 
+/* Versión aún más compacta si usas la clase .table-compact en la tabla */
 .table-compact td, 
 .table-compact th {
+    font-size: 12px;
     white-space: nowrap;
     padding: 4px 8px;
 }
 
+/* Para ayudar a que quepan más columnas sin scroll horizontal */
 table {
     table-layout: fixed;
 }
