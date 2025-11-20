@@ -98,8 +98,13 @@ table.data-table tr:hover td {
 }
 
 /* --- 4. Utilerías de Animación --- */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.fade-in { animation: fadeIn 0.3s ease-out forwards; }
+@keyframes fadeIn { 
+    from { opacity: 0; } 
+    to { opacity: 1; } 
+}
+.fade-in { 
+    animation: fadeIn 0.3s ease-out forwards; 
+}
 
 /* --- 5. Spinner de Carga --- */
 .spinner {
@@ -111,7 +116,10 @@ table.data-table tr:hover td {
     animation: spin 0.8s linear infinite; 
     margin: 0 auto 1rem;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes spin { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}
 
 .loading-overlay {
     position: fixed; 
@@ -222,27 +230,27 @@ table.data-table tr:hover td {
     }
 }
 
-/* --- 8. Tipografía solo para la tabla principal --- */
-/* El resto de la página usa el tamaño base de Tailwind (~14px) */
-table.data-table thead th {
-    font-size: 10px;
-    padding: 6px 6px;
+/* --- 8. Tipografía y espaciado de tabla (basado en panel de referencia) --- */
+/* Aquí dejamos la fuente general a cargo de Tailwind, pero
+   fijamos tamaño y espaciado de la tabla para que se vea compacta. */
+
+table.data-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
 }
 
-table.data-table tbody td {
-    font-size: 11px;
-    padding: 3px 6px;
+/* Tamaño de letra y padding de las celdas de la tabla principal */
+table.data-table th,
+table.data-table td {
+    font-size: 12px;      /* ≈ text-xs */
+    padding: 4px 6px;     /* filas más compactas que px-6 py-4 */
 }
 
-/* Versión aún más compacta si usas la clase .table-compact en la tabla (opcional) */
+/* Variante opcional aún más compacta si se usa .table-compact en alguna tabla */
 .table-compact td, 
 .table-compact th {
-    font-size: 11px;
     white-space: nowrap;
     padding: 2px 6px;
-}
-
-/* Para ayudar a que quepan más columnas sin scroll horizontal */
-table.data-table {
-    table-layout: fixed;
+    font-size: 12px;
 }
