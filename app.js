@@ -31,7 +31,7 @@ let currentSearch = '';
 let currentClientFilter = '';
 let currentStyleFilter = '';
 let currentTeamFilter = '';
-let currentDepartamentoFilter = '';
+let currentDepartamentoFilter = 'P_Art'; // CORRECCIÓN: Inicia filtrando P_Art para limpieza visual
 let currentDesignerFilter = '';
 let currentCustomStatusFilter = '';
 let currentDateFrom = '';
@@ -198,11 +198,13 @@ function closeConfirmModal() {
     document.getElementById('confirmStrictInput').value = ''; 
 }
 
+// CORRECCIÓN #3: Validación estricta con trim()
 function checkStrictInput() {
     if (!isStrictConfirm) return;
     const input = document.getElementById('confirmStrictInput');
     const btn = document.getElementById('confirmModalConfirm');
-    if (input.value.toUpperCase() === 'CONFIRMAR') {
+    
+    if (input.value.trim().toUpperCase() === 'CONFIRMAR') {
         btn.disabled = false;
         btn.classList.remove('opacity-50', 'cursor-not-allowed');
     } else {
@@ -220,7 +222,7 @@ function openLegendModal() {
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM cargado. Inicializando App v5.2 (Final UX - Corregido)...');
+    console.log('DOM cargado. Inicializando App v5.5 (Final UX - Corregido)...');
     
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
@@ -489,6 +491,7 @@ function desconectarDatosDeFirebase() {
     autoCompletedOrderIds.clear();
 }
 
+// CORRECCIÓN #2: Lógica de Auto-Completado menos agresiva
 function mergeYActualizar() {
     if (!isExcelLoaded) return;
     recalculateChildPieces(); 
@@ -508,11 +511,11 @@ function mergeYActualizar() {
             order.designer = ''; order.customStatus = ''; order.receivedDate = ''; order.notes = ''; order.completedDate = null;
         }
 
-        // Lógica de Auto-Completado
         if (fbData && 
             (fbData.customStatus === 'Bandeja' || fbData.customStatus === 'Producción' || fbData.customStatus === 'Auditoría') &&
             order.departamento !== 'P_Art' && order.departamento !== 'Sin Departamento') 
         {
+            // Validar que NO esté ya completada en Firebase
             if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(order.orderId)) {
                 order.customStatus = 'Completada';
                 const newCompletedDate = new Date().toISOString();
@@ -707,17 +710,13 @@ async function logToFirestore(context, error) {
 function handleDrop(e){ const dt = e.dataTransfer; handleFiles(dt.files); }
 function handleFileSelect(e){ handleFiles(e.target.files); }
 
-// --- FUNCIÓN CORREGIDA PARA EVITAR ERROR NULL ---
 function handleFiles(files){
     if (!files || files.length === 0) return;
     const file = files[0];
-    
-    // Verificación de seguridad para actualizar el nombre del archivo
     const fileNameElement = document.getElementById('fileName');
     if (fileNameElement) {
         fileNameElement.textContent = file.name;
     }
-    
     processFile(file);
 }
 
@@ -776,6 +775,9 @@ async function processFile(file) {
         
         autoCompleteBatchWrites = [];
 
+        // Función helper para sanitizar IDs
+        const clean = (s) => String(s).replace(/[^a-zA-Z0-9-_]/g, '');
+
         for (const row of rows) {
             if (!row || row.length === 0 || row.every(c => c === "" || c === null)) continue;
             const lowerRow = row.slice(0, 4).map(c => String(c).toLowerCase());
@@ -816,7 +818,9 @@ async function processFile(file) {
             if (orderCantidad <= 0) { orderCantidad = 0; orderDepartamento = "Sin Departamento"; }
 
             const fechaDespacho = currentDate ? new Date(currentDate) : null;
-            const orderId = `${currentClient}_${currentContrato}_${fechaDespacho ? fechaDespacho.getTime() : 'nodate'}_${currentStyle}`;
+            
+            // CORRECCIÓN #4: Sanitizar ID de orden para evitar errores de sintaxis JS
+            const orderId = `${clean(currentClient)}_${clean(currentContrato)}_${fechaDespacho ? fechaDespacho.getTime() : 'nodate'}_${clean(currentStyle)}`;
 
             const today = new Date(); today.setHours(0,0,0,0);
             let daysLate = 0;
@@ -1355,8 +1359,11 @@ function updateTable() {
             const rowClass = order.isVeryLate ? 'very-late' : order.isLate ? 'late' : order.isAboutToExpire ? 'expiring' : '';
             const receivedDateStr = order.receivedDate ? order.receivedDate.split('-').reverse().join('/') : '-';
 
+            // Sanitizar el ID para usar en onclick
+            const safeOrderId = order.orderId.replace(/'/g, "\\'");
+
             return `
-            <tr class="${rowClass} cursor-pointer transition-colors hover:bg-blue-50" onclick="openAssignModal('${order.orderId}')">
+            <tr class="${rowClass} cursor-pointer transition-colors hover:bg-blue-50" onclick="openAssignModal('${safeOrderId}')">
                 <td class="px-6 py-4" data-label="Seleccionar" onclick="event.stopPropagation()">
                     ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
                 </td>
@@ -1379,6 +1386,7 @@ function updateTable() {
     updateCheckboxes();
 }
 
+// CORRECCIÓN #4: Filtro de Departamento Lógico
 function getFilteredOrders() {
     let res = allOrders;
     if (currentSearch) {
@@ -1389,13 +1397,22 @@ function getFilteredOrders() {
     if (currentStyleFilter) res = res.filter(o => o.estilo === currentStyleFilter);
     if (currentTeamFilter) res = res.filter(o => o.teamName === currentTeamFilter);
     
-    if (currentDepartamentoFilter) res = res.filter(o => o.departamento === currentDepartamentoFilter);
-    else res = res.filter(o => o.departamento === 'P_Art'); 
+    if (currentDepartamentoFilter) {
+        res = res.filter(o => o.departamento === currentDepartamentoFilter);
+    }
     
     if (currentDesignerFilter) res = res.filter(o => o.designer === currentDesignerFilter);
     if (currentCustomStatusFilter) res = res.filter(o => o.customStatus === currentCustomStatusFilter);
-    if (currentDateFrom) res = res.filter(o => o.fechaDespacho && o.fechaDespacho >= new Date(currentDateFrom + 'T00:00:00'));
-    if (currentDateTo) res = res.filter(o => o.fechaDespacho && o.fechaDespacho <= new Date(currentDateTo + 'T23:59:59'));
+    
+    if (currentDateFrom) {
+        const dFrom = new Date(currentDateFrom);
+        res = res.filter(o => o.fechaDespacho && new Date(o.fechaDespacho) >= dFrom);
+    }
+    if (currentDateTo) {
+        const dTo = new Date(currentDateTo);
+        dTo.setHours(23, 59, 59);
+        res = res.filter(o => o.fechaDespacho && new Date(o.fechaDespacho) <= dTo);
+    }
     
     if (currentFilter === 'late') res = res.filter(o => o.isLate);
     else if (currentFilter === 'veryLate') res = res.filter(o => o.isVeryLate);
@@ -1437,6 +1454,12 @@ function populateFilterDropdowns() {
     populate('styleFilter', 'estilo');
     populate('teamFilter', 'teamName');
     populate('departamentoFilter', 'departamento');
+    
+    // Re-aplicar el valor actual del filtro departamento si existe
+    if (document.getElementById('departamentoFilter')) {
+        document.getElementById('departamentoFilter').value = currentDepartamentoFilter;
+    }
+
     updateAllDesignerDropdowns();
 }
 
@@ -1445,7 +1468,7 @@ function clearAllFilters() {
     currentClientFilter = '';
     currentStyleFilter = '';
     currentTeamFilter = '';
-    currentDepartamentoFilter = ''; 
+    currentDepartamentoFilter = ''; // Ahora limpia a 'Todos'
     currentDesignerFilter = '';
     currentCustomStatusFilter = '';
     currentDateFrom = '';
@@ -1657,15 +1680,23 @@ function getWeekDateRange(year, week) {
     return { startDate, endDate };
 }
 
+// CORRECCIÓN #1: Mostrar Spinner de carga
 function generateWeeklyReport() {
     const spinner = document.getElementById('weeklyReportSpinner');
     const contentDiv = document.getElementById('weeklyReportContent');
-    spinner.style.display = 'block'; contentDiv.innerHTML = ''; 
+    
+    // Mostrar spinner
+    if(spinner) spinner.style.display = 'flex'; 
+    contentDiv.innerHTML = ''; 
 
     setTimeout(() => {
         try {
             const weekValue = document.getElementById('weekSelector').value;
-            if (!weekValue) { contentDiv.innerHTML = '<p class="text-center py-4 text-gray-500">Por favor, selecciona una semana.</p>'; spinner.style.display = 'none'; return; }
+            if (!weekValue) { 
+                contentDiv.innerHTML = '<p class="text-center py-4 text-gray-500">Por favor, selecciona una semana.</p>'; 
+                if(spinner) spinner.style.display = 'none'; 
+                return; 
+            }
             
             const [year, week] = weekValue.split('-W').map(Number);
             const { startDate, endDate } = getWeekDateRange(year, week);
@@ -1673,7 +1704,7 @@ function generateWeeklyReport() {
 
             const filteredOrders = allOrders.filter(order => {
                 if (!order.receivedDate) return false;
-                const receivedDate = new Date(order.receivedDate + 'T00:00:00Z'); // ✅ CORRECCIÓN: Agregar UTC
+                const receivedDate = new Date(order.receivedDate + 'T00:00:00Z'); 
                 return receivedDate >= startDate && receivedDate <= endDate;
             });
 
@@ -1692,7 +1723,9 @@ function generateWeeklyReport() {
             reportHTML += `</tbody></table></div>`;
             contentDiv.innerHTML = reportHTML;
         } catch (e) { console.error(e); contentDiv.innerHTML = '<p class="text-red-500">Error generando reporte.</p>'; }
-        finally { spinner.style.display = 'none'; }
+        finally { 
+            if(spinner) spinner.style.display = 'none'; 
+        }
     }, 50);
 }
 
@@ -1712,6 +1745,9 @@ async function generateDesignerMetrics(designerName) {
     const designerOrders = allOrders.filter(o => o.departamento === 'P_Art' && (isUnassigned ? !o.designer : o.designer === designerName));
     
     setTimeout(() => {
+        // Seguridad: Si la vista ya no es visible, cancelar
+        if(document.getElementById('designerMetricsView').style.display === 'none') return;
+
         const safeName = escapeHTML(designerName);
         contentDiv.innerHTML = `
             <div class="flex justify-between items-center mb-6 border-b pb-4">
@@ -1868,6 +1904,9 @@ function generateDepartmentMetrics() {
     destroyAllCharts(); 
     contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center text-gray-500 mt-4">Calculando métricas globales...</p>';
     setTimeout(() => {
+        // Seguridad: Si la vista ya no es visible, cancelar
+        if(document.getElementById('departmentMetricsView').style.display === 'none') return;
+
         const activeOrders = allOrders.filter(o => o.departamento === 'P_Art');
         const totalOrders = activeOrders.length;
         const totalPieces = activeOrders.reduce((sum, o) => sum + (o.cantidad || 0) + (o.childPieces || 0), 0);
@@ -1935,6 +1974,7 @@ function generateWorkPlan() {
     }, 50);
 }
 
+// CORRECCIÓN #6: Alerta de límite de órdenes
 async function loadUrgentOrdersToPlan() {
     const weekInput = document.getElementById('view-workPlanWeekSelector');
     if (!weekInput.value) { showCustomAlert('Selecciona una semana primero.', 'error'); return; }
@@ -1942,9 +1982,17 @@ async function loadUrgentOrdersToPlan() {
     const urgentOrders = allOrders.filter(o => o.departamento === 'P_Art' && (o.isLate || o.isAboutToExpire));
     if (urgentOrders.length === 0) { showCustomAlert('No hay órdenes urgentes o atrasadas en este momento.', 'info'); return; }
     
+    if (urgentOrders.length > 400) {
+        const proceder = confirm(`¡Atención! Hay ${urgentOrders.length} órdenes urgentes. Por seguridad, solo se cargarán las primeras 400. ¿Deseas continuar?`);
+        if (!proceder) return;
+    }
+
     const batch = db_firestore.batch(); 
     let batchCount = 0;
     const toProcess = urgentOrders.slice(0, 400);
+    
+    showLoading(`Cargando ${toProcess.length} órdenes al plan...`);
+
     for (const order of toProcess) {
         const planEntryId = `${order.orderId}_${weekIdentifier}`;
         const ref = db_firestore.collection('weeklyPlan').doc(planEntryId);
@@ -1958,9 +2006,14 @@ async function loadUrgentOrdersToPlan() {
         batchCount++;
     }
     if (batchCount > 0) {
-        try { await batch.commit(); showCustomAlert(`Se cargaron ${batchCount} órdenes urgentes al plan.`, 'success'); } 
+        try { 
+            await batch.commit(); 
+            showCustomAlert(`Se cargaron ${batchCount} órdenes urgentes al plan.`, 'success'); 
+            generateWorkPlan();
+        } 
         catch (e) { console.error(e); showCustomAlert('Error al cargar urgentes.', 'error'); }
     }
+    hideLoading();
 }
 
 async function removeOrderFromPlan(planEntryId, orderCode) {
