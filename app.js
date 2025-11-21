@@ -10,9 +10,10 @@ const firebaseConfig = {
     appId: "1:236381043860:web:f6a9c2cb211dd9161d0881"
 };
 
-if (typeof firebase !== 'undefined') {
+// Inicializar Firebase solo si no está ya inicializado
+if (typeof firebase !== 'undefined' && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
-} else {
+} else if (typeof firebase === 'undefined') {
     console.error("Error: El SDK de Firebase no se ha cargado correctamente.");
 }
 
@@ -83,13 +84,13 @@ let currentCompareDesigner1 = '';
 
 
 // ======================================================
-// ===== SISTEMA DE NAVEGACIÓN (ROUTER) - NUEVO =====
+// ===== SISTEMA DE NAVEGACIÓN (ROUTER) =====
 // ======================================================
 
 function navigateTo(viewId) {
     if (!isExcelLoaded) return;
 
-    // 1. Ocultar todas las vistas principales (que tienen la clase .main-view)
+    // 1. Ocultar todas las vistas principales
     document.querySelectorAll('.main-view').forEach(el => el.style.display = 'none');
     
     // 2. Mostrar la vista seleccionada
@@ -101,21 +102,21 @@ function navigateTo(viewId) {
 
     // 3. Actualizar estado visual del Sidebar
     document.querySelectorAll('.nav-item').forEach(btn => {
-        // Resetear estilos a inactivo
+        btn.classList.remove('active-nav'); // Quitamos la clase activa personalizada
+        // Limpiamos estilos inline o clases de Tailwind si se usaron manualmente antes
         btn.classList.remove('bg-slate-800', 'text-white', 'shadow-md');
         btn.classList.add('text-slate-400');
         
-        // Resetear color de iconos
         const icon = btn.querySelector('i');
         if(icon) icon.className = icon.className.replace(/text-\w+-400/g, '').trim();
     });
 
     const activeBtn = document.getElementById('nav-' + viewId);
     if (activeBtn) {
+        activeBtn.classList.add('active-nav'); // Usamos la clase de estilos.css
         activeBtn.classList.remove('text-slate-400');
-        activeBtn.classList.add('bg-slate-800', 'text-white', 'shadow-md');
         
-        // Colorear icono según la sección para feedback visual
+        // Colorear icono según la sección
         const icon = activeBtn.querySelector('i');
         if (icon) {
             if (viewId === 'dashboard') icon.classList.add('text-blue-400');
@@ -125,15 +126,16 @@ function navigateTo(viewId) {
         }
     }
 
-    // 4. Ejecutar lógica específica de inicialización de la vista
+    // 4. Lógica específica de inicialización de la vista
     if (viewId === 'dashboard') {
         updateDashboard();
     } else if (viewId === 'workPlanView') {
         generateWorkPlan();
     } else if (viewId === 'designerMetricsView') {
         populateMetricsSidebar();
-        // Si no hay un diseñador seleccionado (mensaje por defecto), seleccionar el primero
-        if(document.getElementById('metricsDetail').innerText.includes('Selecciona')) {
+        // Si no hay diseñador seleccionado, intentar seleccionar el primero
+        const detailText = document.getElementById('metricsDetail').innerText;
+        if(detailText && detailText.includes('Selecciona')) {
             const firstBtn = document.querySelector('#metricsSidebarList .filter-btn');
             if(firstBtn) firstBtn.click();
         }
@@ -141,7 +143,7 @@ function navigateTo(viewId) {
         generateDepartmentMetrics();
     }
 
-    // 5. Limpieza de recursos (Gráficos) si salimos de métricas
+    // 5. Limpieza de gráficos si salimos de vistas de métricas
     if (viewId !== 'designerMetricsView' && viewId !== 'departmentMetricsView') {
         destroyAllCharts();
     }
@@ -248,25 +250,31 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         if (user) {
             usuarioActual = user;
-            if(document.getElementById('userName')) document.getElementById('userName').textContent = usuarioActual.displayName || 'Usuario';
-            if(document.getElementById('navUserName')) document.getElementById('navUserName').textContent = usuarioActual.displayName || 'Usuario';
+            
+            // --- CORRECCIÓN ERROR LÍNEA 246 ---
+            // Verificamos que el elemento exista antes de asignar el texto
+            const navUserNameEl = document.getElementById('navUserName');
+            if (navUserNameEl) {
+                navUserNameEl.textContent = usuarioActual.displayName || 'Usuario';
+            }
+            // -----------------------------------
             
             loginSection.style.display = 'none';
             
             if (!isExcelLoaded) {
-                // Estado: Logueado pero sin Excel
+                // Estado: Logueado pero sin Excel cargado
                 uploadSection.style.display = 'block';
                 appMainContainer.style.display = 'none'; 
                 nav.style.display = 'none'; 
                 nav.style.transform = 'translateX(-100%)';
-                appMainContainer.style.marginLeft = '0';
+                appMainContainer.classList.remove('main-content-shifted');
             } else {
-                // Estado: Logueado y Excel cargado
+                // Estado: Logueado y Excel ya cargado
                 uploadSection.style.display = 'none';
                 appMainContainer.style.display = 'block';
                 nav.style.display = 'flex';
                 nav.style.transform = 'translateX(0)';
-                appMainContainer.style.marginLeft = '16rem'; 
+                appMainContainer.classList.add('main-content-shifted');
             }
             conectarDatosDeFirebase();
 
@@ -280,7 +288,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             uploadSection.style.display = 'none';
             appMainContainer.style.display = 'none';
             nav.style.display = 'none';
-            appMainContainer.style.marginLeft = '0';
+            appMainContainer.classList.remove('main-content-shifted');
         }
     });
 
@@ -319,7 +327,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         fileInput.addEventListener('change', handleFileSelect);
     }
 
-    // Delegación de eventos
+    // Delegación de eventos (Click Delegate)
     const safeClickDelegate = (id, selector, callback) => {
         const el = document.getElementById(id);
         if(el) el.addEventListener('click', (e) => {
@@ -367,7 +375,7 @@ function iniciarLoginConGoogle() {
 function iniciarLogout() {
     firebase.auth().signOut().then(() => {
         document.getElementById('mainNavigation').style.transform = 'translateX(-100%)';
-        document.getElementById('appMainContainer').style.marginLeft = '0';
+        document.getElementById('appMainContainer').classList.remove('main-content-shifted');
     });
 }
 
@@ -730,7 +738,7 @@ async function processFile(file) {
         // MOSTRAR INTERFAZ PRINCIPAL
         document.getElementById('uploadSection').style.display = 'none';
         document.getElementById('appMainContainer').style.display = 'block';
-        document.getElementById('appMainContainer').style.marginLeft = '16rem';
+        document.getElementById('appMainContainer').classList.add('main-content-shifted');
         
         const nav = document.getElementById('mainNavigation');
         nav.style.display = 'flex';
@@ -1341,6 +1349,92 @@ function generateDepartmentMetrics() {
     });
 }
 
+// Helpers adicionales para reportes y PDFs
+function getWeekIdentifierString(d) {
+    const date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+    var week1 = new Date(date.getFullYear(), 0, 4);
+    var week = 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    return `${date.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function generateWeeklyReport() {
+    const spinner = document.getElementById('weeklyReportSpinner');
+    const contentDiv = document.getElementById('weeklyReportContent');
+    spinner.style.display = 'block'; contentDiv.innerHTML = ''; 
+
+    setTimeout(() => {
+        try {
+            const weekValue = document.getElementById('weekSelector').value;
+            if (!weekValue) { contentDiv.innerHTML = '<p class="text-center py-4 text-gray-500">Por favor, selecciona una semana.</p>'; spinner.style.display = 'none'; return; }
+            
+            const [year, week] = weekValue.split('-W').map(Number);
+            
+            // Calcular rango de fechas de la semana seleccionada
+            const simple = new Date(year, 0, 1 + (week - 1) * 7);
+            const dayOfWeek = simple.getDay();
+            const ISOweekStart = simple;
+            if (dayOfWeek <= 4) ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+            else ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+            
+            const startDate = new Date(ISOweekStart);
+            const endDate = new Date(ISOweekStart);
+            endDate.setDate(endDate.getDate() + 6);
+
+            // Filtrar por receivedDate
+            const filteredOrders = allOrders.filter(order => {
+                if (!order.receivedDate) return false;
+                const rDate = new Date(order.receivedDate); 
+                return rDate >= startDate && rDate <= endDate;
+            });
+
+            let reportHTML = `<h4 class="text-lg font-semibold text-gray-800 mt-4 mb-4 border-b pb-2">Semana: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</h4><div class="table-container border rounded-lg overflow-hidden mt-4 max-h-96 overflow-y-auto"><table id="weeklyReportTable" class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+
+            if (filteredOrders.length > 0) {
+                filteredOrders.sort((a,b) => new Date(a.receivedDate) - new Date(b.receivedDate));
+                let totalPieces = 0;
+                filteredOrders.forEach(order => {
+                    const p = (order.cantidad || 0) + (order.childPieces || 0);
+                    totalPieces += p;
+                    reportHTML += `<tr><td class="px-4 py-2 text-sm">${new Date(order.receivedDate).toLocaleDateString()}</td><td class="px-4 py-2 text-sm font-medium">${escapeHTML(order.cliente)}</td><td class="px-4 py-2 text-sm text-gray-500">${escapeHTML(order.codigoContrato)}</td><td class="px-4 py-2 text-sm">${escapeHTML(order.designer) || '-'}</td><td class="px-4 py-2 text-sm font-bold text-gray-800">${p.toLocaleString()}</td></tr>`;
+                });
+                reportHTML += `<tr class="bg-gray-100 font-bold"><td colspan="4" class="px-4 py-2 text-right">Total:</td><td class="px-4 py-2">${totalPieces.toLocaleString()}</td></tr>`;
+            } else { reportHTML += '<tr><td colspan="5" class="text-center py-12 text-gray-400"><i class="fa-regular fa-folder-open text-2xl mb-2 block"></i>No hay órdenes recibidas esta semana.</td></tr>'; }
+            reportHTML += `</tbody></table></div>`;
+            contentDiv.innerHTML = reportHTML;
+        } catch (e) { console.error(e); contentDiv.innerHTML = '<p class="text-red-500">Error generando reporte.</p>'; }
+        finally { spinner.style.display = 'none'; }
+    }, 50);
+}
+
+function exportWeeklyReportAsPDF() {
+    try {
+        const table = document.getElementById('weeklyReportTable');
+        if (!table) { showCustomAlert('No hay datos para exportar.', 'error'); return; }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const weekText = document.getElementById('weekSelector').value;
+        doc.text(`Reporte Semanal: ${weekText}`, 14, 15);
+        doc.autoTable({ html: '#weeklyReportTable', startY: 20, theme: 'grid' });
+        doc.save(`Reporte_${weekText}.pdf`);
+    } catch (e) { console.error(e); showCustomAlert('Error al exportar PDF.', 'error'); }
+}
+
+function exportDesignerMetricsPDF(name) {
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text(`Métricas: ${name}`, 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 22);
+        const orders = allOrders.filter(o => o.designer === name && o.departamento === 'P_Art');
+        const rows = orders.map(o => [o.cliente, o.codigoContrato, o.estilo, o.customStatus, (o.cantidad + o.childPieces).toLocaleString()]);
+        doc.autoTable({ head: [['Cliente', 'Código', 'Estilo', 'Estado', 'Piezas']], body: rows, startY: 30 });
+        doc.save(`Metricas_${name.replace(/\s/g,'_')}.pdf`);
+    } catch (e) { console.error(e); showCustomAlert('Error exportando PDF.', 'error'); }
+}
+
 function exportTableToExcel() {
     if (allOrders.length === 0) return showCustomAlert('Nada que exportar', 'error');
     const data = getFilteredOrders().map(o => ({
@@ -1360,7 +1454,7 @@ function resetApp() {
         document.getElementById('appMainContainer').style.display = 'none';
         document.getElementById('uploadSection').style.display = 'block';
         document.getElementById('mainNavigation').style.display = 'none';
-        document.getElementById('appMainContainer').style.marginLeft = '0';
+        document.getElementById('appMainContainer').classList.remove('main-content-shifted');
         
         // Reset Data
         allOrders = []; isExcelLoaded = false;
