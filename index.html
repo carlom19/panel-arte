@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v6.2 (SPA Completa)</title>
+    <title>Panel de Control - Arte v6.3 (Optimizado)</title>
     
-    <!-- Librerías Externas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -14,19 +13,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Iconos y Fuentes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-    <!-- Estilos Propios -->
     <link rel="stylesheet" href="estilos.css">
     
-    <!-- Configuración Tailwind -->
     <script>
         tailwind.config = {
             theme: {
@@ -40,16 +35,9 @@
 </head>
 <body class="flex flex-col min-h-screen text-slate-900 text-sm">
 
-    <!-- ========================================== -->
-    <!-- ===== ALERTAS DEL SISTEMA ===== -->
-    <!-- ========================================== -->
     <div id="customAlert" style="display: none;" class="fixed top-5 right-5 z-[3000] max-w-sm w-full bg-white shadow-2xl rounded-xl pointer-events-auto transform transition-all duration-300 ring-1 ring-black/5 overflow-hidden"></div>
 
-    <!-- ========================================== -->
-    <!-- ===== BARRA DE NAVEGACIÓN LATERAL (SIDEBAR) ===== -->
-    <!-- ========================================== -->
     <nav id="mainNavigation" class="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white z-50 flex flex-col shadow-2xl transition-transform duration-300" style="display: none;">
-        <!-- Header Sidebar -->
         <div class="p-6 border-b border-slate-800">
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-900/50">
@@ -70,7 +58,6 @@
             </div>
         </div>
 
-        <!-- Enlaces de Navegación -->
         <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
             <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Principal</p>
             
@@ -102,7 +89,6 @@
             </button>
         </div>
 
-        <!-- Footer Sidebar -->
         <div class="p-4 border-t border-slate-800 bg-slate-900/50">
             <button onclick="resetApp()" class="w-full mb-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition flex items-center justify-center gap-2 border border-slate-700">
                 <i class="fa-solid fa-cloud-arrow-up"></i> Nuevo Excel
@@ -114,9 +100,6 @@
     </nav>
 
 
-    <!-- ========================================== -->
-    <!-- ===== SECCIÓN DE LOGIN ===== -->
-    <!-- ========================================== -->
     <div id="loginSection" class="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-50 z-50 relative">
         <div class="sm:mx-auto sm:w-full sm:max-w-md text-center">
             <div class="mx-auto h-14 w-14 bg-blue-600 text-white rounded-xl flex items-center justify-center text-2xl shadow-xl shadow-blue-900/20">
@@ -135,9 +118,6 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- ===== SECCIÓN DE CARGA (UPLOAD) ===== -->
-    <!-- ========================================== -->
     <div id="uploadSection" class="max-w-4xl mx-auto my-12 px-4 z-40 relative" style="display: none;">
         <div class="text-center mb-8">
             <h1 class="text-2xl font-bold text-slate-900">Sincronización de Datos</h1>
@@ -156,17 +136,10 @@
     </div>
 
 
-    <!-- ========================================== -->
-    <!-- ===== CONTENEDOR PRINCIPAL DE LA APP ===== -->
-    <!-- ========================================== -->
-    
-    <!-- NOTA: Eliminada clase w-full para evitar desborde horizontal -->
     <div id="appMainContainer" class="transition-all duration-300 min-h-screen bg-slate-50">
 
-        <!-- >>> VISTA 1: DASHBOARD <<< -->
         <div id="dashboard" class="main-view w-full" style="display: none;">
             
-            <!-- Header -->
             <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
                 <div>
                     <h2 class="text-lg font-bold text-slate-800">Dashboard de Producción</h2>
@@ -174,7 +147,6 @@
                 </div>
 
                 <div class="flex items-center gap-4">
-                    <!-- Notificaciones -->
                     <div class="relative">
                         <button id="notificationBtn" onclick="toggleNotifications()" class="text-slate-400 hover:text-blue-600 transition p-2 relative">
                             <i class="fa-regular fa-bell text-lg"></i>
@@ -190,7 +162,6 @@
 
                     <div class="h-6 w-px bg-slate-200"></div>
 
-                    <!-- Acciones -->
                     <button onclick="exportTableToExcel()" class="text-slate-500 hover:text-green-600 transition text-xs font-medium flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-green-50">
                         <i class="fa-solid fa-file-excel"></i> Exportar
                     </button>
@@ -199,11 +170,9 @@
                 </div>
             </header>
 
-            <!-- Contenido Dashboard -->
             <main class="w-full px-6 py-6 pb-24">
                 <div class="w-full space-y-6">
                     
-                    <!-- Estadísticas Rápidas -->
                     <div id="summaryBox" class="hidden"></div> 
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col justify-between h-24 group hover:border-blue-200 transition-all">
@@ -250,7 +219,6 @@
                         </div>
                     </div>
 
-                    <!-- Widgets Intermedios -->
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-slate-100 p-5">
                             <h3 class="text-xs font-bold text-slate-800 mb-4 uppercase tracking-wide border-b pb-2">Top Clientes</h3>
@@ -265,7 +233,6 @@
                         </div>
                     </div>
 
-                    <!-- Barra de Filtros -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sticky top-20 z-20">
                         <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
                             <div class="flex items-center gap-2 text-slate-500">
@@ -303,9 +270,8 @@
                         </div>
                     </div>
 
-                    <!-- Tabla de Datos -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div class="table-container overflow-x-auto">
+                        <div class="table-responsive"> 
                             <table class="min-w-full divide-y divide-slate-200 data-table">
                                 <thead class="bg-slate-50">
                                     <tr>
@@ -329,7 +295,6 @@
                             </table>
                         </div>
                         
-                        <!-- Paginación -->
                         <div class="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
                              <div class="text-xs text-slate-500 flex items-center gap-3">
                                 <select id="rowsPerPage" onchange="changeRowsPerPage()" class="rounded-md border-slate-300 py-1 text-xs text-slate-700 focus:ring-blue-500">
@@ -350,7 +315,6 @@
             </main>
         </div>
 
-        <!-- >>> VISTA 2: MÉTRICAS DISEÑADOR <<< -->
         <div id="designerMetricsView" class="main-view w-full" style="display: none;">
             <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center">
                 <h1 class="text-lg font-bold text-slate-800">Métricas por Diseñador</h1>
@@ -370,7 +334,6 @@
             </div>
         </div>
         
-        <!-- >>> VISTA 3: MÉTRICAS GLOBALES <<< -->
         <div id="departmentMetricsView" class="main-view w-full" style="display: none;">
             <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center">
                 <h1 class="text-lg font-bold text-slate-800">Métricas Globales del Departamento</h1>
@@ -380,7 +343,6 @@
             </div>
         </div>
         
-        <!-- >>> VISTA 4: PLAN SEMANAL <<< -->
         <div id="workPlanView" class="main-view w-full" style="display: none;">
             <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
                 <h1 class="text-lg font-bold text-slate-800">Plan de Trabajo Semanal</h1>
@@ -403,13 +365,6 @@
         </div>
 
     </div> 
-    <!-- Fin appMainContainer -->
-
-    <!-- ========================================== -->
-    <!-- ===== MODALES Y FLOTANTES ===== -->
-    <!-- ========================================== -->
-
-    <!-- Barra Flotante Selección Múltiple -->
     <div id="multiSelectBar" class="multi-select-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white rounded-full shadow-2xl p-2 pr-6 pl-6 flex items-center gap-6 z-[100] border border-white/10 transform translate-y-20 opacity-0 transition-all duration-300">
         <span class="font-semibold text-xs whitespace-nowrap flex items-center gap-2">
             <span class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px]" id="selectedCount">0</span> seleccionadas
@@ -427,7 +382,6 @@
         </button>
     </div>
 
-    <!-- Modal Asignación -->
     <div id="assignModal" class="modal">
         <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div class="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/80">
@@ -496,7 +450,6 @@
         </div>
     </div>
 
-    <!-- Edición Masiva -->
     <div id="multiAssignModal" class="modal">
          <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <h2 class="text-sm font-bold text-slate-900 mb-1">Edición Masiva</h2>
@@ -514,7 +467,6 @@
         </div>
     </div>
 
-    <!-- Confirmación -->
     <div id="confirmModal" class="modal">
         <div class="modal-content bg-white rounded-xl shadow-xl w-full max-w-xs p-6 text-center">
             <div class="mx-auto flex items-center justify-center h-10 w-10 rounded-full bg-red-50 mb-4 text-red-600 text-lg">
@@ -533,7 +485,6 @@
         </div>
     </div>
 
-    <!-- Nueva Hija -->
     <div id="addChildModal" class="modal">
         <div class="modal-content bg-white rounded-xl p-5 w-full max-w-sm">
             <h2 class="font-bold text-sm mb-4">Nueva Orden Hija</h2>
@@ -554,7 +505,6 @@
         </div>
     </div>
 
-    <!-- Leyenda -->
     <div id="legendModal" class="modal">
         <div class="modal-content bg-white rounded-xl p-5 max-w-xs">
             <div class="flex justify-between mb-3"><h3 class="font-bold text-xs uppercase tracking-wide text-slate-500">Guía de Colores</h3><button onclick="document.getElementById('legendModal').classList.remove('active')">✕</button></div>
@@ -567,7 +517,6 @@
         </div>
     </div>
 
-    <!-- Gestión Diseñadores -->
     <div id="designerManagerModal" class="modal">
         <div class="modal-content bg-white rounded-xl p-6 w-full max-w-md">
             <h2 class="font-bold text-sm text-slate-900 mb-4">Gestionar Equipo de Diseño</h2>
@@ -581,7 +530,6 @@
         </div>
     </div>
 
-    <!-- Comparación -->
     <div id="selectCompareModal" class="modal">
         <div class="modal-content bg-white rounded-xl p-6 w-full max-w-sm">
             <h2 class="font-bold text-sm mb-2">Comparar Desempeño</h2>
@@ -607,7 +555,6 @@
         </div>
     </div>
 
-    <!-- Reporte Semanal -->
     <div id="weeklyReportModal" class="modal">
         <div class="modal-content bg-white rounded-xl p-6 w-full max-w-4xl h-[90vh] flex flex-col">
             <h2 class="font-bold text-sm text-slate-900 mb-4">Generar Reporte Semanal</h2>

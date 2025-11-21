@@ -1,5 +1,5 @@
 /* ====================================================== */
-/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) ===== */
+/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) v6.3 ===== */
 /* ====================================================== */
 
 /* --- 1. Escala Global (Compacto) --- */
@@ -8,24 +8,28 @@ html {
     font-size: 12.5px; 
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    height: 100%;
+    width: 100%;
 }
 
 body {
     background-color: #F8FAFC; /* slate-50 */
-    /* IMPORTANTE: Evita que aparezca scroll horizontal si hay desbordamiento por animaciones */
+    /* SPRINT 1 FIX: Evita scroll horizontal global de forma estricta */
     overflow-x: hidden; 
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
 }
 
 /* --- 2. Navegación Lateral (Sidebar) & Layout CORREGIDO --- */
 
-/* CLASE CRÍTICA: Esta clase se añade al div principal cuando el menú está visible.
-   El cálculo 'calc(100% - 16rem)' es lo que evita que se salga de la pantalla a la derecha.
-*/
+/* SPRINT 1 FIX: Layout flexible en lugar de cálculo fijo */
 .main-content-shifted {
     margin-left: 16rem !important; /* 256px (ancho del sidebar) */
-    width: calc(100% - 16rem) !important; 
-    max-width: calc(100% - 16rem) !important;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); /* Animación suave tipo iOS */
+    width: auto !important; /* Dejar que ocupe el espacio restante */
+    max-width: 100% !important;
+    box-sizing: border-box; /* El padding no suma al ancho */
+    transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
 }
 
 /* Estilos de los botones del menú */
@@ -110,6 +114,16 @@ body:has(.main-content-shifted) .multi-select-bar {
 }
 
 /* --- 5. Tablas Compactas y Elegantes --- */
+
+/* SPRINT 1 FIX: Wrapper responsivo para tablas */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+    margin-bottom: 1rem;
+    border-radius: 0.75rem;
+}
+
 table.data-table {
     border-collapse: separate; 
     border-spacing: 0; 
