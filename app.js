@@ -259,12 +259,12 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebarBtn.addEventListener('click', () => {
             document.body.classList.toggle('sidebar-collapsed');
             
-            // Cambiar icono (Opcional: rota el icono o cámbialo)
+            // Cambiar icono
             const icon = sidebarBtn.querySelector('i');
             if (document.body.classList.contains('sidebar-collapsed')) {
-                icon.className = 'fa-solid fa-indent'; // Icono para expandir
+                icon.className = 'fa-solid fa-indent'; 
             } else {
-                icon.className = 'fa-solid fa-bars-staggered'; // Icono normal
+                icon.className = 'fa-solid fa-bars-staggered'; 
             }
         });
     }
@@ -313,48 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
     delegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
 });
 
-    const searchInp = document.getElementById('searchInput');
-    if(searchInp) searchInp.addEventListener('input', debounce((e) => { currentSearch = e.target.value; currentPage = 1; updateTable(); }, 300));
-    
-    ['clientFilter', 'styleFilter', 'teamFilter', 'departamentoFilter', 'designerFilter', 'customStatusFilter', 'dateFrom', 'dateTo'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.addEventListener('change', debounce((e) => {
-            if(id==='clientFilter') currentClientFilter = e.target.value;
-            if(id==='styleFilter') currentStyleFilter = e.target.value;
-            if(id==='teamFilter') currentTeamFilter = e.target.value;
-            if(id==='departamentoFilter') currentDepartamentoFilter = e.target.value;
-            if(id==='designerFilter') currentDesignerFilter = e.target.value;
-            if(id==='customStatusFilter') currentCustomStatusFilter = e.target.value;
-            if(id==='dateFrom') currentDateFrom = e.target.value;
-            if(id==='dateTo') currentDateTo = e.target.value;
-            currentPage = 1; updateTable();
-        }, 150));
-    });
-
-    const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput');
-    if(dropZone && fileInput) {
-        ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
-        dropZone.addEventListener('drop', (e) => { dropZone.classList.remove('border-blue-500','bg-blue-50'); handleFiles(e.dataTransfer.files); });
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-    }
-
-    // Delegación de Eventos (FIX #3) - Manejo centralizado
-    const delegate = (id, sel, cb) => { const el = document.getElementById(id); if(el) el.addEventListener('click', e => { const t = e.target.closest(sel); if(t) cb(t, e); }); };
-    
-    delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
-    
-    delegate('metricsSidebarList', '.filter-btn', (btn) => {
-        document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-50', 'border-blue-200'));
-        btn.classList.add('active', 'bg-blue-50', 'border-blue-200');
-        generateDesignerMetrics(btn.dataset.designer);
-    });
-    
-    delegate('childOrdersList', '.btn-delete-child', (btn, e) => { e.stopPropagation(); deleteChildOrder(btn.dataset.childId, btn.dataset.childCode); });
-    
-    delegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
-});
-
 function iniciarLoginConGoogle() { 
     firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => showCustomAlert(e.message, 'error')); 
 }
@@ -365,6 +323,7 @@ function iniciarLogout() {
         document.getElementById('appMainContainer').classList.remove('main-content-shifted');
     }); 
 }
+
 // ======================================================
 // ===== 5. LÓGICA DE DATOS (FIREBASE LISTENERS) =====
 // ======================================================
@@ -423,8 +382,8 @@ function conectarDatosDeFirebase() {
             newDesignerList.push(v.name); 
         });
         designerList = newDesignerList;
-        updateAllDesignerDropdowns(); // Se definirá en Parte 3
-        populateDesignerManagerModal(); // Se definirá en Parte 3
+        updateAllDesignerDropdowns();
+        populateDesignerManagerModal();
         if(isExcelLoaded && document.getElementById('dashboard').style.display === 'block') updateDashboard();
     });
 
@@ -763,6 +722,7 @@ window.addSelectedToWorkPlan = async () => {
         return true;
     }, 'Agregando al plan...', `${selectedOrders.size} órdenes procesadas.`);
 };
+
 // ======================================================
 // ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER) =====
 // ======================================================
