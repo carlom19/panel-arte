@@ -1,639 +1,217 @@
 <!DOCTYPE html>
-<html lang="es" class="bg-slate-50 antialiased">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v5.5 (Full & Compact)</title>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Panel Arte v5.5 · Fitwell Manufacturing</title>
 
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Font Awesome (solo íconos necesarios) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-
-    <!-- Fuente similar a la de ChatGPT -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
     <!-- Estilos personalizados -->
-    <link rel="stylesheet" href="estilos.css">
+    <link rel="stylesheet" href="estilos.css" />
 </head>
+
 <body class="min-h-screen bg-slate-50 text-slate-800">
-    <!-- Overlay de carga global -->
+
+    <!-- Overlay de carga -->
     <div id="loadingOverlay">
         <div class="loader"></div>
-        <p id="loadingMessage">Cargando...</p>
+        <p id="loadingMessage">Cargando…</p>
     </div>
 
-    <!-- Barra de navegación superior -->
+    <!-- NAV SUPERIOR -->
     <header class="bg-white/80 backdrop-blur border-b border-slate-200 sticky top-0 z-[100]">
         <div class="max-w-[1200px] mx-auto flex items-center justify-between px-4 py-2">
+            
             <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center shadow-sm">
+                <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center">
                     <i class="fa-solid fa-pen-ruler text-white text-sm"></i>
                 </div>
                 <div class="flex flex-col leading-tight">
-                    <span class="text-xs font-semibold tracking-tight text-slate-900">
-                        Panel Arte v5.5
-                    </span>
-                    <span class="text-[10px] text-slate-400 -mt-0.5">
-                        Fitwell Manufacturing · Departamento de Artes
-                    </span>
+                    <span class="text-xs font-semibold tracking-tight text-slate-900">Panel Arte v5.5</span>
+                    <span class="text-[10px] text-slate-400 -mt-0.5">Fitwell Manufacturing · Artes Gráficas</span>
                 </div>
             </div>
 
             <div class="flex items-center gap-4">
+
                 <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200/70">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span id="statusText" class="text-[10px] font-medium text-slate-600">
-                        Conectando con Firebase...
+                        Conectando con Firebase…
                     </span>
                 </div>
 
                 <button id="loginButton" class="text-[11px] px-3 py-1.5 rounded-full border border-slate-300 hover:bg-slate-100 flex items-center gap-2">
                     <i class="fa-regular fa-user text-[11px] text-slate-500"></i>
-                    <span id="loginButtonText" class="text-slate-700">Iniciar sesión</span>
+                    <span id="loginButtonText">Iniciar sesión</span>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Contenido principal -->
-    <main class="max-w-[1200px] mx-auto px-3 sm:px-4 py-3 sm:py-4 flex gap-3">
-        <!-- Sidebar izquierda -->
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="max-w-[1200px] mx-auto px-3 sm:px-4 py-3 flex gap-3">
+
+        <!-- SIDEBAR -->
         <aside class="hidden md:block w-56 shrink-0">
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-3 sticky top-[64px]">
-                <h2 class="text-[11px] font-semibold text-slate-500 tracking-[0.12em] uppercase mb-2 flex items-center gap-1.5">
+                
+                <h2 class="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-2 flex items-center gap-1.5">
                     <i class="fa-solid fa-sliders text-[10px] text-slate-400"></i>
                     Navegación
                 </h2>
+
                 <nav class="space-y-1.5 text-[11px]">
+
                     <button class="nav-tab active" data-target="tab-dashboard">
                         <i class="fa-solid fa-gauge-high text-[10px]"></i>
                         Dashboard
                     </button>
+
                     <button class="nav-tab" data-target="tab-orders">
-                        <i class="fa-regular fa-clipboard text-[10px]"></i>
+                        <i class="fa-solid fa-list-check text-[10px]"></i>
                         Órdenes
                     </button>
-                    <button class="nav-tab" data-target="tab-workplan">
-                        <i class="fa-regular fa-calendar-check text-[10px]"></i>
+
+                    <button class="nav-tab" data-target="tab-plan">
+                        <i class="fa-solid fa-calendar-week text-[10px]"></i>
                         Plan Semanal
                     </button>
+
                     <button class="nav-tab" data-target="tab-designers">
-                        <i class="fa-regular fa-user text-[10px]"></i>
+                        <i class="fa-solid fa-user-pen text-[10px]"></i>
                         Diseñadores
                     </button>
+
                     <button class="nav-tab" data-target="tab-compare">
                         <i class="fa-solid fa-code-compare text-[10px]"></i>
                         Comparar Reportes
                     </button>
-                </nav>
 
-                <div class="mt-4 pt-3 border-t border-slate-100">
-                    <h2 class="text-[11px] font-semibold text-slate-500 tracking-[0.12em] uppercase mb-1.5 flex items-center gap-1.5">
-                        <i class="fa-solid fa-circle-info text-[9px] text-slate-400"></i>
-                        Info Rápida
-                    </h2>
-                    <ul class="space-y-1 text-[10px] text-slate-500">
-                        <li class="flex items-center justify-between">
-                            <span>Órdenes cargadas</span>
-                            <span id="infoOrdersCount" class="font-semibold text-slate-700">0</span>
-                        </li>
-                        <li class="flex items-center justify-between">
-                            <span>Diseñadores</span>
-                            <span id="infoDesignersCount" class="font-semibold text-slate-700">0</span>
-                        </li>
-                        <li class="flex items-center justify-between">
-                            <span>Semana actual</span>
-                            <span id="infoCurrentWeek" class="font-semibold text-slate-700">--</span>
-                        </li>
-                    </ul>
-                </div>
+                </nav>
             </div>
         </aside>
 
-        <!-- Contenedor principal de tabs -->
-        <section class="flex-1 space-y-3">
-            <!-- Fila superior de acciones -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div class="flex items-center gap-2">
-                    <label for="fileInput" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 text-white text-[11px] font-medium shadow-sm cursor-pointer hover:bg-slate-800">
-                        <i class="fa-solid fa-file-excel text-[11px]"></i>
-                        <span>Cargar Working Process</span>
-                    </label>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden">
-                    
-                    <button id="refreshButton" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 text-[11px] font-medium text-slate-700 bg-white hover:bg-slate-50">
-                        <i class="fa-solid fa-rotate-right text-[10px]"></i>
-                        <span>Refrescar datos</span>
-                    </button>
+        <!-- CONTENIDO DE TABS -->
+        <section class="flex-1">
+
+            <!-- TAB DASHBOARD -->
+            <div id="tab-dashboard" class="tab-content">
+
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+
+                    <div class="stat-card">
+                        <p class="stat-label">Total P_Art</p>
+                        <div id="statTotal" class="stat-value">0</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <p class="stat-label">Piezas</p>
+                        <div id="statTotalPieces" class="stat-value">0</div>
+                    </div>
+
+                    <div class="stat-card clickable" onclick="setFilter('veryLate')">
+                        <p class="stat-label">Muy Atrasadas</p>
+                        <div id="statVeryLate" class="stat-value text-red-600">0</div>
+                    </div>
+
+                    <div class="stat-card clickable" onclick="setFilter('late')">
+                        <p class="stat-label">Atrasadas</p>
+                        <div id="statLate" class="stat-value text-orange-500">0</div>
+                    </div>
+
+                    <div class="stat-card clickable" onclick="setFilter('dueSoon')">
+                        <p class="stat-label">Por vencer</p>
+                        <div id="statDueSoon" class="stat-value text-yellow-500">0</div>
+                    </div>
+
+                    <div class="stat-card clickable" onclick="setFilter('onTime')">
+                        <p class="stat-label">A tiempo</p>
+                        <div id="statOnTime" class="stat-value text-green-600">0</div>
+                    </div>
+
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <button id="weeklyReportButton" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 text-[11px] font-medium text-slate-700 bg-white hover:bg-slate-50">
-                        <i class="fa-regular fa-calendar-days text-[11px]"></i>
-                        <span>Reporte semanal</span>
-                    </button>
-                    <button id="downloadBackupButton" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 text-[11px] font-medium text-slate-700 bg-white hover:bg-slate-50">
-                        <i class="fa-solid fa-download text-[10px]"></i>
-                        <span>Backup local</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Tabs de contenido -->
-            <div id="tab-dashboard" class="tab-content active">
-                <!-- Métricas principales -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                    <div class="card-stat">
-                        <div class="card-stat-header">
-                            <span class="card-stat-title">Órdenes activas</span>
-                            <i class="fa-regular fa-clipboard card-stat-icon"></i>
-                        </div>
-                        <div class="card-stat-body">
-                            <span id="statActiveOrders" class="card-stat-number">0</span>
-                            <span class="card-stat-label">En cualquier estado distinto de Completada</span>
-                        </div>
-                    </div>
-
-                    <div class="card-stat">
-                        <div class="card-stat-header">
-                            <span class="card-stat-title">Órdenes urgentes</span>
-                            <i class="fa-regular fa-clock card-stat-icon"></i>
-                        </div>
-                        <div class="card-stat-body">
-                            <span id="statUrgentOrders" class="card-stat-number text-amber-500">0</span>
-                            <span class="card-stat-label">Despacho ≤ 2 días</span>
-                        </div>
-                    </div>
-
-                    <div class="card-stat">
-                        <div class="card-stat-header">
-                            <span class="card-stat-title">Completadas hoy</span>
-                            <i class="fa-regular fa-circle-check card-stat-icon"></i>
-                        </div>
-                        <div class="card-stat-body">
-                            <span id="statCompletedToday" class="card-stat-number text-emerald-500">0</span>
-                            <span class="card-stat-label">Marcadas como Completada hoy</span>
-                        </div>
-                    </div>
-
-                    <div class="card-stat">
-                        <div class="card-stat-header">
-                            <span class="card-stat-title">Próximos despachos</span>
-                            <i class="fa-solid fa-truck-fast card-stat-icon"></i>
-                        </div>
-                        <div class="card-stat-body">
-                            <span id="statUpcomingShipments" class="card-stat-number text-blue-500">0</span>
-                            <span class="card-stat-label">Despachos en los próximos 7 días</span>
-                        </div>
+                <!-- Tabla filtrada -->
+                <div class="mt-4 bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+                    <h3 class="text-xs font-semibold text-slate-600 uppercase mb-2">Resultados filtrados</h3>
+                    <div id="filteredTableContainer" class="overflow-x-auto">
+                        <table class="data-table w-full text-[11px]">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Contrato</th>
+                                    <th>Estilo</th>
+                                    <th>Fecha</th>
+                                    <th>Pzs</th>
+                                    <th>Diseñador</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="filteredTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- Gráficos -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mt-3">
-                    <div class="card-panel">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="card-panel-title">
-                                Carga por diseñador
-                            </h3>
-                            <span id="chartDesignerHint" class="card-panel-badge">
-                                Clic en nombre para filtrar
-                            </span>
-                        </div>
-                        <div class="h-60">
-                            <canvas id="designerLoadChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="card-panel">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="card-panel-title">
-                                Estados de órdenes (P_Art)
-                            </h3>
-                            <span class="card-panel-badge">
-                                Bandeja / Producción / Auditoría / Completada
-                            </span>
-                        </div>
-                        <div class="h-60">
-                            <canvas id="statusPieChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Alertas -->
-                <div class="card-panel mt-3">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="card-panel-title">
-                            Alertas de vencimiento
-                        </h3>
-                        <button id="toggleAlertsButton" class="text-[10px] text-slate-500 hover:text-slate-700">
-                            Ver todas
-                        </button>
-                    </div>
-                    <div id="alertsList" class="space-y-1.5 text-[11px] text-slate-600">
-                        <!-- Alertas dinámicas -->
-                    </div>
-                </div>
             </div>
 
             <!-- TAB ÓRDENES -->
             <div id="tab-orders" class="tab-content hidden">
-                <div class="card-panel mb-2">
-                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 mb-2">
-                        <div class="flex items-center gap-2">
-                            <div class="relative">
-                                <i class="fa-solid fa-magnifying-glass text-[10px] text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
-                                <input type="text" id="searchInput" placeholder="Buscar por cliente, estilo, team o código..." class="input-sm pl-6 w-56">
-                            </div>
-                            <button id="clearFiltersButton" class="btn-ghost-sm">
-                                <i class="fa-solid fa-eraser text-[10px]"></i>
-                                Limpiar
-                            </button>
-                        </div>
 
-                        <div class="flex flex-wrap items-center gap-2">
-                            <select id="departamentoFilter" class="input-sm w-32">
-                                <option value="">Depto: Todos</option>
-                                <option value="P_Art">P_Art</option>
-                                <option value="P_Order_Entry">P_Order_Entry</option>
-                                <option value="P_Printing">P_Printing</option>
-                                <option value="P_Press">P_Press</option>
-                                <option value="P_Cut">P_Cut</option>
-                                <option value="P_R_to_Sew">P_R_to_Sew</option>
-                                <option value="P_Sew">P_Sew</option>
-                                <option value="P_Packing">P_Packing</option>
-                                <option value="P_Shipping">P_Shipping</option>
-                            </select>
+                <div class="bg-white shadow-sm rounded-xl p-4 border border-slate-200">
+                    <h2 class="text-xs font-semibold uppercase mb-3">Órdenes cargadas</h2>
 
-                            <select id="designerFilter" class="input-sm w-32">
-                                <option value="">Diseñador: Todos</option>
-                            </select>
-
-                            <select id="statusFilter" class="input-sm w-32">
-                                <option value="">Estado: Todos</option>
-                                <option value="Bandeja">Bandeja</option>
-                                <option value="Producción">Producción</option>
-                                <option value="Auditoría">Auditoría</option>
-                                <option value="Completada">Completada</option>
-                            </select>
-
-                            <button id="advancedFiltersToggle" class="btn-ghost-sm">
-                                <i class="fa-solid fa-sliders text-[10px]"></i>
-                                Filtros avanzados
-                            </button>
-                        </div>
+                    <div class="flex items-center gap-3 text-[11px] mb-3">
+                        <input type="file" id="fileInput" accept=".xlsx,xls" class="input-sm">
+                        <button id="uploadButton" class="btn-primary-sm">Cargar</button>
+                        <button class="btn-ghost-sm" onclick="resetApp()">Reset</button>
                     </div>
 
-                    <!-- Filtros avanzados -->
-                    <div id="advancedFiltersPanel" class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 mb-2 hidden">
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-x-2 gap-y-2 text-[10px]">
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-0.5">Rango de fechas</label>
-                                <div class="flex gap-1">
-                                    <input type="date" id="dateFrom" class="input-sm w-full">
-                                    <input type="date" id="dateTo" class="input-sm w-full">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-0.5">Cliente</label>
-                                <input type="text" id="clientFilter" class="input-sm w-full" placeholder="Filtrar cliente">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-0.5">Estilo</label>
-                                <input type="text" id="styleFilter" class="input-sm w-full" placeholder="Filtrar estilo">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-0.5">Team</label>
-                                <input type="text" id="teamFilter" class="input-sm w-full" placeholder="Filtrar team">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tabla de órdenes -->
-                    <div class="overflow-x-auto border border-slate-200 rounded-xl bg-white">
-                        <table id="ordersTable" class="min-w-full text-[11px]">
-                            <thead class="bg-slate-50/80 border-b border-slate-200">
+                    <div class="overflow-x-auto">
+                        <table class="data-table w-full text-[11px]">
+                            <thead>
                                 <tr>
-                                    <th class="th-sm w-8">
-                                        <input type="checkbox" id="selectAllOrders">
-                                    </th>
-                                    <th class="th-sm w-20">Fecha</th>
-                                    <th class="th-sm w-40">Cliente</th>
-                                    <th class="th-sm w-32">Código</th>
-                                    <th class="th-sm w-32">Estilo</th>
-                                    <th class="th-sm w-32">Team</th>
-                                    <th class="th-sm w-28">Depto</th>
-                                    <th class="th-sm w-28">Diseñador</th>
-                                    <th class="th-sm w-28">Estado</th>
-                                    <th class="th-sm w-20 text-center">Pzs</th>
-                                    <th class="th-sm w-20 text-center">Hijas</th>
-                                    <th class="th-sm w-32">Notas</th>
-                                    <th class="th-sm w-10"></th>
+                                    <th>Cliente</th>
+                                    <th>Contrato</th>
+                                    <th>Estilo</th>
+                                    <th>Fecha</th>
+                                    <th>Pzs</th>
+                                    <th>Depart</th>
+                                    <th>Diseñador</th>
+                                    <th></th>
                                 </tr>
                             </thead>
-                            <tbody id="ordersTableBody" class="divide-y divide-slate-100">
-                                <!-- Filas dinámicas -->
-                            </tbody>
+                            <tbody id="ordersTableBody"></tbody>
                         </table>
-                    </div>
-
-                    <!-- Paginación -->
-                    <div class="flex items-center justify-between mt-2 text-[10px] text-slate-500">
-                        <div class="flex items-center gap-2">
-                            <span id="tableInfo">Mostrando 0 de 0 órdenes</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <button id="prevPageButton" class="btn-ghost-xs">
-                                <i class="fa-solid fa-chevron-left text-[9px]"></i>
-                            </button>
-                            <span id="currentPage" class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px]">
-                                1
-                            </span>
-                            <button id="nextPageButton" class="btn-ghost-xs">
-                                <i class="fa-solid fa-chevron-right text-[9px]"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Panel lateral: Detalle de orden -->
-                <div id="orderDetailsPanel" class="card-panel mt-2 hidden">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="card-panel-title">
-                            Detalle de la orden
-                        </h3>
-                        <button id="closeOrderDetailsButton" class="btn-ghost-xs">
-                            Cerrar
-                        </button>
-                    </div>
-                    <div id="orderDetailsContent" class="text-[11px] text-slate-600">
-                        <!-- Contenido dinámico -->
                     </div>
                 </div>
             </div>
 
             <!-- TAB PLAN SEMANAL -->
-            <div id="tab-workplan" class="tab-content hidden">
-                <div class="card-panel mb-2">
-                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 mb-2">
-                        <div class="flex items-center gap-2">
-                            <label class="text-[10px] text-slate-500">Semana:</label>
-                            <input type="week" id="workPlanWeek" class="input-sm w-32">
-                            <button id="loadWeekPlanButton" class="btn-ghost-sm">
-                                <i class="fa-solid fa-arrow-rotate-right text-[10px]"></i>
-                                Cargar plan
-                            </button>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button id="addSelectedToWorkPlanButton" class="btn-primary-sm">
-                                <i class="fa-solid fa-circle-plus text-[10px]"></i>
-                                Agregar seleccionadas
-                            </button>
-                            <button id="loadUrgentToPlanButton" class="btn-ghost-sm">
-                                <i class="fa-regular fa-clock text-[10px]"></i>
-                                Cargar urgentes
-                            </button>
-                            <button id="exportWeekPlanPDFButton" class="btn-ghost-sm">
-                                <i class="fa-solid fa-file-pdf text-[10px]"></i>
-                                Exportar PDF
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto border border-slate-200 rounded-xl bg-white">
-                        <table id="workPlanTable" class="min-w-full text-[11px]">
-                            <thead class="bg-slate-50/80 border-b border-slate-200">
-                                <tr>
-                                    <th class="th-sm w-24">Orden</th>
-                                    <th class="th-sm w-40">Cliente / Team</th>
-                                    <th class="th-sm w-32">Estilo</th>
-                                    <th class="th-sm w-24">Fecha Despacho</th>
-                                    <th class="th-sm w-24">Pzs</th>
-                                    <th class="th-sm w-24">Hijas</th>
-                                    <th class="th-sm w-28">Diseñador</th>
-                                    <th class="th-sm w-24">Estado plan</th>
-                                    <th class="th-sm w-10"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="workPlanTableBody" class="divide-y divide-slate-100">
-                                <!-- Filas dinámicas -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <div id="tab-plan" class="tab-content hidden">
+                <div id="workPlanContainer"></div>
             </div>
 
             <!-- TAB DISEÑADORES -->
             <div id="tab-designers" class="tab-content hidden">
-                <div class="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-2.5">
-                    <div class="card-panel">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="card-panel-title">
-                                Diseñadores registrados
-                            </h3>
-                            <button id="refreshDesignersButton" class="btn-ghost-xs">
-                                Refrescar
-                            </button>
-                        </div>
-                        <div class="overflow-x-auto border border-slate-200 rounded-xl bg-white">
-                            <table class="min-w-full text-[11px]">
-                                <thead class="bg-slate-50/80 border-b border-slate-200">
-                                    <tr>
-                                        <th class="th-sm w-40">Nombre</th>
-                                        <th class="th-sm w-40">Correo</th>
-                                        <th class="th-sm w-16 text-center">Órdenes</th>
-                                        <th class="th-sm w-10"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="designersTableBody" class="divide-y divide-slate-100">
-                                    <!-- Filas dinámicas -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="card-panel">
-                        <h3 class="card-panel-title mb-2">
-                            Agregar diseñador
-                        </h3>
-                        <div class="space-y-1.5 text-[11px]">
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-0.5">Nombre</label>
-                                <input type="text" id="newDesignerName" class="input-sm w-full" placeholder="Nombre del diseñador">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-0.5">Correo corporativo</label>
-                                <input type="email" id="newDesignerEmail" class="input-sm w-full" placeholder="usuario@fitwellus.com">
-                            </div>
-                            <button id="addDesignerButton" class="btn-primary-sm w-full mt-1.5">
-                                <i class="fa-solid fa-user-plus text-[10px]"></i>
-                                Registrar diseñador
-                            </button>
-                            <p class="text-[10px] text-slate-400">
-                                Solo se aceptan correos <span class="font-mono">*@fitwellus.com</span>.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                <div id="designerManagerContainer"></div>
             </div>
 
             <!-- TAB COMPARAR REPORTES -->
             <div id="tab-compare" class="tab-content hidden">
-                <div class="grid grid-cols-1 lg:grid-cols-[1.2fr,1.8fr] gap-2.5">
-                    <div class="card-panel">
-                        <h3 class="card-panel-title mb-2">
-                            Comparar dos archivos de Working Process
-                        </h3>
-                        <div class="space-y-2 text-[11px]">
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-0.5">
-                                    Archivo A (versión anterior)
-                                </label>
-                                <input type="file" id="compareFileA" accept=".xlsx,.xls" class="input-sm w-full">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-0.5">
-                                    Archivo B (versión nueva)
-                                </label>
-                                <input type="file" id="compareFileB" accept=".xlsx,.xls" class="input-sm w-full">
-                            </div>
-                            <button id="runCompareButton" class="btn-primary-sm w-full mt-1.5">
-                                <i class="fa-solid fa-code-compare text-[10px]"></i>
-                                Ejecutar comparación
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="card-panel">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="card-panel-title">
-                                Resultado de la comparación
-                            </h3>
-                            <span class="card-panel-badge">
-                                Nuevas / Modificadas / Eliminadas
-                            </span>
-                        </div>
-                        <div id="compareChartContainer" class="h-64 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-center">
-                            <canvas id="compareChart"></canvas>
-                        </div>
-                        <div id="compareTableContainer"></div>
-                    </div>
-                </div>
+                <div id="compareContainer"></div>
             </div>
+
         </section>
     </main>
 
-    <!-- Modal: agregar orden hija -->
-    <div id="addChildModal" class="modal fixed inset-0 z-[900] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-        <div class="modal-content bg-white rounded-2xl p-4 w-full max-w-md shadow-lg">
-            <h2 class="font-semibold text-sm mb-1.5">Agregar orden hija</h2>
-            <p class="text-[10px] text-slate-500 mb-2">
-                Divide una orden grande en sub-órdenes para control interno del departamento.
-            </p>
-            <div class="grid grid-cols-2 gap-2 text-[11px] mb-2">
-                <div>
-                    <label class="block text-[10px] text-slate-500 mb-0.5">N° hija</label>
-                    <input type="number" id="childOrderNumber" class="input-sm w-full" min="1" value="1">
-                </div>
-                <div>
-                    <label class="block text-[10px] text-slate-500 mb-0.5">Piezas</label>
-                    <input type="number" id="childPieces" class="input-sm w-full" min="1" value="1">
-                </div>
-                <div>
-                    <label class="block text-[10px] text-slate-500 mb-0.5">Fecha despacho hija</label>
-                    <input type="date" id="childDeliveryDate" class="input-sm w-full">
-                </div>
-                <div>
-                    <label class="block text-[10px] text-slate-500 mb-0.5">Notas</label>
-                    <input type="text" id="childNotes" class="input-sm w-full" placeholder="Opcional">
-                </div>
-            </div>
-            <div class="flex justify-end gap-2 mt-2">
-                <button onclick="closeAddChildModal()" class="btn-ghost-sm">
-                    Cancelar
-                </button>
-                <button onclick="saveChildOrder()" class="btn-primary-sm">
-                    Guardar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Confirmación -->
-    <div id="confirmModal" class="modal fixed inset-0 z-[950] hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-        <div class="modal-content bg-white rounded-2xl p-4 w-full max-w-sm shadow-lg">
-            <h2 class="font-semibold text-sm mb-1.5">Confirmar acción</h2>
-            <p id="confirmModalMessage" class="text-[11px] text-slate-600 mb-2">
-                ¿Estás seguro?
-            </p>
-            <div id="confirmStrictContainer" class="hidden mb-2">
-                <label class="block text-[10px] text-slate-500 mb-0.5">
-                    Escribe <span class="font-semibold">CONFIRMAR</span> para continuar:
-                </label>
-                <input type="text" id="confirmStrictInput" class="input-sm w-full" oninput="checkStrictInput()">
-            </div>
-            <div class="flex justify-end gap-2 mt-2">
-                <button onclick="closeConfirmModal()" class="btn-ghost-sm">
-                    Cancelar
-                </button>
-                <button id="confirmModalConfirm" class="btn-primary-sm">
-                    Confirmar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal: Reporte Semanal (corregido con spinner) -->
-    <div
-        id="weeklyReportModal"
-        class="modal fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
-    >
-        <div class="modal-content bg-white rounded-2xl p-6 w-full max-w-4xl h-[90vh] flex flex-col">
-            <h2 class="font-bold text-xl mb-4">Reporte Semanal</h2>
-
-            <div class="mb-4 flex gap-4">
-                <input
-                    type="week"
-                    id="weekSelector"
-                    onchange="generateWeeklyReport()"
-                    class="rounded-lg border-slate-300 text-xs"
-                />
-            </div>
-
-            <!-- 🔄 Spinner de carga del reporte semanal -->
-            <div id="weeklyReportSpinner" class="spinner" style="display: none;"></div>
-
-            <!-- Contenido del reporte -->
-            <div
-                id="weeklyReportContent"
-                class="flex-1 overflow-y-auto bg-slate-50 rounded-xl p-4 border border-slate-200"
-            ></div>
-
-            <div class="flex justify-end gap-3 mt-4">
-                <button
-                    onclick="closeWeeklyReportModal()"
-                    class="text-slate-600 font-medium text-xs"
-                >
-                    Cerrar
-                </button>
-                <button
-                    onclick="exportWeeklyReportAsPDF()"
-                    class="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-medium"
-                >
-                    PDF
-                </button>
-            </div>
-        </div>
-    </div>
-
+    <!-- JS PRINCIPAL -->
     <script src="app.js"></script>
+
 </body>
 </html>
