@@ -1,5 +1,5 @@
 /* ====================================================== */
-/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) v6.3 ===== */
+/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) v6.5 ===== */
 /* ====================================================== */
 
 /* --- 1. Escala Global (Compacto) --- */
@@ -21,11 +21,11 @@ body {
     padding: 0;
 }
 
-/* --- 2. Navegación Lateral (Sidebar) & Layout CORREGIDO --- */
+/* --- 2. Navegación Lateral (Sidebar) & Layout --- */
 
-/* SPRINT 1 FIX: Layout flexible en lugar de cálculo fijo */
+/* Contenedor Principal desplazado */
 .main-content-shifted {
-    margin-left: 16rem !important; /* 256px (ancho del sidebar) */
+    margin-left: 16rem !important; /* 256px (ancho del sidebar normal) */
     width: auto !important; /* Dejar que ocupe el espacio restante */
     max-width: 100% !important;
     box-sizing: border-box; /* El padding no suma al ancho */
@@ -52,7 +52,83 @@ body {
     color: #60A5FA; /* Icono azul claro */
 }
 
-/* --- 3. Modales (Ventanas emergentes) --- */
+/* --- 3. SIDEBAR MINI (SPRINT 4 - NUEVO) --- */
+
+/* Ancho del Sidebar cuando está colapsado (5rem = 80px) */
+body.sidebar-collapsed #mainNavigation {
+    width: 5rem; 
+}
+
+/* Ajuste del margen del contenido principal */
+body.sidebar-collapsed .main-content-shifted {
+    margin-left: 5rem !important;
+}
+
+/* Ocultar textos y títulos */
+body.sidebar-collapsed .nav-text {
+    opacity: 0;
+    width: 0;
+    display: none; 
+}
+
+/* Ajustar padding del header para centrar el logo */
+body.sidebar-collapsed #mainNavigation .p-4 {
+    padding: 1rem;
+    align-items: center;
+}
+
+/* Centrar y ajustar botón toggle */
+body.sidebar-collapsed #sidebarToggleBtn {
+    margin: 0 auto;
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+/* Centrar iconos de navegación */
+body.sidebar-collapsed .nav-item {
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+}
+
+body.sidebar-collapsed .nav-item i {
+    margin: 0; 
+    font-size: 1.2rem; 
+}
+
+/* Ajustar caja de Info Usuario */
+body.sidebar-collapsed .border-slate-700\/50 {
+    padding: 0;
+    border: none;
+    background: transparent;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Ajustar Footer */
+body.sidebar-collapsed .p-4.border-t {
+    padding: 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+body.sidebar-collapsed .p-4.border-t button {
+    justify-content: center;
+    width: 100%;
+    padding: 0.5rem;
+}
+
+/* Centrar barra flotante de selección */
+body.sidebar-collapsed:has(.main-content-shifted) .multi-select-bar {
+    left: calc(50% + 2.5rem); 
+}
+
+
+/* --- 4. Modales (Ventanas emergentes) --- */
 body.modal-open { overflow: hidden; } /* Bloquea scroll del fondo */
 
 .modal { 
@@ -89,7 +165,7 @@ body.modal-open { overflow: hidden; } /* Bloquea scroll del fondo */
     transform: scale(1) translateY(0); 
 }
 
-/* --- 4. Barra Flotante de Selección Múltiple --- */
+/* --- 5. Barra Flotante de Selección Múltiple --- */
 .multi-select-bar {
     position: fixed; 
     bottom: 2rem; 
@@ -113,7 +189,7 @@ body:has(.main-content-shifted) .multi-select-bar {
     pointer-events: auto; 
 }
 
-/* --- 5. Tablas Compactas y Elegantes --- */
+/* --- 6. Tablas Compactas y Elegantes --- */
 
 /* SPRINT 1 FIX: Wrapper responsivo para tablas */
 .table-responsive {
@@ -168,7 +244,7 @@ table.data-table tr:hover td {
     font-weight: 700;
 }
 
-/* --- 6. Utilerías (Loaders, Scrollbars) --- */
+/* --- 7. Utilerías (Loaders, Scrollbars, Overlays) --- */
 .spinner {
     border: 3px solid #E2E8F0; 
     border-top: 3px solid #2563EB; 
@@ -199,21 +275,41 @@ table.data-table tr:hover td {
     flex-direction: column;
 }
 
+/* QA FIX: Bloqueo de UI durante procesos Batch */
+body.processing-batch {
+    pointer-events: none; /* Bloquea clics */
+    cursor: wait;
+}
+
+body.processing-batch::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.5);
+    z-index: 2999; /* Debajo de los modales de alerta (3000) */
+    backdrop-filter: blur(1px);
+}
+
 /* Scrollbar personalizado (más fino y estético) */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-/* --- 7. Diseño Responsivo (Móvil) --- */
+/* --- 8. Diseño Responsivo (Móvil) --- */
 @media (max-width: 768px) {
-    /* En móvil, el sidebar desaparece/cambia, así que quitamos el margen izquierdo */
+    /* En móvil, el sidebar desaparece (o usa su propia lógica), quitamos margen */
     .main-content-shifted {
         margin-left: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
     }
-
+    
+    /* Sidebar Toggle en móvil (Opcional: podrías ocultarlo por defecto) */
+    #mainNavigation {
+        transform: translateX(-100%);
+    }
+    
     /* Transformar la tabla en tarjetas para que sea legible en vertical */
     table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { 
         display: block; 
@@ -268,18 +364,4 @@ table.data-table tr:hover td {
     .data-table td:first-child:before { 
         display: none; 
     }
-}
-/* Bloqueo de UI durante procesos Batch */
-body.processing-batch {
-    pointer-events: none; /* Bloquea clics */
-    cursor: wait;
-}
-
-body.processing-batch::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: rgba(255, 255, 255, 0.5);
-    z-index: 2999; /* Debajo de los modales de alerta (3000) */
-    backdrop-filter: blur(1px);
 }

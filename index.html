@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v6.4 (Final)</title>
+    <title>Panel de Control - Arte v6.5 (Mini Sidebar)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -37,64 +37,71 @@
 
     <div id="customAlert" style="display: none;" class="fixed top-5 right-5 z-[3000] max-w-sm w-full bg-white shadow-2xl rounded-xl pointer-events-auto transform transition-all duration-300 ring-1 ring-black/5 overflow-hidden"></div>
 
-    <nav id="mainNavigation" class="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white z-50 flex flex-col shadow-2xl transition-transform duration-300" style="display: none;">
-        <div class="p-6 border-b border-slate-800">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-900/50">
-                    <i class="fa-solid fa-layer-group"></i>
+    <nav id="mainNavigation" class="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white z-50 flex flex-col shadow-2xl transition-all duration-300 ease-in-out overflow-hidden" style="display: none;">
+        <div class="p-4 border-b border-slate-800 flex flex-col gap-4">
+            
+            <div class="flex items-center justify-between h-8">
+                <div class="flex items-center gap-3 overflow-hidden whitespace-nowrap">
+                    <div class="min-w-[2rem] w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-900/50">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <h1 class="text-lg font-bold tracking-tight nav-text transition-opacity duration-200">Panel Arte <span class="text-blue-500 text-xs">v6</span></h1>
                 </div>
-                <h1 class="text-lg font-bold tracking-tight">Panel Arte <span class="text-blue-500 text-xs">v6</span></h1>
+                <button id="sidebarToggleBtn" class="text-slate-400 hover:text-white transition-colors p-1">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                </button>
             </div>
-            <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded-lg border border-slate-700/50">
-                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold">
+
+            <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded-lg border border-slate-700/50 overflow-hidden whitespace-nowrap h-12 transition-all duration-300">
+                <div class="min-w-[2rem] w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold">
                     <i class="fa-solid fa-user"></i>
                 </div>
-                <div class="overflow-hidden">
+                <div class="overflow-hidden nav-text transition-opacity duration-200">
                     <p class="text-xs font-medium text-white truncate" id="navUserName">Usuario</p>
                     <p class="text-[10px] text-slate-400 flex items-center gap-1" id="navDbStatus">
-                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Conectado
                     </p>
                 </div>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-            <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Principal</p>
+        <div class="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-1 scrollbar-thin">
+            <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 nav-text whitespace-nowrap">Principal</p>
             
-            <button onclick="navigateTo('dashboard')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group" id="nav-dashboard">
-                <i class="fa-solid fa-table-list w-5 text-center group-hover:text-blue-400 transition-colors"></i> 
-                Dashboard
+            <button onclick="navigateTo('dashboard')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group h-10 overflow-hidden whitespace-nowrap" id="nav-dashboard" title="Dashboard">
+                <i class="fa-solid fa-table-list w-5 text-center group-hover:text-blue-400 transition-colors text-base"></i> 
+                <span class="nav-text">Dashboard</span>
             </button>
 
-            <button onclick="navigateTo('workPlanView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group" id="nav-workPlanView">
-                <i class="fa-solid fa-calendar-week w-5 text-center group-hover:text-orange-400 transition-colors"></i> 
-                Plan Semanal
+            <button onclick="navigateTo('workPlanView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group h-10 overflow-hidden whitespace-nowrap" id="nav-workPlanView" title="Plan Semanal">
+                <i class="fa-solid fa-calendar-week w-5 text-center group-hover:text-orange-400 transition-colors text-base"></i> 
+                <span class="nav-text">Plan Semanal</span>
             </button>
 
-            <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-6 mb-2">Análisis</p>
+            <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-6 mb-2 nav-text whitespace-nowrap">Análisis</p>
             
-            <button onclick="navigateTo('designerMetricsView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group" id="nav-designerMetricsView">
-                <i class="fa-solid fa-chart-pie w-5 text-center group-hover:text-purple-400 transition-colors"></i> 
-                Métricas Diseñador
+            <button onclick="navigateTo('designerMetricsView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group h-10 overflow-hidden whitespace-nowrap" id="nav-designerMetricsView" title="Métricas Diseñador">
+                <i class="fa-solid fa-chart-pie w-5 text-center group-hover:text-purple-400 transition-colors text-base"></i> 
+                <span class="nav-text">Métricas Diseñador</span>
             </button>
 
-            <button onclick="navigateTo('departmentMetricsView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group" id="nav-departmentMetricsView">
-                <i class="fa-solid fa-chart-column w-5 text-center group-hover:text-green-400 transition-colors"></i> 
-                Métricas Globales
+            <button onclick="navigateTo('departmentMetricsView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group h-10 overflow-hidden whitespace-nowrap" id="nav-departmentMetricsView" title="Métricas Globales">
+                <i class="fa-solid fa-chart-column w-5 text-center group-hover:text-green-400 transition-colors text-base"></i> 
+                <span class="nav-text">Métricas Globales</span>
             </button>
             
-             <button onclick="openDesignerManager()" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group">
-                <i class="fa-solid fa-users-gear w-5 text-center group-hover:text-blue-300 transition-colors"></i> 
-                Gestionar Equipo
+             <button onclick="openDesignerManager()" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-3 text-xs font-medium group h-10 overflow-hidden whitespace-nowrap" title="Gestionar Equipo">
+                <i class="fa-solid fa-users-gear w-5 text-center group-hover:text-blue-300 transition-colors text-base"></i> 
+                <span class="nav-text">Gestionar Equipo</span>
             </button>
         </div>
 
         <div class="p-4 border-t border-slate-800 bg-slate-900/50">
-            <button onclick="resetApp()" class="w-full mb-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition flex items-center justify-center gap-2 border border-slate-700">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Nuevo Excel
+            <button onclick="resetApp()" class="w-full mb-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition flex items-center gap-3 h-9 overflow-hidden whitespace-nowrap border border-slate-700" title="Nuevo Excel">
+                <i class="fa-solid fa-cloud-arrow-up w-5 text-center"></i> <span class="nav-text">Nuevo Excel</span>
             </button>
-            <button id="logoutNavBtn" class="w-full px-4 py-2 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg text-xs font-medium transition flex items-center justify-center gap-2">
-                <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+            <button id="logoutNavBtn" class="w-full px-4 py-2 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg text-xs font-medium transition flex items-center gap-3 h-9 overflow-hidden whitespace-nowrap" title="Cerrar Sesión">
+                <i class="fa-solid fa-right-from-bracket w-5 text-center"></i> <span class="nav-text">Cerrar Sesión</span>
             </button>
         </div>
     </nav>
