@@ -2,10 +2,9 @@
 /* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) ===== */
 /* ====================================================== */
 
-/* --- 1. Escala Global (Reducción del 10% solicitada) --- */
+/* --- 1. Escala Global (Compacto) --- */
 html {
-    /* Reducimos la base a 12.5px. 
-       Esto escala automáticamente todas las clases de Tailwind (rem) un ~10-12% menos que el estándar. */
+    /* Base 12.5px para que todo se vea un 10-15% más pequeño y elegante */
     font-size: 12.5px; 
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -13,52 +12,57 @@ html {
 
 body {
     background-color: #F8FAFC; /* slate-50 */
-    overflow-x: hidden; /* Evitar scroll horizontal por transiciones */
+    /* IMPORTANTE: Evita que aparezca scroll horizontal si hay desbordamiento por animaciones */
+    overflow-x: hidden; 
 }
 
-/* --- 2. Navegación Lateral (Sidebar) & Layout --- */
-/* Clase para el contenido principal cuando el menú está visible */
+/* --- 2. Navegación Lateral (Sidebar) & Layout CORREGIDO --- */
+
+/* CLASE CRÍTICA: Esta clase se añade al div principal cuando el menú está visible.
+   El cálculo 'calc(100% - 16rem)' es lo que evita que se salga de la pantalla a la derecha.
+*/
 .main-content-shifted {
-    margin-left: 16rem; /* 64 (tailwind w-64) */
-    width: calc(100% - 16rem);
-    transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    margin-left: 16rem !important; /* 256px (ancho del sidebar) */
+    width: calc(100% - 16rem) !important; 
+    max-width: calc(100% - 16rem) !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); /* Animación suave tipo iOS */
 }
 
-/* Estilo para el botón de navegación activo */
+/* Estilos de los botones del menú */
 .nav-item {
     transition: all 0.2s ease-in-out;
     border-left: 3px solid transparent;
 }
 
 .nav-item:hover {
-    background-color: rgba(30, 41, 59, 0.5); /* slate-800 alpha */
+    background-color: rgba(30, 41, 59, 0.5); /* Efecto hover sutil */
 }
 
 .nav-item.active-nav {
-    background-color: #1e293b; /* slate-800 */
-    border-left-color: #3B82F6; /* blue-500 */
+    background-color: #1e293b; /* slate-800 (activo) */
+    border-left-color: #3B82F6; /* Línea azul indicadora */
     color: #ffffff;
 }
 
 .nav-item.active-nav i {
-    color: #60A5FA; /* blue-400 */
+    color: #60A5FA; /* Icono azul claro */
 }
 
-/* --- 3. Control de Modales (Animaciones Suaves) --- */
-body.modal-open { overflow: hidden; }
+/* --- 3. Modales (Ventanas emergentes) --- */
+body.modal-open { overflow: hidden; } /* Bloquea scroll del fondo */
 
 .modal { 
     display: flex; 
     opacity: 0; 
     pointer-events: none; 
-    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1); 
+    transition: opacity 0.2s ease; 
     position: fixed; 
     inset: 0; 
-    z-index: 2000; /* Aumentado para estar sobre el sidebar en móviles si fuera necesario */
+    z-index: 2000; 
     align-items: center; 
     justify-content: center;
-    background-color: rgba(15, 23, 42, 0.6); /* backdrop oscuro integrado */
-    backdrop-filter: blur(2px);
+    background-color: rgba(15, 23, 42, 0.6); /* Fondo oscuro semitransparente */
+    backdrop-filter: blur(2px); /* Efecto desenfoque moderno */
 }
 
 .modal.active { 
@@ -81,26 +85,31 @@ body.modal-open { overflow: hidden; }
     transform: scale(1) translateY(0); 
 }
 
-/* --- 4. Barra de Selección Múltiple (Efecto Flotante) --- */
+/* --- 4. Barra Flotante de Selección Múltiple --- */
 .multi-select-bar {
-    position: fixed;
+    position: fixed; 
     bottom: 2rem; 
-    left: 50%; /* Se ajustará vía JS si el sidebar está abierto */
+    left: 50%; 
     transform: translateX(-50%) translateY(200%); 
-    opacity: 0;
+    opacity: 0; 
     pointer-events: none; 
-    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-    z-index: 100;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    z-index: 100; 
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
-.multi-select-bar.active {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
+/* Ajuste inteligente: Si el sidebar está abierto, la barra se centra respecto al contenido restante */
+body:has(.main-content-shifted) .multi-select-bar {
+    left: calc(50% + 8rem); 
+}
+
+.multi-select-bar.active { 
+    opacity: 1; 
+    transform: translateX(-50%) translateY(0); 
     pointer-events: auto; 
 }
 
-/* --- 5. Tablas Estilo Salient (Personalización Fina) --- */
+/* --- 5. Tablas Compactas y Elegantes --- */
 table.data-table {
     border-collapse: separate; 
     border-spacing: 0; 
@@ -112,13 +121,13 @@ table.data-table th {
     color: #475569; 
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.75rem; /* Un poco más pequeño */
+    font-size: 0.75rem; 
     letter-spacing: 0.05em;
     border-bottom: 1px solid #E2E8F0;
     white-space: nowrap;
-    padding: 0.6rem 0.75rem; /* Compacto */
-    position: sticky;
-    top: 0;
+    padding: 0.6rem 0.75rem; 
+    position: sticky; 
+    top: 0; 
     z-index: 10;
 }
 
@@ -127,19 +136,15 @@ table.data-table td {
     vertical-align: middle;
     color: #334155; 
     transition: background-color 0.1s;
-    padding: 0.5rem 0.75rem; /* Compacto pero legible */
+    padding: 0.5rem 0.75rem; 
     font-size: 0.85rem;
 }
 
-table.data-table tr:last-child td {
-    border-bottom: none;
-}
-
 table.data-table tr:hover td {
-    background-color: #EFF6FF; /* blue-50 muy suave */
+    background-color: #EFF6FF; /* Azul muy suave al pasar el mouse */
 }
 
-/* Badge Styles */
+/* Estilos para las etiquetas de estado (Badges) */
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -147,29 +152,19 @@ table.data-table tr:hover td {
     border-radius: 6px;
     font-size: 0.7rem;
     font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: 0.02em;
 }
 
-/* --- 6. Utilerías de Animación --- */
-@keyframes fadeIn { 
-    from { opacity: 0; transform: translateY(5px); } 
-    to { opacity: 1; transform: translateY(0); } 
-}
-.fade-in { 
-    animation: fadeIn 0.4s ease-out forwards; 
-}
-
-/* --- 7. Spinner de Carga --- */
+/* --- 6. Utilerías (Loaders, Scrollbars) --- */
 .spinner {
     border: 3px solid #E2E8F0; 
     border-top: 3px solid #2563EB; 
     border-radius: 50%;
-    width: 28px; /* Más pequeño */
+    width: 28px; 
     height: 28px; 
     animation: spin 0.8s linear infinite; 
-    margin: 0 auto 0.5rem;
+    margin: 0 auto;
 }
+
 @keyframes spin { 
     0% { transform: rotate(0deg); } 
     100% { transform: rotate(360deg); } 
@@ -190,41 +185,37 @@ table.data-table tr:hover td {
     flex-direction: column;
 }
 
-/* --- 8. Scrollbars Modernos --- */
-::-webkit-scrollbar { 
-    width: 5px; 
-    height: 5px; 
-}
-::-webkit-scrollbar-track { 
-    background: transparent; 
-}
-::-webkit-scrollbar-thumb { 
-    background: #CBD5E1; 
-    border-radius: 4px; 
-}
-::-webkit-scrollbar-thumb:hover { 
-    background: #94A3B8; 
-}
+/* Scrollbar personalizado (más fino y estético) */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-/* --- 9. Overrides Responsive (Mobile Cards) --- */
+/* --- 7. Diseño Responsivo (Móvil) --- */
 @media (max-width: 768px) {
-    /* Al estar en móvil, el sidebar se oculta o cambia, 
-       reseteamos el margen del contenido */
+    /* En móvil, el sidebar desaparece/cambia, así que quitamos el margen izquierdo */
     .main-content-shifted {
         margin-left: 0 !important;
         width: 100% !important;
+        max-width: 100% !important;
     }
 
-    table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { display: block; }
-    .data-table thead tr { position: absolute; top: -9999px; left: -9999px; }
+    /* Transformar la tabla en tarjetas para que sea legible en vertical */
+    table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { 
+        display: block; 
+    }
+    
+    .data-table thead tr { 
+        position: absolute; top: -9999px; left: -9999px; 
+    }
     
     .data-table tr { 
         margin-bottom: 0.75rem; 
         border: 1px solid #E2E8F0; 
         border-radius: 0.75rem; 
         background: white;
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         padding: 0.75rem;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     }
     
     .data-table td { 
@@ -241,11 +232,8 @@ table.data-table tr:hover td {
     
     .data-table td:before { 
         position: absolute; 
-        top: 50%;
-        transform: translateY(-50%);
         left: 0.5rem; 
         width: 35%; 
-        white-space: nowrap; 
         font-weight: 600; 
         color: #64748B; 
         text-align: left;
@@ -262,5 +250,8 @@ table.data-table tr:hover td {
         margin-bottom: 0.5rem;
         justify-content: flex-start;
     }
-    .data-table td:first-child:before { display: none; }
+    
+    .data-table td:first-child:before { 
+        display: none; 
+    }
 }
