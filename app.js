@@ -1325,7 +1325,39 @@ function updateStats(stats) {
     document.getElementById('statThisWeek').textContent = stats.thisWeek;
 }
 
-
+function updateAlerts(stats) {
+    // Calcular el total de notificaciones (Muy atrasadas + Por vencer)
+    const totalAlerts = stats.veryLate + stats.aboutToExpire;
+    
+    // Referencias a los elementos de la campana
+    const badge = document.getElementById('notificationBadge');
+    const btn = document.getElementById('notificationBtn');
+    
+    if (badge && btn) {
+        if (totalAlerts > 0) {
+            // Mostrar badge y número
+            badge.textContent = totalAlerts > 99 ? '99+' : totalAlerts;
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+            
+            // Cambiar color de campana si hay alertas
+            btn.classList.remove('text-slate-400');
+            btn.classList.add('text-red-500', 'animate-pulse'); // Efecto pulso sutil
+            
+            // Tooltip descriptivo al pasar el mouse
+            btn.title = `Atención: ${stats.veryLate} atrasadas, ${stats.aboutToExpire} por vencer`;
+        } else {
+            // Ocultar badge si no hay alertas
+            badge.classList.add('hidden');
+            badge.classList.remove('flex');
+            
+            // Restaurar color original
+            btn.classList.add('text-slate-400');
+            btn.classList.remove('text-red-500', 'animate-pulse');
+            btn.title = "Sin alertas pendientes";
+        }
+    }
+}
 
 function updateTable() {
     const filtered = getFilteredOrders();
