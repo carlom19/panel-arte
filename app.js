@@ -10,24 +10,22 @@ const firebaseConfig = {
     appId: "1:236381043860:web:f6a9c2cb211dd9161d0881"
 };
 
-// Inicializa Firebase
 if (typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
 } else {
     console.error("Error: El SDK de Firebase no se ha cargado correctamente.");
 }
 
-
 // ======================================================
 // ===== VARIABLES GLOBALES =====
 // ======================================================
 
-// --- Variables de Estado de la App ---
+// --- Estado de la App ---
 let allOrders = []; 
 let selectedOrders = new Set();
 let currentFilter = 'all';
-let currentDateFilter = 'all';
 let currentSearch = '';
+// Filtros
 let currentClientFilter = '';
 let currentStyleFilter = '';
 let currentTeamFilter = '';
@@ -36,67 +34,121 @@ let currentDesignerFilter = '';
 let currentCustomStatusFilter = '';
 let currentDateFrom = '';
 let currentDateTo = '';
+
 let sortConfig = { key: 'date', direction: 'asc' };
 let currentEditingOrderId = null;
 let isExcelLoaded = false; 
 
-// --- Variables de Paginación ---
+// --- Paginación ---
 let currentPage = 1;
 let rowsPerPage = 50;
 let paginatedOrders = [];
 
-// --- Variables de Firebase ---
+// --- Firebase ---
 let usuarioActual = null; 
 const db_firestore = firebase.firestore(); 
-
-// --- Variables de Limpieza de Listeners ---
+// Listeners
 let unsubscribeAssignments = null;
 let unsubscribeHistory = null;
 let unsubscribeChildOrders = null;
 let unsubscribeDesigners = null;
 let unsubscribeWeeklyPlan = null;
 
-// --- Mapas de Datos de Firebase (Caché en tiempo real) ---
+// --- Mapas de Datos (Caché) ---
 let firebaseAssignmentsMap = new Map();
 let firebaseHistoryMap = new Map();
 let firebaseChildOrdersMap = new Map();
 let firebaseDesignersMap = new Map(); 
 let firebaseWeeklyPlanMap = new Map();
 
-// --- Variables de Lista y Estado ---
+// --- Listas y Config ---
 let designerList = []; 
-const CUSTOM_STATUS_OPTIONS = ['Bandeja', 'Producción', 'Auditoría', 'Completada'];
 let needsRecalculation = true; 
-
-// --- Configuración Global ---
 const EXCLUDE_DESIGNER_NAME = 'Magdali Fernandez'; 
 const DB_SCHEMA_VERSION = 1; 
-
-// --- Variables para Batch de Auto-Completado ---
 let autoCompleteBatchWrites = []; 
 let autoCompletedOrderIds = new Set(); 
 
-// --- Instancias de Gráficos ---
+// --- Gráficos ---
 let designerDoughnutChart = null;
 let designerBarChart = null;
-let designerActivityChart = null; 
-let currentDesignerTableFilter = { search: '', cliente: '', estado: '', fechaDesde: '', fechaHasta: '' };
-let compareChart = null;
 let deptLoadPieChart = null;
 let deptLoadBarChart = null;
-let deptProductivityChart = null;
-let currentWorkPlanWeek = '';
+let compareChart = null;
 let currentCompareDesigner1 = '';
 
+
 // ======================================================
-// ===== FUNCIONES AUXILIARES DE SEGURIDAD Y UX =====
+// ===== SISTEMA DE NAVEGACIÓN (ROUTER) =====
+// ======================================================
+
+function navigateTo(viewId) {
+    if (!isExcelLoaded) return;
+
+    // 1. Ocultar todas las vistas principales
+    document.querySelectorAll('.main-view').forEach(el => el.style.display = 'none');
+    
+    // 2. Mostrar la vista seleccionada
+    const target = document.getElementById(viewId);
+    if (target) {
+        target.style.display = 'block';
+        // Scroll al top al cambiar de vista
+        window.scrollTo(0, 0);
+    }
+
+    // 3. Actualizar estado visual del Sidebar
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        // Resetear estilos base
+        btn.classList.remove('bg-slate-800', 'text-white', 'shadow-md', 'border-l-4', 'border-blue-500');
+        btn.classList.add('text-slate-400');
+        
+        // Resetear iconos
+        const icon = btn.querySelector('i');
+        if(icon) icon.classList.remove('text-blue-400', 'text-orange-400', 'text-purple-400', 'text-green-400');
+    });
+
+    const activeBtn = document.getElementById('nav-' + viewId);
+    if (activeBtn) {
+        activeBtn.classList.remove('text-slate-400');
+        activeBtn.classList.add('bg-slate-800', 'text-white', 'shadow-md');
+        
+        // Colorear icono según la sección para feedback visual
+        const icon = activeBtn.querySelector('i');
+        if (viewId === 'dashboard' && icon) icon.classList.add('text-blue-400');
+        if (viewId === 'workPlanView' && icon) icon.classList.add('text-orange-400');
+        if (viewId === 'designerMetricsView' && icon) icon.classList.add('text-purple-400');
+        if (viewId === 'departmentMetricsView' && icon) icon.classList.add('text-green-400');
+    }
+
+    // 4. Ejecutar lógica específica de la vista
+    if (viewId === 'dashboard') {
+        updateDashboard();
+    } else if (viewId === 'workPlanView') {
+        generateWorkPlan();
+    } else if (viewId === 'designerMetricsView') {
+        populateMetricsSidebar();
+        // Seleccionar el primer diseñador si no hay nadie seleccionado
+        if(document.getElementById('metricsDetail').innerHTML.includes('Selecciona')) {
+            const firstBtn = document.querySelector('#metricsSidebarList .filter-btn');
+            if(firstBtn) firstBtn.click();
+        }
+    } else if (viewId === 'departmentMetricsView') {
+        generateDepartmentMetrics();
+    }
+
+    // 5. Limpieza de recursos (Gráficos)
+    if (viewId !== 'designerMetricsView' && viewId !== 'departmentMetricsView') {
+        destroyAllCharts();
+    }
+}
+
+// ======================================================
+// ===== UTILIDADES Y EVENT LISTENERS =====
 // ======================================================
 
 function safeAddEventListener(id, event, handler) {
     const element = document.getElementById(id);
-    if (element) {
-        element.addEventListener(event, handler);
-    }
+    if (element) element.addEventListener(event, handler);
 }
 
 let debounceTimer;
@@ -119,14 +171,35 @@ function escapeHTML(str) {
 function showCustomAlert(message, type = 'info') {
     const alertDiv = document.getElementById('customAlert');
     if(!alertDiv) return;
-    let bgClass = type === 'error' ? 'bg-red-100 border-red-500 text-red-800' : type === 'success' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-blue-100 border-blue-500 text-blue-800';
-    let icon = type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
     
-    alertDiv.className = `fixed top-5 right-5 z-[2000] max-w-sm w-full shadow-2xl rounded-lg border-l-4 p-4 transform transition-all duration-300 ${bgClass}`;
-    alertDiv.innerHTML = `<div class="flex justify-between items-start"><div class="flex gap-3"><span class="text-xl">${icon}</span><div><strong class="font-bold block text-sm">${type.toUpperCase()}</strong><span class="block text-sm mt-1">${escapeHTML(message)}</span></div></div><button onclick="document.getElementById('customAlert').style.display='none'" class="text-lg opacity-50 hover:opacity-100 ml-4">&times;</button></div>`;
+    let borderClass = type === 'error' ? 'border-l-4 border-red-500' : type === 'success' ? 'border-l-4 border-green-500' : 'border-l-4 border-blue-500';
+    let iconColor = type === 'error' ? 'text-red-500' : type === 'success' ? 'text-green-500' : 'text-blue-500';
+    let icon = type === 'error' ? 'fa-circle-xmark' : type === 'success' ? 'fa-circle-check' : 'fa-circle-info';
+    
+    alertDiv.className = `fixed top-5 right-5 z-[3000] max-w-sm w-full bg-white shadow-2xl rounded-xl pointer-events-auto transform transition-all duration-300 ring-1 ring-black/5 overflow-hidden ${borderClass}`;
+    
+    alertDiv.innerHTML = `
+        <div class="p-4">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <i class="fa-solid ${icon} ${iconColor} text-xl"></i>
+                </div>
+                <div class="ml-3 w-0 flex-1 pt-0.5">
+                    <p class="text-sm font-medium text-slate-900">${type === 'error' ? 'Error' : type === 'success' ? 'Éxito' : 'Información'}</p>
+                    <p class="mt-1 text-xs text-slate-500">${escapeHTML(message)}</p>
+                </div>
+                <div class="ml-4 flex flex-shrink-0">
+                    <button type="button" onclick="document.getElementById('customAlert').style.display='none'" class="inline-flex rounded-md bg-white text-slate-400 hover:text-slate-500 focus:outline-none">
+                        <span class="sr-only">Cerrar</span>
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        
     alertDiv.style.display = 'block';
     if (window.alertTimeout) clearTimeout(window.alertTimeout);
-    window.alertTimeout = setTimeout(() => { alertDiv.style.display = 'none'; }, type === 'error' ? 10000 : 5000);
+    window.alertTimeout = setTimeout(() => { alertDiv.style.display = 'none'; }, 4000);
 }
 
 function setButtonLoading(buttonId, isLoading, originalText = 'Guardar') {
@@ -134,7 +207,7 @@ function setButtonLoading(buttonId, isLoading, originalText = 'Guardar') {
     if (!btn) return;
     if (isLoading) {
         btn.dataset.originalText = btn.innerHTML; btn.disabled = true;
-        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
+        btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Guardando...`;
     } else {
         btn.disabled = false; btn.innerHTML = btn.dataset.originalText || originalText;
     }
@@ -144,7 +217,7 @@ function showLoading(message = 'Cargando...') {
     if (document.getElementById('loadingOverlay')) return;
     const overlay = document.createElement('div');
     overlay.id = 'loadingOverlay'; overlay.className = 'loading-overlay'; 
-    overlay.innerHTML = `<div class="spinner"></div><p>${escapeHTML(message)}</p>`;
+    overlay.innerHTML = `<div class="spinner"></div><p class="text-xs font-medium text-slate-600 mt-2">${escapeHTML(message)}</p>`;
     document.body.appendChild(overlay);
 }
 function hideLoading() { const overlay = document.getElementById('loadingOverlay'); if (overlay) overlay.remove(); }
@@ -154,120 +227,64 @@ function checkAndCloseModalStack() {
     if (activeModals.length === 0) document.body.classList.remove('modal-open');
 }
 
-// === MODAL DE CONFIRMACIÓN MEJORADO ===
-let confirmCallback = null;
-let isStrictConfirm = false;
-
-function showConfirmModal(message, onConfirmCallback, strict = false) {
-    document.getElementById('confirmModalMessage').textContent = message;
-    confirmCallback = onConfirmCallback;
-    isStrictConfirm = strict;
-    
-    const strictContainer = document.getElementById('confirmStrictContainer');
-    const confirmBtn = document.getElementById('confirmModalConfirm');
-    const input = document.getElementById('confirmStrictInput');
-    
-    if (strict) {
-        strictContainer.classList.remove('hidden');
-        input.value = '';
-        confirmBtn.disabled = true;
-        confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    } else {
-        strictContainer.classList.add('hidden');
-        confirmBtn.disabled = false;
-        confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    }
-    
-    document.getElementById('confirmModal').classList.add('active');
-    document.body.classList.add('modal-open');
-    
-    // Clonar botón para eliminar listeners previos
-    const newConfirmBtn = confirmBtn.cloneNode(true);
-    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-    
-    newConfirmBtn.addEventListener('click', () => {
-        if (confirmCallback) confirmCallback();
-        closeConfirmModal();
-    }, { once: true });
-}
-
-function closeConfirmModal() {
-    document.getElementById('confirmModal').classList.remove('active');
-    checkAndCloseModalStack(); 
-    confirmCallback = null;
-    document.getElementById('confirmStrictInput').value = ''; 
-}
-
-function checkStrictInput() {
-    if (!isStrictConfirm) return;
-    const input = document.getElementById('confirmStrictInput');
-    const btn = document.getElementById('confirmModalConfirm');
-    if (input.value.toUpperCase() === 'CONFIRMAR') {
-        btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-    } else {
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-    }
-}
-
-function openLegendModal() {
-    document.getElementById('legendModal').classList.add('active');
-}
-
-// ======================================================
-// ===== FUNCIONES DE INICIALIZACIÓN =====
-// ======================================================
-
+// --- Inicialización ---
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM cargado. Inicializando App v5.3 (Logic Updated)...');
+    console.log('DOM cargado. Inicializando App v6.0...');
     
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
+    safeAddEventListener('logoutNavBtn', 'click', iniciarLogout); // Nuevo botón sidebar
 
     firebase.auth().onAuthStateChanged((user) => {
         const loginSection = document.getElementById('loginSection');
         const uploadSection = document.getElementById('uploadSection');
-        const dashboard = document.getElementById('dashboard');
+        const appMainContainer = document.getElementById('appMainContainer');
+        const nav = document.getElementById('mainNavigation');
 
         if (user) {
             usuarioActual = user;
-            console.log("Usuario conectado:", usuarioActual.displayName);
-            document.getElementById('userName').textContent = usuarioActual.displayName;
+            document.getElementById('userName').textContent = usuarioActual.displayName || 'Usuario';
+            document.getElementById('navUserName').textContent = usuarioActual.displayName || 'Usuario';
             
             loginSection.style.display = 'none';
+            
             if (!isExcelLoaded) {
-                uploadSection.style.display = 'block'; 
+                // Estado: Logueado pero sin Excel
+                uploadSection.style.display = 'block';
+                appMainContainer.style.display = 'none'; // Ocultar vistas
+                nav.style.display = 'none'; // Ocultar sidebar
+                nav.style.transform = 'translateX(-100%)';
+                appMainContainer.style.marginLeft = '0';
             } else {
-                dashboard.style.display = 'block'; 
+                // Estado: Logueado y Excel cargado (Recarga o similar)
+                uploadSection.style.display = 'none';
+                appMainContainer.style.display = 'block';
+                nav.style.display = 'flex';
+                nav.style.transform = 'translateX(0)';
+                appMainContainer.style.marginLeft = '16rem'; // w-64
             }
             conectarDatosDeFirebase();
 
         } else {
             desconectarDatosDeFirebase();
-            
             usuarioActual = null;
             isExcelLoaded = false;
-            allOrders = []; 
-            console.log("Usuario desconectado.");
 
-            loginSection.style.display = 'block';
+            // Estado: Desconectado
+            loginSection.style.display = 'flex';
             uploadSection.style.display = 'none';
-            dashboard.style.display = 'none';
+            appMainContainer.style.display = 'none';
+            nav.style.display = 'none';
+            appMainContainer.style.marginLeft = '0';
         }
     });
 
+    // Filtros y Búsqueda
     safeAddEventListener('searchInput', 'input', debounce((e) => { 
-        currentSearch = e.target.value; 
-        currentPage = 1; 
-        updateTable(); 
+        currentSearch = e.target.value; currentPage = 1; updateTable(); 
     }, 300)); 
     
-    const filters = [
-        'clientFilter', 'styleFilter', 'teamFilter', 'departamentoFilter', 
-        'designerFilter', 'customStatusFilter', 'dateFrom', 'dateTo'
-    ];
-
+    const filters = ['clientFilter', 'styleFilter', 'teamFilter', 'departamentoFilter', 'designerFilter', 'customStatusFilter', 'dateFrom', 'dateTo'];
     filters.forEach(id => {
         safeAddEventListener(id, 'change', debounce((e) => {
             if(id === 'clientFilter') currentClientFilter = e.target.value;
@@ -278,160 +295,96 @@ document.addEventListener('DOMContentLoaded', (event) => {
             if(id === 'customStatusFilter') currentCustomStatusFilter = e.target.value;
             if(id === 'dateFrom') currentDateFrom = e.target.value;
             if(id === 'dateTo') currentDateTo = e.target.value;
-            
-            currentPage = 1; 
-            updateTable();
+            currentPage = 1; updateTable();
         }, 150));
     });
 
+    // Drag & Drop
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-    
     if (dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
-        dropZone.addEventListener('dragenter', () => dropZone.classList.add('border-blue-500', 'bg-gray-100'), false);
-        dropZone.addEventListener('dragover', () => dropZone.classList.add('border-blue-500', 'bg-gray-100'), false);
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-blue-500', 'bg-gray-100'), false);
+        dropZone.addEventListener('dragenter', () => dropZone.classList.add('border-blue-500', 'bg-blue-50'), false);
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-blue-500', 'bg-blue-50'), false);
         dropZone.addEventListener('drop', (e) => {
-            dropZone.classList.remove('border-blue-500', 'bg-gray-100');
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
             handleDrop(e);
         }, false);
-        
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', handleFileSelect);
     }
 
-    const designerManagerList = document.getElementById('designerManagerList');
-    if(designerManagerList) {
-        designerManagerList.addEventListener('click', function(e) {
-            const deleteButton = e.target.closest('.btn-delete-designer');
-            if (deleteButton) {
-                const name = deleteButton.dataset.name;
-                const docId = deleteButton.dataset.id; 
-                if (name && docId) deleteDesigner(docId, name);
-            }
+    // Delegación de eventos para listas dinámicas
+    const safeClickDelegate = (id, selector, callback) => {
+        const el = document.getElementById(id);
+        if(el) el.addEventListener('click', (e) => {
+            const target = e.target.closest(selector);
+            if(target) callback(target, e);
         });
-    }
+    };
 
-    const metricsSidebarList = document.getElementById('metricsSidebarList');
-    if(metricsSidebarList) {
-        metricsSidebarList.addEventListener('click', function(e) {
-            const metricsButton = e.target.closest('.filter-btn'); 
-            if (metricsButton) {
-                const name = metricsButton.dataset.designer;
-                if (name) generateDesignerMetrics(name);
-            }
-        });
-    }
+    safeClickDelegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
+    safeClickDelegate('metricsSidebarList', '.filter-btn', (btn) => {
+        // UX selección visual
+        document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-50', 'border-blue-200'));
+        btn.classList.add('active', 'bg-blue-50', 'border-blue-200');
+        generateDesignerMetrics(btn.dataset.designer);
+    });
+    safeClickDelegate('childOrdersList', '.btn-delete-child', (btn, e) => { e.stopPropagation(); deleteChildOrder(btn.dataset.childId, btn.dataset.childCode); });
+    safeClickDelegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
 
-    const childOrdersList = document.getElementById('childOrdersList');
-    if(childOrdersList) {
-        childOrdersList.addEventListener('click', function(e) {
-             const deleteButton = e.target.closest('.btn-delete-child');
-             if(deleteButton) {
-                e.stopPropagation(); 
-                const childId = deleteButton.dataset.childId;
-                const childCode = deleteButton.dataset.childCode;
-                if (childId && childCode) deleteChildOrder(childId, childCode);
-             }
-        });
-    }
-    
-    const viewWorkPlanContent = document.getElementById('view-workPlanContent');
-    if(viewWorkPlanContent) {
-        viewWorkPlanContent.addEventListener('click', function(e) {
-             const removeButton = e.target.closest('.btn-remove-from-plan');
-             if(removeButton) {
-                e.stopPropagation();
-                const planEntryId = removeButton.dataset.planEntryId;
-                const orderCode = removeButton.dataset.orderCode;
-                if (planEntryId) removeOrderFromPlan(planEntryId, orderCode);
-             }
-        });
-    }
-
-    // --- EVENTO KEYDOWN (ESCAPE) ---
+    // Atajos de teclado
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            // 1. Prioridad: Cerrar modales críticos, alertas y confirmaciones
             closeConfirmModal();
-            const legendModal = document.getElementById('legendModal');
-            if (legendModal) legendModal.classList.remove('active');
-
-            // 2. Solo gestionamos el cierre de vistas si el Excel ya fue cargado
-            if (isExcelLoaded) {
-                closeModal(); 
-                closeMultiModal(); 
-                closeWeeklyReportModal();
-                closeDesignerManager();
-                closeAddChildModal();
-                
-                // Cierre inteligente de vistas
-                const compareModal = document.getElementById('compareModal');
-                if (compareModal && compareModal.classList.contains('active')) closeCompareModals();
-
-                const workPlan = document.getElementById('workPlanView');
-                if (workPlan && workPlan.style.display !== 'none') hideWorkPlanView();
-
-                const metricsView = document.getElementById('designerMetricsView');
-                if (metricsView && metricsView.style.display !== 'none') hideMetricsView();
-
-                const deptView = document.getElementById('departmentMetricsView');
-                if (deptView && deptView.style.display !== 'none') hideDepartmentMetrics();
-            }
+            document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+            document.body.classList.remove('modal-open');
         }
-        
-        // Atajo Guardar (Ctrl+S)
         if (e.ctrlKey && e.key === 's') {
             e.preventDefault(); 
-            const assignModal = document.getElementById('assignModal');
-            const multiAssignModal = document.getElementById('multiAssignModal');
-            
-            if (assignModal && assignModal.classList.contains('active')) {
-                saveAssignment();
-            } else if (multiAssignModal && multiAssignModal.classList.contains('active')) {
-                saveMultiAssignment();
-            }
+            if (document.getElementById('assignModal').classList.contains('active')) saveAssignment();
+            else if (document.getElementById('multiAssignModal').classList.contains('active')) saveMultiAssignment();
         }
     });
-
-    console.log("App lista.");
 });
 
 // ======================================================
-// ===== FUNCIONES DE FIREBASE (NÚCLEO) =====
+// ===== FUNCIONES DE FIREBASE =====
 // ======================================================
 
 function iniciarLoginConGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithPopup(provider).catch((error) => {
-        showCustomAlert(`Error de autenticación: ${error.message}`, 'error');
-        logToFirestore('auth:login', error);
-    });
+    firebase.auth().signInWithPopup(provider).catch((error) => showCustomAlert(error.message, 'error'));
 }
 
 function iniciarLogout() {
-    firebase.auth().signOut();
+    firebase.auth().signOut().then(() => {
+        document.getElementById('mainNavigation').style.transform = 'translateX(-100%)'; // Ocultar sidebar
+        document.getElementById('appMainContainer').style.marginLeft = '0';
+    });
 }
 
 function conectarDatosDeFirebase() {
     if (!usuarioActual) return;
-    
-    const dbStatus = document.getElementById('dbStatus');
-    if(dbStatus) {
-        dbStatus.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-xs"></i> Conectando...';
-        dbStatus.className = "ml-3 font-medium text-yellow-600";
-    }
+    const dbStatus = document.getElementById('dbStatus'); // En header
+    const navDbStatus = document.getElementById('navDbStatus'); // En sidebar
+
+    const setStatus = (connected) => {
+        const html = connected 
+            ? `<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Conectado`
+            : `<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> Conectando...`;
+        if(dbStatus) dbStatus.innerHTML = html;
+        if(navDbStatus) navDbStatus.innerHTML = html;
+    };
+
+    setStatus(false);
     
     unsubscribeAssignments = db_firestore.collection('assignments').onSnapshot((snapshot) => {
         firebaseAssignmentsMap.clear();
         snapshot.forEach((doc) => firebaseAssignmentsMap.set(doc.id, doc.data()));
         if(isExcelLoaded) mergeYActualizar(); 
-        if(dbStatus) {
-            dbStatus.textContent = '● Conectado';
-            dbStatus.className = "ml-3 font-medium text-green-600";
-        }
-    }, (e) => { console.error("Error assignments:", e); logToFirestore('firebase:assignments', e); });
+        setStatus(true);
+    });
 
     unsubscribeHistory = db_firestore.collection('history').onSnapshot((snapshot) => {
         firebaseHistoryMap.clear();
@@ -440,7 +393,7 @@ function conectarDatosDeFirebase() {
             if (!firebaseHistoryMap.has(data.orderId)) firebaseHistoryMap.set(data.orderId, []);
             firebaseHistoryMap.get(data.orderId).push(data);
         });
-    }, (e) => logToFirestore('firebase:history', e));
+    });
 
     unsubscribeChildOrders = db_firestore.collection('childOrders').onSnapshot((snapshot) => {
         firebaseChildOrdersMap.clear();
@@ -451,7 +404,7 @@ function conectarDatosDeFirebase() {
         });
         needsRecalculation = true;
         if(isExcelLoaded) mergeYActualizar();
-    }, (e) => logToFirestore('firebase:childOrders', e));
+    });
     
     unsubscribeDesigners = db_firestore.collection('designers').orderBy('name').onSnapshot((snapshot) => {
         firebaseDesignersMap.clear();
@@ -465,7 +418,7 @@ function conectarDatosDeFirebase() {
         updateAllDesignerDropdowns();
         populateDesignerManagerModal();
         if(isExcelLoaded) generateWorkloadReport();
-    }, (e) => logToFirestore('firebase:designers', e));
+    });
 
     unsubscribeWeeklyPlan = db_firestore.collection('weeklyPlan').onSnapshot((snapshot) => {
         firebaseWeeklyPlanMap.clear();
@@ -475,9 +428,10 @@ function conectarDatosDeFirebase() {
             if (!firebaseWeeklyPlanMap.has(weekId)) firebaseWeeklyPlanMap.set(weekId, []);
             firebaseWeeklyPlanMap.get(weekId).push(data);
         });
+        // Si estamos viendo el plan, refrescar
         const workPlanView = document.getElementById('workPlanView');
         if (workPlanView && workPlanView.style.display === 'block') generateWorkPlan();
-    }, (e) => logToFirestore('firebase:weeklyPlan', e));
+    });
 }
 
 function desconectarDatosDeFirebase() {
@@ -508,13 +462,8 @@ function mergeYActualizar() {
             order.designer = ''; order.customStatus = ''; order.receivedDate = ''; order.notes = ''; order.completedDate = null;
         }
 
-        // Lógica de Auto-Completado Mejorada:
-        // Si la orden existe en FB y el departamento NO es P_Art (y no es "Sin Departamento"),
-        // significa que la orden salió de arte y debe marcarse completada.
-        if (fbData && 
-            order.departamento !== 'P_Art' && 
-            order.departamento !== 'Sin Departamento') 
-        {
+        // AUTO-COMPLETADO: Si salió de P_Art y no está completada
+        if (fbData && order.departamento !== 'P_Art' && order.departamento !== 'Sin Departamento') {
             if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(order.orderId)) {
                 order.customStatus = 'Completada';
                 const newCompletedDate = new Date().toISOString();
@@ -534,13 +483,10 @@ function mergeYActualizar() {
             }
         }
     }
-    updateDashboard();
+    
+    if (document.getElementById('dashboard').style.display === 'block') updateDashboard();
     if (autoCompleteBatchWrites.length > 0) ejecutarAutoCompleteBatch();
 }
-
-// ======================================================
-// ===== FUNCIONES CRUD DE FIREBASE =====
-// ======================================================
 
 async function ejecutarAutoCompleteBatch() {
     if (!usuarioActual || autoCompleteBatchWrites.length === 0) return;
@@ -552,189 +498,76 @@ async function ejecutarAutoCompleteBatch() {
     autoCompleteBatchWrites.forEach(write => {
         const assignmentRef = db_firestore.collection('assignments').doc(write.orderId);
         batch.set(assignmentRef, write.data, { merge: true });
-        write.history.forEach(change => {
-            const historyRef = db_firestore.collection('history').doc();
-            batch.set(historyRef, { orderId: write.orderId, change: change, user: user, timestamp: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION });
-        });
+        // Historial
+        const historyRef = db_firestore.collection('history').doc();
+        batch.set(historyRef, { orderId: write.orderId, change: write.history[0], user: user, timestamp: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION });
     });
 
     try {
         await batch.commit();
         showCustomAlert(`Se auto-completaron ${autoCompleteBatchWrites.length} órdenes.`, 'success');
         autoCompleteBatchWrites = [];
-    } catch (error) { console.error("Error batch:", error); logToFirestore('batch:autocomplete', error); }
+    } catch (error) { console.error("Error batch:", error); }
 }
 
+// --- CRUD Básico ---
 async function saveAssignmentToDB_Firestore(orderId, dataToSave, historyChanges = []) {
-    if (!usuarioActual) throw new Error("No estás autenticado.");
-    
-    const assignmentRef = db_firestore.collection('assignments').doc(orderId);
+    if (!usuarioActual) throw new Error("No autenticado");
     const batch = db_firestore.batch();
-
-    dataToSave.lastModified = new Date().toISOString();
-    if (dataToSave.designer === undefined) dataToSave.designer = '';
-    dataToSave.schemaVersion = DB_SCHEMA_VERSION; 
+    const assignRef = db_firestore.collection('assignments').doc(orderId);
     
-    batch.set(assignmentRef, dataToSave, { merge: true });
+    dataToSave.lastModified = new Date().toISOString();
+    dataToSave.schemaVersion = DB_SCHEMA_VERSION;
+    batch.set(assignRef, dataToSave, { merge: true });
 
-    if (historyChanges.length > 0) {
-        const user = usuarioActual.displayName || usuarioActual.email;
-        historyChanges.forEach(change => {
-            const historyRef = db_firestore.collection('history').doc();
-            batch.set(historyRef, { orderId: orderId, change: change, user: user, timestamp: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION });
-        });
-    }
+    historyChanges.forEach(change => {
+        const hRef = db_firestore.collection('history').doc();
+        batch.set(hRef, { orderId, change, user: usuarioActual.displayName, timestamp: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION });
+    });
     return await batch.commit();
 }
 
-async function saveChildOrderToDB(childOrder) {
-    childOrder.schemaVersion = DB_SCHEMA_VERSION;
-    const childRef = db_firestore.collection('childOrders').doc(childOrder.childOrderId);
-    return await childRef.set(childOrder);
-}
-
-async function deleteChildOrderFromDB(childOrderId) {
-    const childRef = db_firestore.collection('childOrders').doc(childOrderId);
-    return await childRef.delete();
-}
-
 async function addDesigner() {
-    const nameInput = document.getElementById('newDesignerName');
-    const emailInput = document.getElementById('newDesignerEmail');
+    const name = document.getElementById('newDesignerName').value.trim();
+    const email = document.getElementById('newDesignerEmail').value.trim().toLowerCase();
+    if (!name || !email) return showCustomAlert('Datos incompletos', 'error');
     
-    const name = nameInput.value.trim();
-    const email = emailInput.value.trim().toLowerCase();
-
-    if (!name || !email) { showCustomAlert('Por favor, ingresa nombre y correo.', 'error'); return; }
-
-    const emailRegex = /^[a-zA-Z0-9._-]+@fitwellus\.com$/;
-    if (!emailRegex.test(email)) { showCustomAlert('Formato de correo inválido. Debe ser: usuario@fitwellus.com', 'error'); return; }
-
-    let emailExists = false;
-    firebaseDesignersMap.forEach(data => { if (data.email === email) emailExists = true; });
-    if (emailExists) { showCustomAlert('Este correo ya está registrado.', 'error'); return; }
-
     try {
-        await db_firestore.collection('designers').add({ 
-            name: name, email: email, createdAt: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION 
-        });
-        nameInput.value = ''; emailInput.value = '';
-        showCustomAlert(`Usuario "${name}" agregado correctamente.`, 'success');
-    } catch (error) { showCustomAlert(`Error al agregar: ${error.message}`, 'error'); logToFirestore('designer:add', error); }
+        await db_firestore.collection('designers').add({ name, email, createdAt: new Date().toISOString() });
+        document.getElementById('newDesignerName').value = '';
+        document.getElementById('newDesignerEmail').value = '';
+        showCustomAlert('Diseñador agregado', 'success');
+    } catch (e) { showCustomAlert(e.message, 'error'); }
 }
 
 async function deleteDesigner(docId, name) {
-    if (!firebaseDesignersMap.has(docId)) {
-        showCustomAlert('El diseñador no existe.', 'error');
-        return;
-    }
-
-    const ordersToUpdate = allOrders.filter(o => o.designer === name && o.departamento === 'P_Art');
-    let message = `¿Eliminar a "${name}"?`;
-    let strict = false;
-    
-    if (ordersToUpdate.length > 0) {
-        message += `\n⚠️ TIENE ${ordersToUpdate.length} ÓRDENES ASIGNADAS.\nPara confirmar, escribe "CONFIRMAR".`;
-        strict = true;
-    }
-
-    showConfirmModal(message, async () => {
+    showConfirmModal(`¿Eliminar a ${name}?`, async () => {
         try {
-            showLoading('Eliminando...');
             await db_firestore.collection('designers').doc(docId).delete();
-            if (ordersToUpdate.length > 0) {
-                const orderIds = ordersToUpdate.map(o => o.orderId);
-                const BATCH_SIZE = 450;
-                for (let i = 0; i < orderIds.length; i += BATCH_SIZE) {
-                    const batch = db_firestore.batch();
-                    const chunk = orderIds.slice(i, i + BATCH_SIZE);
-                    chunk.forEach(oid => {
-                        const docRef = db_firestore.collection('assignments').doc(oid);
-                        batch.update(docRef, { designer: '' });
-                    });
-                    await batch.commit();
-                }
-            }
-            showCustomAlert('Diseñador eliminado.', 'success');
-        } catch (error) { showCustomAlert(error.message, 'error'); logToFirestore('designer:delete', error); } finally { hideLoading(); }
-    }, strict);
-}
-
-async function addOrderToWorkPlanDB(order, weekIdentifier) {
-    const planEntryId = `${order.orderId}_${weekIdentifier}`;
-    const planRef = db_firestore.collection('weeklyPlan').doc(planEntryId);
-    const doc = await planRef.get();
-    if (doc.exists) return false; 
-
-    const planEntry = {
-        planEntryId: planEntryId,
-        orderId: order.orderId,
-        weekIdentifier: weekIdentifier,
-        designer: order.designer,
-        planStatus: 'Pendiente', 
-        addedAt: new Date().toISOString(),
-        cliente: order.cliente,
-        codigoContrato: order.codigoContrato,
-        estilo: order.estilo,
-        fechaDespacho: order.fechaDespacho ? new Date(order.fechaDespacho).toISOString() : null,
-        cantidad: order.cantidad,
-        childPieces: order.childPieces,
-        isLate: order.isLate,
-        isAboutToExpire: order.isAboutToExpire,
-        schemaVersion: DB_SCHEMA_VERSION
-    };
-    await planRef.set(planEntry);
-    return true; 
-}
-
-async function removeOrderFromWorkPlanDB(planEntryId) {
-    const planRef = db_firestore.collection('weeklyPlan').doc(planEntryId);
-    return await planRef.delete();
-}
-
-async function logToFirestore(context, error) {
-    if (!usuarioActual) return;
-    const errorMessage = (error instanceof Error) ? error.message : String(error);
-    try {
-        await db_firestore.collection('logs').add({
-            timestamp: new Date().toISOString(),
-            user: usuarioActual.displayName || usuarioActual.email,
-            context: context,
-            message: errorMessage,
-            severity: 'ERROR'
-        });
-    } catch (e) {
-        console.error("Fallo al loguear error:", e);
-    }
+            showCustomAlert('Diseñador eliminado', 'success');
+        } catch (e) { showCustomAlert(e.message, 'error'); }
+    });
 }
 
 // ======================================================
-// ===== LÓGICA DE MANEJO DE EXCEL =====
+// ===== PROCESAMIENTO DE EXCEL =====
 // ======================================================
 
 function handleDrop(e){ const dt = e.dataTransfer; handleFiles(dt.files); }
 function handleFileSelect(e){ handleFiles(e.target.files); }
-
 function handleFiles(files){
     if (!files || files.length === 0) return;
-    const file = files[0];
-    
-    const fileNameElement = document.getElementById('fileName');
-    if (fileNameElement) {
-        fileNameElement.textContent = file.name;
-    }
-    
-    processFile(file);
+    document.getElementById('fileName').textContent = files[0].name;
+    processFile(files[0]);
 }
 
 async function processFile(file) {
-    showLoading('Procesando archivo Excel...');
+    showLoading('Procesando Excel...');
     try {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const sheetName = workbook.SheetNames.find(n => /working\s*pro[c]{1,2}ess/i.test(n));
-
-        if (!sheetName) throw new Error('No se encontró la pestaña "Working Process".');
+        if (!sheetName) throw new Error('No se encontró "Working Process"');
         
         const worksheet = workbook.Sheets[sheetName];
         const arr = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
@@ -744,12 +577,12 @@ async function processFile(file) {
             const row = arr[i].map(c => String(c).toLowerCase());
             if (row.some(c => c.includes('fecha')) && row.some(c => c.includes('cliente'))) { headerIndex = i; break; }
         }
-        if (headerIndex === -1) throw new Error('No se pudo detectar la fila de encabezados.');
+        if (headerIndex === -1) throw new Error('No se encontraron encabezados');
         
-        const headers = arr[headerIndex].map(h => String(h).trim().replace(/,/g, '').toLowerCase());
+        const headers = arr[headerIndex].map(h => String(h).trim().toLowerCase());
         const rows = arr.slice(headerIndex + 1);
 
-        const colIndices = {
+        const col = {
             fecha: headers.findIndex(h => h.includes('fecha')),
             cliente: headers.findIndex(h => h.includes('cliente')),
             codigo: headers.findIndex(h => h.includes('codigo') || h.includes('contrato')),
@@ -763,1374 +596,614 @@ async function processFile(file) {
             { pattern: /p[_\s]*printing/i, name: 'P_Printing' },
             { pattern: /p[_\s]*press/i, name: 'P_Press' },
             { pattern: /p[_\s]*cut/i, name: 'P_Cut' },
-            { pattern: /p[_\s]*r[_\s]*to[_\s]*sew/i, name: 'P_R_to_Sew' },
             { pattern: /p[_\s]*sew/i, name: 'P_Sew' },
-            { pattern: /sum[_\s]*of[_\s]*twill/i, name: 'Sum of TWILL' },
             { pattern: /p[_\s]*packing/i, name: 'P_Packing' },
             { pattern: /p[_\s]*shipping/i, name: 'P_Shipping' }
         ];
-
-        const departmentIndices = [];
-        headers.forEach((header, index) => {
-            const matched = departmentPatterns.find(dept => dept.pattern.test(header));
-            if (matched) departmentIndices.push({ index: index, name: matched.name });
+        
+        // Optimización: Pre-mapeo de índices de departamentos
+        const deptIndices = [];
+        headers.forEach((h, i) => {
+            const match = departmentPatterns.find(d => d.pattern.test(h));
+            if (match) deptIndices.push({ index: i, name: match.name });
         });
-        
-        let processedOrders = []; 
+
+        let processed = [];
         let currentDate = null;
-        let currentClient = ""; let currentContrato = ""; let currentStyle = ""; let currentTeam = "";
-        
+        let currentClient = "", currentContrato = "", currentStyle = "", currentTeam = "";
         autoCompleteBatchWrites = [];
 
         for (const row of rows) {
-            if (!row || row.length === 0 || row.every(c => c === "" || c === null)) continue;
-            const lowerRow = row.slice(0, 4).map(c => String(c).toLowerCase());
-            if (lowerRow.some(c => c.includes('total') || c.includes('subtotal') || c.includes('grand'))) continue;
-
-            if (colIndices.fecha >= 0 && row[colIndices.fecha] !== "" && row[colIndices.fecha] !== null) {
-                const rawFecha = row[colIndices.fecha];
-                let deliveryDate = null;
-                if (typeof rawFecha === 'number') {
-                    deliveryDate = new Date((rawFecha - 25569) * 86400 * 1000);
-                } else {
-                    const d = new Date(rawFecha);
-                    if (!isNaN(d)) deliveryDate = d;
-                }
-                if (deliveryDate && !isNaN(deliveryDate)) {
-                    deliveryDate = new Date(Date.UTC(deliveryDate.getFullYear(), deliveryDate.getMonth(), deliveryDate.getDate()));
-                    currentDate = deliveryDate;
-                }
+            if (!row || row.every(c => !c)) continue;
+            
+            // Fecha cascada
+            if (col.fecha >= 0 && row[col.fecha]) {
+                const raw = row[col.fecha];
+                if (typeof raw === 'number') currentDate = new Date((raw - 25569) * 86400000);
+                else if (!isNaN(Date.parse(raw))) currentDate = new Date(raw);
             }
-            if (colIndices.cliente >= 0 && row[colIndices.cliente]) currentClient = String(row[colIndices.cliente]).trim();
-            if (colIndices.codigo >= 0 && row[colIndices.codigo]) currentContrato = String(row[colIndices.codigo]).trim();
-            if (colIndices.estilo >= 0 && row[colIndices.estilo]) currentStyle = String(row[colIndices.estilo]).trim();
-            if (colIndices.team >= 0 && row[colIndices.team]) currentTeam = String(row[colIndices.team]).trim();
+            
+            if (col.cliente >= 0 && row[col.cliente]) currentClient = String(row[col.cliente]).trim();
+            if (col.codigo >= 0 && row[col.codigo]) currentContrato = String(row[col.codigo]).trim();
+            if (col.estilo >= 0 && row[col.estilo]) currentStyle = String(row[col.estilo]).trim();
+            if (col.team >= 0 && row[col.team]) currentTeam = String(row[col.team]).trim();
 
             if (!currentClient || !currentContrato) continue;
 
-            let orderCantidad = 0;
-            let orderDepartamento = "";
-            
-            for (let i = departmentIndices.length - 1; i >= 0; i--) {
-                const col = departmentIndices[i];
-                const rawValue = row[col.index];
-                if (rawValue !== "" && rawValue !== null) {
-                    const n = Number(String(rawValue).replace(/,|\s/g, ''));
-                    if (!isNaN(n) && n > 0) { orderCantidad = n; orderDepartamento = col.name; break; }
+            // Detectar departamento y cantidad
+            let qty = 0, dept = "Sin Departamento";
+            for (let i = deptIndices.length - 1; i >= 0; i--) {
+                const val = row[deptIndices[i].index];
+                if (val) {
+                    const n = Number(String(val).replace(/,|\s/g, ''));
+                    if (n > 0) { qty = n; dept = deptIndices[i].name; break; }
                 }
             }
-            if (orderCantidad <= 0) { orderCantidad = 0; orderDepartamento = "Sin Departamento"; }
+            if (qty <= 0) dept = "Sin Departamento";
 
-            const fechaDespacho = currentDate ? new Date(currentDate) : null;
-            const orderId = `${currentClient}_${currentContrato}_${fechaDespacho ? fechaDespacho.getTime() : 'nodate'}_${currentStyle}`;
-
+            // ID y Fechas
+            const fDespacho = currentDate ? new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()) : null;
+            const orderId = `${currentClient}_${currentContrato}_${fDespacho ? fDespacho.getTime() : 'nodate'}_${currentStyle}`;
+            
             const today = new Date(); today.setHours(0,0,0,0);
             let daysLate = 0;
-            const isLate = fechaDespacho && fechaDespacho < today;
-            if (isLate) {
-                const diffTime = today.getTime() - fechaDespacho.getTime();
-                daysLate = Math.ceil(diffTime / (1000*60*60*24));
-            }
-            const isVeryLate = daysLate > 7;
-            const isAboutToExpire = fechaDespacho && !isLate && ((fechaDespacho.getTime() - today.getTime()) / (1000*60*60*24)) <= 2;
+            if (fDespacho && fDespacho < today) daysLate = Math.ceil((today - fDespacho) / 86400000);
             
+            // Estado Firebase
             const fbData = firebaseAssignmentsMap.get(orderId);
-            let currentStatus = fbData ? fbData.customStatus : '';
-            let currentCompletedDate = fbData ? fbData.completedDate : null;
+            let status = fbData ? fbData.customStatus : '';
+            let compDate = fbData ? fbData.completedDate : null;
 
-            // Lógica de Auto-Completado al Cargar:
-            // Si existe en FB y NO está en P_Art, marcar completada.
-            if (fbData && 
-                orderDepartamento !== 'P_Art' && 
-                orderDepartamento !== 'Sin Departamento') 
-            {
-                if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(orderId)) {
-                    currentStatus = 'Completada';
-                    currentCompletedDate = new Date().toISOString();
-                    
+            // Lógica Auto-Completado
+            if (fbData && dept !== 'P_Art' && dept !== 'Sin Departamento') {
+                if (status !== 'Completada' && !autoCompletedOrderIds.has(orderId)) {
+                    status = 'Completada';
+                    compDate = new Date().toISOString();
                     autoCompleteBatchWrites.push({
                         orderId: orderId,
-                        data: { 
-                            customStatus: 'Completada', 
-                            completedDate: currentCompletedDate, 
-                            lastModified: new Date().toISOString(), 
-                            schemaVersion: DB_SCHEMA_VERSION 
-                        },
-                        history: [`Salio de Arte (ahora en ${orderDepartamento}) → Completada automáticamente`]
+                        data: { customStatus: 'Completada', completedDate: compDate, lastModified: compDate },
+                        history: [`Salio de Arte (ahora en ${dept}) → Completada automáticamente`]
                     });
                     autoCompletedOrderIds.add(orderId);
                 }
             }
 
-            processedOrders.push({
-                orderId, fechaDespacho, cliente: currentClient, codigoContrato: currentContrato,
-                estilo: currentStyle, teamName: currentTeam, departamento: orderDepartamento,
-                cantidad: orderCantidad, childPieces: 0, isLate, daysLate, isVeryLate, isAboutToExpire,
-                designer: fbData ? fbData.designer : '', customStatus: currentStatus,
-                receivedDate: fbData ? fbData.receivedDate : '', notes: fbData ? fbData.notes : '',
-                completedDate: currentCompletedDate
+            processed.push({
+                orderId, fechaDespacho: fDespacho, cliente: currentClient, codigoContrato: currentContrato,
+                estilo: currentStyle, teamName: currentTeam, departamento: dept, cantidad: qty,
+                childPieces: 0, isLate: fDespacho && fDespacho < today, daysLate,
+                isVeryLate: daysLate > 7, isAboutToExpire: fDespacho && !daysLate && ((fDespacho - today)/86400000) <= 2,
+                designer: fbData ? fbData.designer : '', customStatus: status,
+                receivedDate: fbData ? fbData.receivedDate : '', notes: fbData ? fbData.notes : '', completedDate: compDate
             });
         }
 
-        allOrders = processedOrders;
+        allOrders = processed;
         isExcelLoaded = true; 
-        console.log(`✅ Órdenes procesadas del Excel: ${allOrders.length}`);
         needsRecalculation = true; 
-        recalculateChildPieces(); 
+        recalculateChildPieces();
+        
         if (autoCompleteBatchWrites.length > 0) await ejecutarAutoCompleteBatch();
 
-        await updateDashboard();
-        generateSummary();
-
+        // UI SWITCH -> Mostrar App y Sidebar
         document.getElementById('uploadSection').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('appMainContainer').style.display = 'block';
+        document.getElementById('appMainContainer').style.marginLeft = '16rem';
+        
+        const nav = document.getElementById('mainNavigation');
+        nav.style.display = 'flex';
+        nav.style.transform = 'translateX(0)';
+
+        navigateTo('dashboard'); // Ir al inicio
 
     } catch (error) {
-        showCustomAlert('Error al procesar el archivo: ' + (error.message || error), 'error');
-        console.error(error); document.getElementById('fileInput').value = ''; logToFirestore('file:process', error);
+        showCustomAlert('Error: ' + error.message, 'error');
+        console.error(error);
     } finally { hideLoading(); }
 }
 
-// ======================================================
-// ===== LÓGICA DE ÓRDENES HIJAS =====
-// ======================================================
-
 async function recalculateChildPieces() {
     if (!needsRecalculation) return;
-    let tempChildPiecesCache = new Map();
-    firebaseChildOrdersMap.forEach((childList, parentId) => {
-        const totalPieces = childList.reduce((sum, child) => sum + (child.cantidad || 0), 0);
-        tempChildPiecesCache.set(parentId, totalPieces);
+    let cache = new Map();
+    firebaseChildOrdersMap.forEach((list, parentId) => {
+        cache.set(parentId, list.reduce((s, c) => s + (c.cantidad || 0), 0));
     });
-    for (const order of allOrders) {
-        order.childPieces = tempChildPiecesCache.get(order.orderId) || 0;
-    }
+    allOrders.forEach(o => o.childPieces = cache.get(o.orderId) || 0);
     needsRecalculation = false;
 }
 
-function openAddChildModal() {
-    if (!currentEditingOrderId) return;
-    const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
-    if (!parentOrder) return;
+// ======================================================
+// ===== UI: DASHBOARD & TABLA =====
+// ======================================================
+
+function updateDashboard() {
+    if (!isExcelLoaded) return;
+    if (needsRecalculation) recalculateChildPieces();
     
-    document.getElementById('parentOrderInfo').textContent = `Padre: ${parentOrder.codigoContrato} - ${parentOrder.cliente}`;
-    document.getElementById('childOrderCode').value = parentOrder.codigoContrato + '-';
-    document.getElementById('childOrderNumber').value = '';
-    document.getElementById('childPieces').value = '';
-    document.getElementById('childDeliveryDate').value = '';
-    document.getElementById('childNotes').value = '';
+    const artOrders = allOrders.filter(o => o.departamento === 'P_Art');
     
-    document.getElementById('addChildModal').classList.add('active');
-    document.body.classList.add('modal-open');
-}
-
-function updateChildOrderCode() {
-    const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
-    if (!parentOrder) return;
+    // Stats
+    const totalPzs = artOrders.reduce((s, o) => s + o.cantidad + o.childPieces, 0);
+    document.getElementById('statTotal').textContent = artOrders.length;
+    document.getElementById('statTotalPieces').textContent = totalPzs.toLocaleString();
+    document.getElementById('statLate').textContent = artOrders.filter(o => o.isLate).length;
+    document.getElementById('statExpiring').textContent = artOrders.filter(o => o.isAboutToExpire).length;
+    document.getElementById('statOnTime').textContent = artOrders.filter(o => !o.isLate && !o.isAboutToExpire).length;
     
-    const childNumber = document.getElementById('childOrderNumber').value;
-    document.getElementById('childOrderCode').value = `${parentOrder.codigoContrato}-${childNumber ? childNumber : ''}`;
+    // Top Clients
+    const clients = {};
+    artOrders.forEach(o => clients[o.cliente] = (clients[o.cliente]||0)+1);
+    const top = Object.entries(clients).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    document.getElementById('clientReport').innerHTML = top.map(([c,n],i) => `
+        <div class="flex justify-between py-1.5 border-b border-slate-50 last:border-0 text-xs">
+            <span class="text-slate-600 truncate w-32" title="${c}">${i+1}. ${c}</span>
+            <span class="font-bold text-blue-600 bg-blue-50 px-2 rounded-full">${n}</span>
+        </div>`).join('');
+
+    populateFilterDropdowns();
+    updateTable();
 }
 
-async function saveChildOrder() {
-    try {
-        if (!currentEditingOrderId) return;
-        
-        const childNumber = document.getElementById('childOrderNumber').value;
-        const childPieces = parseInt(document.getElementById('childPieces').value);
-        const childDeliveryDate = document.getElementById('childDeliveryDate').value;
-        const childNotes = document.getElementById('childNotes').value;
-        
-        if (!childNumber || childNumber < 1) { showCustomAlert('Ingresa un número válido.', 'error'); return; }
-        if (!childPieces || childPieces < 1) { showCustomAlert('Ingresa la cantidad.', 'error'); return; }
-        
-        const parentOrder = allOrders.find(o => o.orderId === currentEditingOrderId);
-        
-        const childCode = `${parentOrder.codigoContrato}-${childNumber}`;
-        const deliveryDate = childDeliveryDate ? new Date(childDeliveryDate + 'T00:00:00Z') 
-            : (parentOrder.fechaDespacho ? new Date(parentOrder.fechaDespacho) : new Date());
+function updateTable() {
+    const filtered = getFilteredOrders();
+    const start = (currentPage - 1) * rowsPerPage;
+    paginatedOrders = filtered.slice(start, start + rowsPerPage);
+    
+    // Contadores
+    document.getElementById('resultCount').textContent = filtered.length;
+    document.getElementById('resultPieces').textContent = filtered.reduce((s,o)=>s+o.cantidad+o.childPieces,0).toLocaleString();
 
-        const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        const childOrder = {
-            childOrderId: `${parentOrder.orderId}_child_${uniqueSuffix}`,
-            parentOrderId: parentOrder.orderId,
-            childCode: childCode,
-            cliente: parentOrder.cliente,
-            estilo: parentOrder.estilo,
-            teamName: parentOrder.teamName,
-            designer: parentOrder.designer,
-            customStatus: parentOrder.customStatus,
-            fechaDespacho: deliveryDate,
-            cantidad: childPieces,
-            notes: childNotes,
-            createdAt: new Date().toISOString()
-        };
-        
-        await saveChildOrderToDB(childOrder);
-        await saveAssignmentToDB_Firestore(parentOrder.orderId, {}, [`Orden hija creada: ${childCode}`]);
-
-        closeAddChildModal();
-        showCustomAlert(`Orden hija ${childCode} creada.`, 'success');
-    } catch (error) { console.error('Error en saveChildOrder:', error); showCustomAlert(`Error: ${error.message}`, 'error'); logToFirestore('child:save', error); }
-}
-
-async function deleteChildOrder(childOrderId, childCode) {
-    showConfirmModal(`¿Eliminar orden hija ${childCode}?`, async () => {
-        try {
-            await deleteChildOrderFromDB(childOrderId);
-            await saveAssignmentToDB_Firestore(currentEditingOrderId, {}, [`Orden hija eliminada: ${childCode}`]);
-        } catch (e) { showCustomAlert(e.message, 'error'); }
-    });
-}
-
-function closeAddChildModal() {
-    document.getElementById('addChildModal').classList.remove('active');
-    checkAndCloseModalStack(); 
-}
-
-async function loadChildOrders() {
-    try {
-        if (!currentEditingOrderId) return;
-        const childOrders = firebaseChildOrdersMap.get(currentEditingOrderId) || [];
-        
-        document.getElementById('childOrderCount').textContent = childOrders.length;
-        const list = document.getElementById('childOrdersList');
-        
-        if (childOrders.length === 0) { list.innerHTML = '<p class="text-gray-400 text-xs text-center">Sin órdenes hijas</p>'; return; }
-        
-        list.innerHTML = childOrders.map(child => {
-            const date = child.fechaDespacho ? new Date(child.fechaDespacho) : null;
-            const isLate = date && date < new Date().setHours(0,0,0,0);
-            return `<div class="bg-white p-2 rounded border text-xs mb-1 flex justify-between items-center">
-                <div>
-                    <strong class="text-blue-600">${escapeHTML(child.childCode)}</strong><br>
-                    <span class="${isLate?'text-red-600':'text-green-600'}">${child.cantidad} pzs - ${date ? formatDate(date) : '-'}</span>
-                </div>
-                <button class="btn-delete-child text-red-600 hover:text-red-800 px-2" data-child-id="${child.childOrderId}" data-child-code="${child.childCode}">✕</button>
-            </div>`;
+    // Render
+    const tbody = document.getElementById('tableBody');
+    if (paginatedOrders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="14" class="text-center py-8 text-slate-400 italic">No se encontraron órdenes.</td></tr>`;
+    } else {
+        tbody.innerHTML = paginatedOrders.map(order => {
+            const rowClass = order.isVeryLate ? 'bg-red-50/50' : order.isLate ? 'bg-orange-50/50' : order.isAboutToExpire ? 'bg-yellow-50/50' : '';
+            const statusBadge = getStatusBadge(order);
+            const internalBadge = getCustomStatusBadge(order.customStatus);
+            
+            return `
+            <tr class="${rowClass} hover:bg-blue-50 transition-colors cursor-pointer" onclick="openAssignModal('${order.orderId}')">
+                <td class="px-3 py-2" onclick="event.stopPropagation()">
+                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="rounded border-slate-300 text-blue-600" data-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId)?'checked':''}>` : ''}
+                </td>
+                <td class="px-3 py-2" data-label="Estado">${statusBadge}</td>
+                <td class="px-3 py-2 font-medium text-slate-700" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
+                <td class="px-3 py-2 font-medium text-slate-900 truncate max-w-[150px]" data-label="Cliente" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
+                <td class="px-3 py-2 text-slate-500" data-label="Código">${escapeHTML(order.codigoContrato)}</td>
+                <td class="px-3 py-2 text-slate-500 truncate max-w-[120px]" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                <td class="px-3 py-2 hidden lg:table-cell text-slate-500" data-label="Team">${escapeHTML(order.teamName)}</td>
+                <td class="px-3 py-2 hidden md:table-cell" data-label="Depto"><span class="text-[10px] uppercase font-bold text-slate-400 border border-slate-200 px-1 rounded">${escapeHTML(order.departamento)}</span></td>
+                <td class="px-3 py-2" data-label="Diseñador">
+                    ${order.designer ? `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md text-[11px] font-bold border border-indigo-100">${escapeHTML(order.designer)}</span>` : '<span class="text-slate-300 italic text-[11px]">--</span>'}
+                </td>
+                <td class="px-3 py-2" data-label="Estado Int.">${internalBadge}</td>
+                <td class="px-3 py-2 hidden lg:table-cell text-slate-500" data-label="Recibida">${order.receivedDate || '-'}</td>
+                <td class="px-3 py-2 font-bold text-slate-700" data-label="Cant.">${order.cantidad.toLocaleString()}</td>
+                <td class="px-3 py-2 text-center" data-label="Notas">${order.notes ? '<i class="fa-solid fa-note-sticky text-yellow-400"></i>' : ''}</td>
+                <td class="px-3 py-2 text-right"><i class="fa-solid fa-chevron-right text-slate-300 text-[10px]"></i></td>
+            </tr>`;
         }).join('');
-    } catch (e) { console.error(e); }
+    }
+    
+    // Checkboxes globales
+    const allChecked = paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrders.has(o.orderId));
+    const selectAll = document.getElementById('selectAll');
+    if(selectAll) selectAll.checked = allChecked;
+    
+    // Barra flotante
+    const bar = document.getElementById('multiSelectBar');
+    if (selectedOrders.size > 0) {
+        bar.style.opacity = '1'; bar.style.transform = 'translateX(-50%) translateY(0)'; bar.style.pointerEvents = 'auto';
+        document.getElementById('selectedCount').textContent = selectedOrders.size;
+    } else {
+        bar.style.opacity = '0'; bar.style.transform = 'translateX(-50%) translateY(20px)'; bar.style.pointerEvents = 'none';
+    }
+}
+
+// Filtros Helper
+function getFilteredOrders() {
+    let res = allOrders;
+    const s = currentSearch.toLowerCase();
+    if(s) res = res.filter(o => (o.cliente||'').toLowerCase().includes(s) || (o.codigoContrato||'').toLowerCase().includes(s) || (o.estilo||'').toLowerCase().includes(s) || (o.designer||'').toLowerCase().includes(s));
+    
+    if(currentClientFilter) res = res.filter(o => o.cliente === currentClientFilter);
+    if(currentDepartamentoFilter) res = res.filter(o => o.departamento === currentDepartamentoFilter);
+    else res = res.filter(o => o.departamento === 'P_Art'); // Default P_Art
+    
+    if(currentDesignerFilter) res = res.filter(o => o.designer === currentDesignerFilter);
+    if(currentCustomStatusFilter) res = res.filter(o => o.customStatus === currentCustomStatusFilter);
+    if(currentFilter === 'late') res = res.filter(o => o.isLate);
+    if(currentFilter === 'veryLate') res = res.filter(o => o.isVeryLate);
+    if(currentFilter === 'aboutToExpire') res = res.filter(o => o.isAboutToExpire);
+    
+    // Sort
+    res.sort((a,b) => {
+        let va = a[sortConfig.key], vb = b[sortConfig.key];
+        if(sortConfig.key === 'date') { va = a.fechaDespacho?.getTime()||0; vb = b.fechaDespacho?.getTime()||0; }
+        return (va < vb ? -1 : 1) * (sortConfig.direction === 'asc' ? 1 : -1);
+    });
+    return res;
+}
+
+// --- Helpers Visuales ---
+function getStatusBadge(order) {
+    if (order.isVeryLate) return `<span class="status-badge bg-red-100 text-red-700 ring-1 ring-red-600/10">MUY ATRASADA</span>`;
+    if (order.isLate) return `<span class="status-badge bg-orange-100 text-orange-700 ring-1 ring-orange-600/10">ATRASADA</span>`;
+    if (order.isAboutToExpire) return `<span class="status-badge bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20">URGENTE</span>`;
+    return `<span class="status-badge bg-green-100 text-green-700 ring-1 ring-green-600/20">A TIEMPO</span>`;
+}
+function getCustomStatusBadge(status) {
+    const cls = { 
+        'Bandeja': 'bg-yellow-50 text-yellow-700 border-yellow-200', 
+        'Producción': 'bg-purple-50 text-purple-700 border-purple-200', 
+        'Auditoría': 'bg-blue-50 text-blue-700 border-blue-200', 
+        'Completada': 'bg-slate-100 text-slate-600 border-slate-200' 
+    };
+    return status ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold border ${cls[status]||'bg-gray-50'}">${status}</span>` : '-';
+}
+function formatDate(d) { return d ? d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'}) : '-'; }
+
+function populateFilterDropdowns() {
+    const fill = (id, key) => {
+        const sel = document.getElementById(id);
+        const opts = [...new Set(allOrders.map(o=>o[key]).filter(Boolean))].sort();
+        sel.innerHTML = '<option value="">Todos</option>' + opts.map(v=>`<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join('');
+    };
+    fill('clientFilter', 'cliente');
+    fill('styleFilter', 'estilo');
+    fill('teamFilter', 'teamName');
+    fill('departamentoFilter', 'departamento');
+    updateAllDesignerDropdowns();
+}
+function updateAllDesignerDropdowns() {
+    const html = '<option value="">Todos</option>' + designerList.map(d=>`<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    document.getElementById('designerFilter').innerHTML = html;
+    document.getElementById('modalDesigner').innerHTML = '<option value="">Sin asignar</option>' + designerList.map(d=>`<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    document.getElementById('multiModalDesigner').innerHTML = '<option value="">Sin asignar</option>' + designerList.map(d=>`<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
 }
 
 // ======================================================
-// ===== LÓGICA DE ASIGNACIÓN =====
+// ===== SELECCIÓN Y ASIGNACIÓN =====
 // ======================================================
+function toggleOrderSelection(id) {
+    if(selectedOrders.has(id)) selectedOrders.delete(id); else selectedOrders.add(id);
+    updateTable();
+}
+function toggleSelectAll() {
+    const visibleIds = paginatedOrders.map(o=>o.orderId);
+    const all = document.getElementById('selectAll').checked;
+    visibleIds.forEach(id => all ? selectedOrders.add(id) : selectedOrders.delete(id));
+    updateTable();
+}
+function clearSelection() { selectedOrders.clear(); updateTable(); }
 
-window.openAssignModal = async function(orderId) {
-    currentEditingOrderId = orderId;
-    const order = allOrders.find(o => o.orderId === orderId);
-    if (!order) return;
-    
-    document.getElementById('detailCliente').textContent = order.cliente || '-';
-    document.getElementById('detailCodigo').textContent = order.codigoContrato || '-';
-    document.getElementById('detailEstilo').textContent = order.estilo || '-';
-    document.getElementById('detailDepartamento').textContent = order.departamento || '-';
-    document.getElementById('detailFecha').textContent = formatDate(order.fechaDespacho);
-    
-    const totalPieces = (order.cantidad || 0) + (order.childPieces || 0);
-    document.getElementById('detailPiezas').textContent = `${order.cantidad.toLocaleString()} (+${order.childPieces} hijas) = ${totalPieces.toLocaleString()} pzs`;
-    
-    document.getElementById('modalDesigner').value = order.designer || '';
-    document.getElementById('modalStatus').value = order.customStatus || '';
-    document.getElementById('modalReceivedDate').value = order.receivedDate || '';
-    document.getElementById('modalNotes').value = order.notes || '';
-    
-    const isPArt = order.departamento === 'P_Art';
-    document.getElementById('modalDesigner').disabled = !isPArt;
-    document.getElementById('modalStatus').disabled = !isPArt;
-    document.getElementById('addChildOrderBtn').disabled = !isPArt;
+// Modal Editar
+async function openAssignModal(id) {
+    currentEditingOrderId = id;
+    const o = allOrders.find(x => x.orderId === id);
+    if(!o) return;
 
-    const history = firebaseHistoryMap.get(orderId) || [];
-    document.getElementById('modalHistory').innerHTML = history.length 
-        ? history.map(h => `<div class="text-xs border-b py-1"><span class="text-gray-500">${new Date(h.timestamp).toLocaleDateString()}</span> - ${escapeHTML(h.change)}</div>`).join('') 
-        : '<p class="text-gray-400 text-xs text-center">Sin historial</p>';
+    document.getElementById('detailCliente').textContent = o.cliente;
+    document.getElementById('detailCodigo').textContent = o.codigoContrato;
+    document.getElementById('detailEstilo').textContent = o.estilo;
+    document.getElementById('detailFecha').textContent = formatDate(o.fechaDespacho);
+    document.getElementById('detailPiezas').textContent = (o.cantidad + o.childPieces).toLocaleString();
     
-    await loadChildOrders();
+    document.getElementById('modalDesigner').value = o.designer || '';
+    document.getElementById('modalStatus').value = o.customStatus || '';
+    document.getElementById('modalReceivedDate').value = o.receivedDate || '';
+    document.getElementById('modalNotes').value = o.notes || '';
+    
+    // Historial
+    const h = firebaseHistoryMap.get(id) || [];
+    document.getElementById('modalHistory').innerHTML = h.map(x => 
+        `<div class="border-b border-slate-100 pb-1 last:border-0">
+            <span class="font-bold text-slate-700">${new Date(x.timestamp).toLocaleDateString()}</span> 
+            <span class="text-slate-500">${escapeHTML(x.change)}</span>
+         </div>`
+    ).join('') || '<p class="text-slate-400 italic">Sin historial</p>';
+
+    // Hijas
+    const children = firebaseChildOrdersMap.get(id) || [];
+    document.getElementById('childOrderCount').textContent = children.length;
+    document.getElementById('childOrdersList').innerHTML = children.map(c => 
+        `<div class="flex justify-between items-center bg-white p-1.5 rounded border border-slate-100 text-[10px]">
+            <span><strong class="text-blue-600">${c.childCode}</strong> (${c.cantidad} pzs)</span>
+            <button class="btn-delete-child text-red-400 hover:text-red-600" data-child-id="${c.childOrderId}" data-child-code="${c.childCode}">✕</button>
+        </div>`
+    ).join('') || '<p class="text-slate-400 italic text-[10px] p-1">Sin hijas</p>';
+    
     document.getElementById('assignModal').classList.add('active');
     document.body.classList.add('modal-open');
 }
 
-window.closeModal = function() {
-    document.getElementById('assignModal').classList.remove('active');
-    checkAndCloseModalStack(); 
-    currentEditingOrderId = null;
+function closeModal() { 
+    document.querySelectorAll('.modal').forEach(m=>m.classList.remove('active')); 
+    document.body.classList.remove('modal-open'); 
 }
 
-async function asignarmeAmi() {
-    if (!usuarioActual) return;
-    document.getElementById('modalDesigner').value = usuarioActual.displayName;
-}
-
-window.saveAssignment = async function() {
+async function saveAssignment() {
     if (!currentEditingOrderId) return;
     setButtonLoading('saveAssignmentButton', true);
-    
     try {
-        const order = allOrders.find(o => o.orderId === currentEditingOrderId);
-        const newDesigner = document.getElementById('modalDesigner').value;
-        const newStatus = document.getElementById('modalStatus').value;
-        const newReceivedDate = document.getElementById('modalReceivedDate').value;
-        const newNotes = document.getElementById('modalNotes').value;
-
-        if (newReceivedDate && !/^\d{4}-\d{2}-\d{2}$/.test(newReceivedDate)) {
-            showCustomAlert('Formato de fecha inválido (YYYY-MM-DD).', 'error');
-            return;
-        }
-
-        let changes = [];
-        let dataToSave = {};
-
-        if (order.designer !== newDesigner) { changes.push(`Diseñador: ${order.designer} -> ${newDesigner}`); dataToSave.designer = newDesigner; }
-        if (order.customStatus !== newStatus) { 
-            changes.push(`Estado: ${order.customStatus} -> ${newStatus}`); 
-            dataToSave.customStatus = newStatus;
-            if(newStatus === 'Completada') dataToSave.completedDate = new Date().toISOString();
-        }
-        if (order.receivedDate !== newReceivedDate) { changes.push(`Fecha: ${newReceivedDate}`); dataToSave.receivedDate = newReceivedDate; }
-        if (order.notes !== newNotes) { changes.push(`Notas actualizadas`); dataToSave.notes = newNotes; }
-
-        if (changes.length > 0) {
-            await saveAssignmentToDB_Firestore(currentEditingOrderId, dataToSave, changes);
-            showCustomAlert('Guardado.', 'success');
-            closeModal();
-        } else { showCustomAlert('Sin cambios.', 'info'); }
-    } catch (e) { showCustomAlert(e.message, 'error'); logToFirestore('saveAssignment', e); } finally { setButtonLoading('saveAssignmentButton', false); }
-}
-
-function openMultiAssignModal() {
-    if (selectedOrders.size === 0) return;
-    document.getElementById('multiModalCount').textContent = selectedOrders.size;
-    document.getElementById('multiAssignModal').classList.add('active');
-    document.body.classList.add('modal-open');
-}
-function closeMultiModal() {
-    document.getElementById('multiAssignModal').classList.remove('active');
-    checkAndCloseModalStack(); 
-}
-
-async function saveMultiAssignment() {
-    if (selectedOrders.size === 0) return;
-    setButtonLoading('saveMultiAssignmentButton', true);
-
-    try {
-        const newDesigner = document.getElementById('multiModalDesigner').value;
-        const newStatus = document.getElementById('multiModalStatus').value;
-        const newDate = document.getElementById('multiModalReceivedDate').value;
-        const newNotes = document.getElementById('multiModalNotes').value;
-
-        const batch = db_firestore.batch();
-        let count = 0;
-
-        selectedOrders.forEach(orderId => {
-            const order = allOrders.find(o => o.orderId === orderId);
-            if(order && order.departamento === 'P_Art') {
-                const ref = db_firestore.collection('assignments').doc(orderId);
-                let update = { schemaVersion: DB_SCHEMA_VERSION };
-                if(newDesigner) update.designer = newDesigner;
-                if(newStatus) update.customStatus = newStatus;
-                if(newDate) update.receivedDate = newDate;
-                if(newNotes) update.notes = (order.notes ? order.notes + '\n' : '') + newNotes; 
-                
-                batch.set(ref, update, { merge: true });
-                count++;
-            }
-        });
-
-        if(count > 0) await batch.commit();
-        closeMultiModal();
-        clearSelection();
-        showCustomAlert(`${count} órdenes actualizadas.`, 'success');
-    } catch (e) { showCustomAlert(e.message, 'error'); logToFirestore('saveMulti', e); } finally { setButtonLoading('saveMultiAssignmentButton', false); }
-}
-// ======================================================
-// ===== LÓGICA DE UI (GENERAL) =====
-// ======================================================
-
-function updateAllDesignerDropdowns() {
-    const optionsHTML = '<option value="">Todos</option>' + designerList.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
-    const modalOptionsHTML = '<option value="">Sin asignar</option>' + designerList.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
-    
-    const designerFilter = document.getElementById('designerFilter');
-    if (designerFilter) { designerFilter.innerHTML = optionsHTML; designerFilter.value = currentDesignerFilter; }
-    
-    const modalDesigner = document.getElementById('modalDesigner');
-    if (modalDesigner) modalDesigner.innerHTML = modalOptionsHTML;
-    
-    const multiModalDesigner = document.getElementById('multiModalDesigner');
-    if (multiModalDesigner) multiModalDesigner.innerHTML = modalOptionsHTML;
-    
-    const compareSelect = document.getElementById('compareDesignerSelect');
-    if (compareSelect && currentCompareDesigner1) {
-        const others = designerList.filter(d => d !== currentCompareDesigner1);
-        compareSelect.innerHTML = '<option value="">Selecciona uno...</option>' + others.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
-    }
-}
-
-function populateMetricsSidebar() {
-    const sidebarList = document.getElementById('metricsSidebarList');
-    if (!sidebarList) return;
-    sidebarList.innerHTML = '';
-    
-    const unassignedCount = allOrders.filter(o => o.departamento === 'P_Art' && !o.designer).length;
-    if (unassignedCount > 0) {
-        sidebarList.innerHTML += `<button class="filter-btn" data-designer="Sin asignar" id="btn-metric-Sin-asignar"><span>Sin asignar</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${unassignedCount}</span></button>`;
-    }
-    
-    designerList.forEach(name => {
-        const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
-        const count = allOrders.filter(o => o.departamento === 'P_Art' && o.designer === name).length;
-        if (count > 0) {
-            sidebarList.innerHTML += `<button class="filter-btn" data-designer="${escapeHTML(name)}" id="btn-metric-${safeId}"><span>${escapeHTML(name)}</span><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold">${count}</span></button>`;
-        }
-    });
-    
-    if (sidebarList.innerHTML === '') sidebarList.innerHTML = '<p class="text-gray-500 text-center text-sm">No hay diseñadores con órdenes activas</p>';
-}
-
-function populateDesignerManagerModal() {
-    const listDiv = document.getElementById('designerManagerList');
-    if (!listDiv) return;
-    listDiv.innerHTML = '';
-    if (firebaseDesignersMap.size === 0) { listDiv.innerHTML = '<p class="text-gray-500 text-center">No hay diseñadores</p>'; return; }
-    
-    firebaseDesignersMap.forEach((data, docId) => {
-        listDiv.innerHTML += `<div class="flex justify-between items-center p-3 border-b last:border-b-0 hover:bg-gray-50"><div class="leading-tight"><div class="font-medium text-gray-900">${escapeHTML(data.name)}</div><div class="text-xs text-gray-500">${escapeHTML(data.email || 'Sin correo')}</div></div><button class="btn-delete-designer text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50" data-name="${escapeHTML(data.name)}" data-id="${docId}">Eliminar</button></div>`;
-    });
-}
-
-function openDesignerManager() {
-    populateDesignerManagerModal(); 
-    document.getElementById('designerManagerModal').classList.add('active');
-    document.body.classList.add('modal-open');
-}
-function closeDesignerManager() {
-    document.getElementById('designerManagerModal').classList.remove('active');
-    checkAndCloseModalStack();
-}
-
-function toggleOrderSelection(orderId) {
-    if (selectedOrders.has(orderId)) selectedOrders.delete(orderId); else selectedOrders.add(orderId);
-    updateMultiSelectBar(); updateCheckboxes();
-}
-
-function toggleSelectAll() {
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const ordersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art').map(o => o.orderId);
-    if (selectAllCheckbox.checked) ordersOnPage.forEach(id => selectedOrders.add(id));
-    else ordersOnPage.forEach(id => selectedOrders.delete(id));
-    updateMultiSelectBar(); updateCheckboxes();
-}
-
-function clearSelection() {
-    selectedOrders.clear(); updateMultiSelectBar(); updateCheckboxes();
-}
-
-function updateMultiSelectBar() {
-    const bar = document.getElementById('multiSelectBar');
-    const count = document.getElementById('selectedCount');
-    const pageCount = paginatedOrders.filter(o => selectedOrders.has(o.orderId)).length;
-    if (selectedOrders.size > 0) {
-        bar.classList.add('active'); 
-        count.innerHTML = `${selectedOrders.size} <span class="text-xs font-normal text-gray-500">(${pageCount} en esta pág)</span>`;
-    } else { bar.classList.remove('active'); }
-}
-
-function updateCheckboxes() {
-    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-    checkboxes.forEach((checkbox) => {
-        const orderId = checkbox.dataset.orderId;
-        if (orderId) checkbox.checked = selectedOrders.has(orderId);
-    });
-
-    const selectAllCheckbox = document.getElementById('selectAll');
-    if(selectAllCheckbox) {
-        const pArtOrdersOnPage = paginatedOrders.filter(o => o.departamento === 'P_Art');
+        const o = allOrders.find(x => x.orderId === currentEditingOrderId);
+        const designer = document.getElementById('modalDesigner').value;
+        const status = document.getElementById('modalStatus').value;
+        const rDate = document.getElementById('modalReceivedDate').value;
+        const notes = document.getElementById('modalNotes').value;
         
-        if (pArtOrdersOnPage.length === 0) {
-            selectAllCheckbox.checked = false;
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.disabled = true; 
-        } else {
-            selectAllCheckbox.disabled = false;
-            const allSelected = pArtOrdersOnPage.every(order => selectedOrders.has(order.orderId));
-            const someSelected = pArtOrdersOnPage.some(order => selectedOrders.has(order.orderId));
-            
-            selectAllCheckbox.checked = allSelected;
-            selectAllCheckbox.indeterminate = !allSelected && someSelected;
-        }
-    }
+        const changes = [];
+        const data = {};
+        
+        if(o.designer !== designer) { changes.push(`Diseñador: ${designer}`); data.designer = designer; }
+        if(o.customStatus !== status) { changes.push(`Estado: ${status}`); data.customStatus = status; if(status==='Completada') data.completedDate = new Date().toISOString(); }
+        if(o.receivedDate !== rDate) { changes.push(`Fecha Rx: ${rDate}`); data.receivedDate = rDate; }
+        if(o.notes !== notes) { changes.push('Notas actualizadas'); data.notes = notes; }
+        
+        if(changes.length > 0) {
+            await saveAssignmentToDB_Firestore(currentEditingOrderId, data, changes);
+            showCustomAlert('Orden actualizada', 'success');
+            closeModal();
+        } else { showCustomAlert('Sin cambios', 'info'); }
+    } catch(e) { showCustomAlert(e.message, 'error'); } 
+    finally { setButtonLoading('saveAssignmentButton', false); }
 }
 
-function getWeekIdentifierString(d) {
-    const date = new Date(d.getTime());
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
-    var week1 = new Date(date.getFullYear(), 0, 4);
-    var week = 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-    return `${date.getFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
-async function addSelectedToWorkPlan() {
-    if (selectedOrders.size === 0) return;
-    const weekIdentifier = getWeekIdentifierString(new Date());
-    let addedCount = 0;
-    for (const orderId of selectedOrders) {
-        const order = allOrders.find(o => o.orderId === orderId);
-        if (order && order.departamento === 'P_Art' && order.designer) {
-            if (await addOrderToWorkPlanDB(order, weekIdentifier)) addedCount++;
-        }
-    }
-    showCustomAlert(`Se agregaron ${addedCount} órdenes al plan ${weekIdentifier}.`, 'success');
-    clearSelection();
-}
-
-function setupPagination(filteredOrders) {
-    const totalItems = filteredOrders.length;
-    const totalPages = Math.ceil(totalItems / rowsPerPage);
-    if (currentPage > totalPages) currentPage = totalPages || 1;
-    if (currentPage < 1) currentPage = 1;
-    const start = (currentPage - 1) * rowsPerPage;
-    paginatedOrders = filteredOrders.slice(start, start + rowsPerPage);
-    document.getElementById('currentPage').textContent = currentPage;
-    document.getElementById('totalPages').textContent = totalPages || 1;
-    renderPaginationControls(totalPages);
-}
-
-function renderPaginationControls(totalPages) {
-    const controlsDiv = document.getElementById('paginationControls');
-    if (!controlsDiv) return;
-    let html = `<button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
-    let start = Math.max(1, currentPage - 2);
-    let end = Math.min(totalPages, start + 4);
-    if (end - start < 4) start = Math.max(1, end - 4);
-    for (let i = start; i <= end; i++) { html += `<button onclick="changePage(${i})" class="${i === currentPage ? 'active' : ''}">${i}</button>`; }
-    html += `<button onclick="changePage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>&raquo;</button>`;
-    controlsDiv.innerHTML = html;
-}
-window.changePage = function(page) { currentPage = page; updateTable(); }
-window.changeRowsPerPage = function() { rowsPerPage = parseInt(document.getElementById('rowsPerPage').value); currentPage = 1; updateTable(); }
-
-async function updateDashboard() {
-    if (!isExcelLoaded) return;
-    if (needsRecalculation) recalculateChildPieces();
-    const artOrders = allOrders.filter(o => o.departamento === 'P_Art');
-    const stats = calculateStats(artOrders);
-    updateStats(stats); updateAlerts(stats); populateFilterDropdowns(); updateTable(); generateReports();
-}
-
-function calculateStats(orders) {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const weekEnd = new Date(today); weekEnd.setDate(today.getDate()+7);
-    return {
-        total: orders.length,
-        totalPieces: orders.reduce((s, o) => s + (o.cantidad||0) + (o.childPieces||0), 0),
-        late: orders.filter(o => o.isLate).length,
-        veryLate: orders.filter(o => o.isVeryLate).length,
-        aboutToExpire: orders.filter(o => o.isAboutToExpire).length,
-        onTime: orders.filter(o => !o.isLate && !o.isAboutToExpire).length,
-        thisWeek: orders.filter(o => o.fechaDespacho && o.fechaDespacho >= today && o.fechaDespacho <= weekEnd).length
-    };
-}
-
-function updateStats(stats) {
-    document.getElementById('statTotal').textContent = stats.total;
-    document.getElementById('statTotalPieces').textContent = stats.totalPieces.toLocaleString();
-    document.getElementById('statLate').textContent = stats.late;
-    document.getElementById('statExpiring').textContent = stats.aboutToExpire;
-    document.getElementById('statOnTime').textContent = stats.onTime;
-    document.getElementById('statThisWeek').textContent = stats.thisWeek;
-}
-
-
-
-function updateTable() {
-    const filtered = getFilteredOrders();
-    const body = document.getElementById('tableBody');
-    
-    setupPagination(filtered);
-    
-    document.getElementById('resultCount').textContent = filtered.length;
-    document.getElementById('totalCount').textContent = allOrders.length;
-    document.getElementById('resultPieces').textContent = filtered.reduce((s,o)=>s+(o.cantidad||0)+(o.childPieces||0),0).toLocaleString();
-
-    if (paginatedOrders.length === 0) {
-        body.innerHTML = `
-            <tr>
-                <td colspan="14" class="text-center py-12">
-                    <div class="flex flex-col items-center justify-center text-gray-400">
-                        <i class="fa-solid fa-magnifying-glass text-4xl mb-4 text-gray-300"></i>
-                        <p class="text-lg font-medium">No se encontraron órdenes</p>
-                        <p class="text-sm">Intenta ajustar los filtros o la búsqueda.</p>
-                        <button onclick="clearAllFilters()" class="mt-4 text-blue-600 hover:underline font-medium">Limpiar filtros</button>
-                    </div>
-                </td>
-            </tr>`;
-    } else {
-        body.innerHTML = paginatedOrders.map(order => {
-            const hasChildren = order.childPieces > 0;
-            const rowClass = order.isVeryLate ? 'very-late' : order.isLate ? 'late' : order.isAboutToExpire ? 'expiring' : '';
-            const receivedDateStr = order.receivedDate ? order.receivedDate.split('-').reverse().join('/') : '-';
-
-            return `
-            <tr class="${rowClass} cursor-pointer transition-colors hover:bg-blue-50" onclick="openAssignModal('${order.orderId}')">
-                <td class="px-6 py-4" data-label="Seleccionar" onclick="event.stopPropagation()">
-                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')">` : ''}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap" data-label="Estado">${getStatusBadge(order)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" data-label="Cliente" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Código">${escapeHTML(order.codigoContrato)}${hasChildren ? '<span class="ml-1 text-blue-600 text-xs font-bold">(Hijas)</span>' : ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Estilo" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Team">${escapeHTML(order.teamName)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-xs" data-label="Depto"><span class="bg-gray-100 px-2 py-1 rounded border">${escapeHTML(order.departamento)}</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm" data-label="Diseñador">${order.designer ? `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">${escapeHTML(order.designer)}</span>` : '<span class="text-gray-400 text-xs italic">Sin asignar</span>'}</td>
-                <td class="px-6 py-4 whitespace-nowrap" data-label="Estado Orden">${getCustomStatusBadge(order.customStatus)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Recibida">${receivedDateStr}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600" data-label="Cant.">${(order.cantidad||0).toLocaleString()}</td>
-                <td class="px-6 py-4 text-center" data-label="Notas">${order.notes ? '📝' : '-'}</td>
-                <td class="px-6 py-4 text-sm" data-label="Acción"><button class="text-blue-600 hover:underline font-medium">Editar</button></td>
-            </tr>`;
-        }).join('');
-    }
-    updateCheckboxes();
-}
-
-function getFilteredOrders() {
-    let res = allOrders;
-    if (currentSearch) {
-        const s = currentSearch.toLowerCase();
-        res = res.filter(o => (o.cliente||'').toLowerCase().includes(s) || (o.codigoContrato||'').toLowerCase().includes(s) || (o.estilo||'').toLowerCase().includes(s) || (o.designer||'').toLowerCase().includes(s));
-    }
-    if (currentClientFilter) res = res.filter(o => o.cliente === currentClientFilter);
-    if (currentStyleFilter) res = res.filter(o => o.estilo === currentStyleFilter);
-    if (currentTeamFilter) res = res.filter(o => o.teamName === currentTeamFilter);
-    
-    if (currentDepartamentoFilter) res = res.filter(o => o.departamento === currentDepartamentoFilter);
-    else res = res.filter(o => o.departamento === 'P_Art'); 
-    
-    if (currentDesignerFilter) res = res.filter(o => o.designer === currentDesignerFilter);
-    if (currentCustomStatusFilter) res = res.filter(o => o.customStatus === currentCustomStatusFilter);
-    if (currentDateFrom) res = res.filter(o => o.fechaDespacho && o.fechaDespacho >= new Date(currentDateFrom + 'T00:00:00'));
-    if (currentDateTo) res = res.filter(o => o.fechaDespacho && o.fechaDespacho <= new Date(currentDateTo + 'T23:59:59'));
-    
-    if (currentFilter === 'late') res = res.filter(o => o.isLate);
-    else if (currentFilter === 'veryLate') res = res.filter(o => o.isVeryLate);
-    else if (currentFilter === 'aboutToExpire') res = res.filter(o => o.isAboutToExpire);
-    
-    if (sortConfig.key) {
-        res.sort((a,b) => {
-            let va = a[sortConfig.key], vb = b[sortConfig.key];
-            if (sortConfig.key === 'date') { va = a.fechaDespacho?.getTime()||0; vb = b.fechaDespacho?.getTime()||0; }
-            if (sortConfig.key === 'status') { va = a.isVeryLate?4:a.isLate?3:a.isAboutToExpire?2:1; vb = b.isVeryLate?4:b.isLate?3:b.isAboutToExpire?2:1; }
-            return (va < vb ? -1 : 1) * (sortConfig.direction === 'asc' ? 1 : -1);
-        });
-    }
-    return res;
-}
-
-function getStatusBadge(order) {
-    if (order.isVeryLate) return `<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold border border-red-200">MUY ATRASADA</span>`;
-    if (order.isLate) return `<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-xs font-bold border border-orange-200">ATRASADA</span>`;
-    if (order.isAboutToExpire) return `<span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-bold border border-yellow-200">URGENTE</span>`;
-    return `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-medium border border-green-200">A TIEMPO</span>`;
-}
-function getCustomStatusBadge(status) {
-    const map = { 'Bandeja': 'bg-yellow-100 text-yellow-800', 'Producción': 'bg-purple-100 text-purple-800', 'Auditoría': 'bg-blue-100 text-blue-800', 'Completada': 'bg-gray-100 text-gray-600' };
-    return status ? `<span class="${map[status] || 'bg-gray-100'} px-2 py-0.5 rounded text-xs font-bold border border-gray-200">${status}</span>` : '-';
-}
-function formatDate(date) {
-    return date ? date.toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '-';
-}
-function populateFilterDropdowns() {
-    const populate = (id, key) => {
-        const sel = document.getElementById(id);
-        if(!sel) return;
-        const opts = [...new Set(allOrders.map(o=>o[key]).filter(Boolean))].sort();
-        sel.innerHTML = '<option value="">Todos</option>' + opts.map(o=>`<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('');
-        if (id==='clientFilter') sel.value = currentClientFilter; 
-    };
-    populate('clientFilter', 'cliente');
-    populate('styleFilter', 'estilo');
-    populate('teamFilter', 'teamName');
-    populate('departamentoFilter', 'departamento');
-    updateAllDesignerDropdowns();
-}
-
-function clearAllFilters() {
-    currentSearch = '';
-    currentClientFilter = '';
-    currentStyleFilter = '';
-    currentTeamFilter = '';
-    currentDepartamentoFilter = ''; 
-    currentDesignerFilter = '';
-    currentCustomStatusFilter = '';
-    currentDateFrom = '';
-    currentDateTo = '';
-    currentFilter = 'all';
-
-    document.querySelectorAll('.filter-item select, .filter-item input').forEach(el => {
-        el.value = '';
-    });
-
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) searchInput.value = '';
-
-    currentPage = 1;
-    updateTable();
-}
-
-function setFilter(f) { currentFilter = f; currentPage = 1; updateDashboard(); }
-function sortTable(k) { 
-    sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc';
-    sortConfig.key = k; 
-    updateTable(); 
-}
-
-// === NUEVA FUNCIONALIDAD: Exportar a Excel ===
-function exportTableToExcel() {
-    if (allOrders.length === 0) { showCustomAlert('No hay datos para exportar.', 'error'); return; }
-    
-    const filtered = getFilteredOrders();
-    const dataToExport = filtered.map(o => ({
-        "Cliente": o.cliente,
-        "Código": o.codigoContrato,
-        "Estilo": o.estilo,
-        "Departamento": o.departamento,
-        "Fecha Despacho": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
-        "Diseñador": o.designer,
-        "Estado Interno": o.customStatus,
-        "Fecha Recibido": o.receivedDate,
-        "Cantidad": o.cantidad,
-        "Notas": o.notes
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Ordenes Filtradas");
-    XLSX.writeFile(wb, `Reporte_Panel_Arte_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
-
-function generateSummary() {
-    const summaryBox = document.getElementById('summaryBox');
-    if (!summaryBox) return;
-    
-    const stats = calculateStats(allOrders.filter(o => o.departamento === 'P_Art'));
-    summaryBox.innerHTML = `
-        <div class="flex justify-between items-center">
-            <div>
-                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-line text-blue-600"></i> Resumen General
-                </h3>
-                <p class="text-xs text-gray-500 mt-1">Actualizado: ${new Date().toLocaleTimeString()}</p>
-            </div>
-            <div class="flex gap-8">
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-blue-600">${stats.total}</div>
-                    <div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Órdenes</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-purple-600">${stats.totalPieces.toLocaleString()}</div>
-                    <div class="text-xs text-gray-500 uppercase font-bold tracking-wide">Piezas</div>
-                </div>
-            </div>
-        </div>`;
-}
-
-function generateWorkloadReport() {
-    const designerStats = {};
-    designerList.forEach(d => designerStats[d] = { orders: 0, pieces: 0 });
-    let total = 0;
-    allOrders.forEach(o => {
-        if (o.departamento === 'P_Art' && o.designer && designerStats[o.designer]) {
-            const p = (o.cantidad||0) + (o.childPieces||0);
-            designerStats[o.designer].orders++;
-            designerStats[o.designer].pieces += p;
-            if (o.designer !== EXCLUDE_DESIGNER_NAME) total += p;
-        }
-    });
-    document.getElementById('workloadTotal').textContent = `${total.toLocaleString()} pzs`;
-    const html = designerList.map(d => {
-        const s = designerStats[d];
-        const isEx = d === EXCLUDE_DESIGNER_NAME;
-        const pct = (total > 0 && !isEx) ? ((s.pieces/total)*100).toFixed(1) : 0;
-        return `
-        <div class="mb-3">
-            <div class="flex justify-between text-sm mb-1">
-                <span class="font-medium text-gray-700">${d}</span>
-                <span class="text-gray-600">${s.pieces.toLocaleString()} (${isEx?'-':pct+'%'})</span>
-            </div>
-            <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div class="h-full bg-blue-500 rounded-full" style="width:${isEx?0:pct}%"></div>
-            </div>
-        </div>`;
-    }).join('');
-    document.getElementById('workloadList').innerHTML = html;
-}
-
-function generateReports() {
-    generateWorkloadReport();
-    const clients = {};
-    allOrders.forEach(o => { if(o.cliente) clients[o.cliente] = (clients[o.cliente]||0)+1; });
-    const top = Object.entries(clients).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    document.getElementById('clientReport').innerHTML = top.map(([c,n], i) => `
-        <div class="flex justify-between items-center border-b border-gray-100 py-2 last:border-0">
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-gray-400 w-4">${i+1}</span>
-                <span class="text-sm text-gray-700 truncate max-w-[150px]" title="${c}">${c}</span>
-            </div>
-            <strong class="text-sm text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${n}</strong>
-        </div>`).join('');
-}
-
-function openWeeklyReportModal() {
-    document.getElementById('weeklyReportModal').classList.add('active');
-    document.body.classList.add('modal-open');
-}
-function closeWeeklyReportModal() {
-    document.getElementById('weeklyReportModal').classList.remove('active');
-    checkAndCloseModalStack();
-}
-
-function destroyAllCharts() {
-    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
-    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
-    if (designerActivityChart) { designerActivityChart.destroy(); designerActivityChart = null; }
-    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
-    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
-    if (deptProductivityChart) { deptProductivityChart.destroy(); deptProductivityChart = null; }
-    if (compareChart) { compareChart.destroy(); compareChart = null; }
-}
-
-function showMetricsView() {
-    document.getElementById('dashboard').style.display = 'none';
-    document.getElementById('designerMetricsView').style.display = 'block';
-    populateMetricsSidebar();
-}
-function hideMetricsView() {
-    document.getElementById('designerMetricsView').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-    destroyAllCharts(); 
-}
-
-function showDepartmentMetrics() {
-    document.getElementById('dashboard').style.display = 'none';
-    document.getElementById('departmentMetricsView').style.display = 'block';
-    generateDepartmentMetrics();
-}
-function hideDepartmentMetrics() {
-    document.getElementById('departmentMetricsView').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-    destroyAllCharts(); 
-}
-
-function openCompareModal(name1) {
-    currentCompareDesigner1 = name1;
-    document.getElementById('compareDesigner1Name').textContent = name1;
-    updateAllDesignerDropdowns(); 
-    document.getElementById('selectCompareModal').classList.add('active');
-    document.body.classList.add('modal-open');
-}
-function closeCompareModals() {
-    document.getElementById('selectCompareModal').classList.remove('active');
-    document.getElementById('compareModal').classList.remove('active');
-    checkAndCloseModalStack();
-    destroyAllCharts(); 
-}
-function startComparison() {
-    const name2 = document.getElementById('compareDesignerSelect').value;
-    if(!name2) return;
-    generateCompareReport(currentCompareDesigner1, name2);
-}
-
-function resetApp() {
-    showConfirmModal("¿Subir nuevo Excel? Se limpiarán los datos locales.", () => {
-        allOrders = []; isExcelLoaded = false;
-        document.getElementById('dashboard').style.display = 'none';
-        document.getElementById('uploadSection').style.display = 'block';
-        document.getElementById('fileInput').value = '';
-        document.getElementById('fileName').textContent = '';
-        desconectarDatosDeFirebase(); 
-    });
-}
-
-function showWorkPlanView() {
-    document.getElementById('dashboard').style.display = 'none';
-    document.getElementById('workPlanView').style.display = 'block';
-    generateWorkPlan(); 
-}
-function hideWorkPlanView() {
-    document.getElementById('workPlanView').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-}
-
-function getWeekDateRange(year, week) {
-    const d = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-    const day = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 1 - day); 
-    const startDate = new Date(d);
-    const endDate = new Date(d);
-    endDate.setUTCDate(endDate.getUTCDate() + 6); 
-    return { startDate, endDate };
-}
-
-function generateWeeklyReport() {
-    const spinner = document.getElementById('weeklyReportSpinner');
-    const contentDiv = document.getElementById('weeklyReportContent');
-    spinner.style.display = 'block'; contentDiv.innerHTML = ''; 
-
-    setTimeout(() => {
-        try {
-            const weekValue = document.getElementById('weekSelector').value;
-            if (!weekValue) { contentDiv.innerHTML = '<p class="text-center py-4 text-gray-500">Por favor, selecciona una semana.</p>'; spinner.style.display = 'none'; return; }
-            
-            const [year, week] = weekValue.split('-W').map(Number);
-            const { startDate, endDate } = getWeekDateRange(year, week);
-            endDate.setUTCHours(23, 59, 59, 999);
-
-            const filteredOrders = allOrders.filter(order => {
-                if (!order.receivedDate) return false;
-                const receivedDate = new Date(order.receivedDate + 'T00:00:00Z'); 
-                return receivedDate >= startDate && receivedDate <= endDate;
-            });
-
-            let reportHTML = `<h4 class="text-lg font-semibold text-gray-800 mt-4 mb-4 border-b pb-2">Semana: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</h4><div class="table-container border rounded-lg overflow-hidden mt-4 max-h-96 overflow-y-auto"><table id="weeklyReportTable" class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
-
-            if (filteredOrders.length > 0) {
-                filteredOrders.sort((a,b) => new Date(a.receivedDate) - new Date(b.receivedDate));
-                let totalPieces = 0;
-                filteredOrders.forEach(order => {
-                    const p = (order.cantidad || 0) + (order.childPieces || 0);
-                    totalPieces += p;
-                    reportHTML += `<tr><td class="px-4 py-2 text-sm">${new Date(order.receivedDate + 'T00:00:00Z').toLocaleDateString()}</td><td class="px-4 py-2 text-sm font-medium">${escapeHTML(order.cliente)}</td><td class="px-4 py-2 text-sm text-gray-500">${escapeHTML(order.codigoContrato)}</td><td class="px-4 py-2 text-sm">${escapeHTML(order.designer) || '-'}</td><td class="px-4 py-2 text-sm font-bold text-gray-800">${p.toLocaleString()}</td></tr>`;
-                });
-                reportHTML += `<tr class="bg-gray-100 font-bold"><td colspan="4" class="px-4 py-2 text-right">Total:</td><td class="px-4 py-2">${totalPieces.toLocaleString()}</td></tr>`;
-            } else { reportHTML += '<tr><td colspan="5" class="text-center py-12 text-gray-400"><i class="fa-regular fa-folder-open text-2xl mb-2 block"></i>No hay órdenes recibidas esta semana.</td></tr>'; }
-            reportHTML += `</tbody></table></div>`;
-            contentDiv.innerHTML = reportHTML;
-        } catch (e) { console.error(e); contentDiv.innerHTML = '<p class="text-red-500">Error generando reporte.</p>'; }
-        finally { spinner.style.display = 'none'; }
-    }, 50);
-}
-
-async function generateDesignerMetrics(designerName) {
-    const contentDiv = document.getElementById('metricsDetail');
-    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center mt-4 text-gray-500">Cargando métricas...</p>';
-    
-    destroyAllCharts(); 
-    currentDesignerTableFilter = { search: '', cliente: '', estado: '', fechaDesde: '', fechaHasta: '' };
-    
-    document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(btn => btn.classList.remove('active'));
-    const safeId = designerName.replace(/[^a-zA-Z0-9]/g, '-');
-    const btn = document.getElementById(`btn-metric-${safeId}`);
-    if(btn) btn.classList.add('active');
-
-    const isUnassigned = designerName === 'Sin asignar';
-    const designerOrders = allOrders.filter(o => o.departamento === 'P_Art' && (isUnassigned ? !o.designer : o.designer === designerName));
-    
-    setTimeout(() => {
-        const safeName = escapeHTML(designerName);
-        contentDiv.innerHTML = `
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 class="text-2xl font-bold text-gray-800">${safeName}</h2>
-                <div class="flex gap-2">
-                    <button class="px-3 py-2 bg-green-600 text-white rounded shadow text-sm hover:bg-green-700 transition" onclick="exportDesignerMetricsPDF('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-file-pdf mr-1"></i> PDF</button>
-                    <button class="px-3 py-2 bg-white border rounded shadow text-sm hover:bg-gray-50 transition" onclick="openCompareModal('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-scale-balanced mr-1"></i> Comparar</button>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div class="chart-container h-64 bg-white p-4 rounded-lg shadow-sm border border-gray-100 relative">
-                    <canvas id="designerDoughnutChartCanvas"></canvas>
-                </div>
-                <div class="chart-container h-64 bg-white p-4 rounded-lg shadow-sm border border-gray-100 relative">
-                    <canvas id="designerBarChartCanvas"></canvas>
-                </div>
-            </div>
-            <div id="designerOrdersTableContainer" class="mt-6"></div>
-        `;
-        renderDesignerOrdersTable(designerName);
-        initDesignerCharts(designerOrders);
-    }, 100);
-}
-
-function renderDesignerOrdersTable(designerName) {
-    const container = document.getElementById('designerOrdersTableContainer');
-    if (!container) return;
-    const isUnassigned = designerName === 'Sin asignar';
-    let orders = allOrders.filter(o => (isUnassigned ? !o.designer : o.designer === designerName) && o.departamento === 'P_Art');
-    
-    let html = `<div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Estado</th>
-                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Cliente</th>
-                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Estilo</th>
-                    <th class="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Piezas</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">`;
-            
-    if (orders.length === 0) html += `<tr><td colspan="4" class="p-8 text-center text-gray-400">Sin órdenes activas</td></tr>`;
-    else {
-        orders.forEach(o => { 
-            html += `
-            <tr class="hover:bg-gray-50 transition">
-                <td class="px-4 py-2">${getStatusBadge(o)}</td>
-                <td class="px-4 py-2 font-medium">${escapeHTML(o.cliente)}</td>
-                <td class="px-4 py-2 text-gray-500">${escapeHTML(o.estilo)}</td>
-                <td class="px-4 py-2 font-bold text-blue-600">${((o.cantidad||0)+(o.childPieces||0)).toLocaleString()}</td>
-            </tr>`; 
-        });
-    }
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
-}
-
-function initDesignerCharts(orders) {
-    const statusCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
-    const piecesCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
-    orders.forEach(o => {
-        const s = o.customStatus || 'Sin estado';
-        const p = (o.cantidad||0) + (o.childPieces||0);
-        if(statusCounts[s] !== undefined) { statusCounts[s]++; piecesCounts[s] += p; }
-    });
-    const colors = ['#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#6B7280']; 
-    
-    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
-    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
-
-    const ctx1 = document.getElementById('designerDoughnutChartCanvas')?.getContext('2d');
-    if (ctx1) {
-        designerDoughnutChart = new Chart(ctx1, {
-            type: 'doughnut',
-            data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: colors }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Órdenes por Estado' }, legend: { position: 'right' } } }
-        });
-    }
-    const ctx2 = document.getElementById('designerBarChartCanvas')?.getContext('2d');
-    if (ctx2) {
-        designerBarChart = new Chart(ctx2, {
-            type: 'bar',
-            data: { labels: Object.keys(piecesCounts), datasets: [{ label: 'Piezas', data: Object.values(piecesCounts), backgroundColor: colors }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Carga de Piezas' }, legend: {display: false} }, scales: { y: { beginAtZero: true } } }
-        });
-    }
-}
-
-function generateCompareReport(name1, name2) {
-    const pArt = allOrders.filter(o => o.departamento === 'P_Art');
-    const o1 = pArt.filter(o => o.designer === name1);
-    const o2 = pArt.filter(o => o.designer === name2);
-    const s1 = calculateStats(o1);
-    const s2 = calculateStats(o2);
-    
-    document.getElementById('compareTableContainer').innerHTML = `
-        <table class="min-w-full divide-y divide-gray-200 mt-4 text-sm border border-gray-200 rounded-lg overflow-hidden">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 font-bold text-gray-700">Métrica</th>
-                    <th class="px-4 py-3 font-bold text-gray-700">${escapeHTML(name1)}</th>
-                    <th class="px-4 py-3 font-bold text-gray-700">${escapeHTML(name2)}</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 bg-white">
-                <tr><td class="px-4 py-3 text-gray-600">Total Órdenes</td><td class="px-4 py-3 text-center font-bold value-a">${s1.total}</td><td class="px-4 py-3 text-center font-bold value-b">${s2.total}</td></tr>
-                <tr><td class="px-4 py-3 text-gray-600">Total Piezas</td><td class="px-4 py-3 text-center text-blue-600 font-bold value-a">${s1.totalPieces.toLocaleString()}</td><td class="px-4 py-3 text-center text-blue-600 font-bold value-b">${s2.totalPieces.toLocaleString()}</td></tr>
-                <tr><td class="px-4 py-3 text-gray-600">Atrasadas</td><td class="px-4 py-3 text-center text-red-600 font-bold value-a">${s1.late}</td><td class="px-4 py-3 text-center text-red-600 font-bold value-b">${s2.late}</td></tr>
-            </tbody>
-        </table>`;
-    
-    const ctx = document.getElementById('compareChartCanvas').getContext('2d');
-    if(compareChart) compareChart.destroy();
-    compareChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: ['Total Piezas', 'Atrasadas'], datasets: [{ label: name1, data: [s1.totalPieces, s1.late], backgroundColor: 'rgba(59, 130, 246, 0.7)' }, { label: name2, data: [s2.totalPieces, s2.late], backgroundColor: 'rgba(245, 158, 11, 0.7)' }] },
-        options: { responsive: true, maintainAspectRatio: false }
-    });
-    document.getElementById('selectCompareModal').classList.remove('active');
-    document.getElementById('compareModal').classList.add('active');
-}
-
-function exportWeeklyReportAsPDF() {
-    try {
-        const table = document.getElementById('weeklyReportTable');
-        if (!table) { showCustomAlert('No hay datos para exportar.', 'error'); return; }
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const weekText = document.getElementById('weekSelector').value;
-        doc.text(`Reporte Semanal: ${weekText}`, 14, 15);
-        doc.autoTable({ html: '#weeklyReportTable', startY: 20, theme: 'grid' });
-        doc.save(`Reporte_${weekText}.pdf`);
-    } catch (e) { console.error(e); showCustomAlert('Error al exportar PDF.', 'error'); }
-}
-
-function exportDesignerMetricsPDF(name) {
-    try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text(`Métricas: ${name}`, 14, 15);
-        doc.setFontSize(10);
-        doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 22);
-        const orders = allOrders.filter(o => o.designer === name && o.departamento === 'P_Art');
-        const rows = orders.map(o => [o.cliente, o.codigoContrato, o.estilo, o.customStatus, (o.cantidad + o.childPieces).toLocaleString()]);
-        doc.autoTable({ head: [['Cliente', 'Código', 'Estilo', 'Estado', 'Piezas']], body: rows, startY: 30 });
-        doc.save(`Metricas_${name.replace(/\s/g,'_')}.pdf`);
-    } catch (e) { console.error(e); showCustomAlert('Error exportando PDF.', 'error'); }
-}
-
-function generateDepartmentMetrics() {
-    const contentDiv = document.getElementById('departmentMetricsContent');
-    if (!contentDiv) return;
-    destroyAllCharts(); 
-    contentDiv.innerHTML = '<div class="spinner"></div><p class="text-center text-gray-500 mt-4">Calculando métricas globales...</p>';
-    setTimeout(() => {
-        const activeOrders = allOrders.filter(o => o.departamento === 'P_Art');
-        const totalOrders = activeOrders.length;
-        const totalPieces = activeOrders.reduce((sum, o) => sum + (o.cantidad || 0) + (o.childPieces || 0), 0);
-        const statusCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0, 'Sin estado': 0 };
-        activeOrders.forEach(o => {
-            const s = o.customStatus || 'Sin estado';
-            if (statusCounts[s] !== undefined) statusCounts[s]++; else statusCounts['Sin estado']++;
-        });
-        const designerLoad = {};
-        activeOrders.forEach(o => {
-            if (o.designer && o.designer !== EXCLUDE_DESIGNER_NAME) {
-                if (!designerLoad[o.designer]) designerLoad[o.designer] = 0;
-                designerLoad[o.designer] += (o.cantidad || 0) + (o.childPieces || 0);
-            }
-        });
-
-        contentDiv.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Órdenes Activas</h3><p class="text-3xl font-bold text-gray-900 mt-2">${totalOrders}</p></div><div class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Piezas Totales</h3><p class="text-3xl font-bold text-gray-900 mt-2">${totalPieces.toLocaleString()}</p></div><div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-600"><h3 class="text-gray-500 text-xs uppercase font-bold tracking-wider">Diseñadores Activos</h3><p class="text-3xl font-bold text-gray-900 mt-2">${Object.keys(designerLoad).length}</p></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-4 rounded-lg shadow border border-gray-100"><h4 class="font-bold mb-4 text-gray-700">Distribución por Estado</h4><div class="h-64"><canvas id="deptLoadPieChartCanvas"></canvas></div></div><div class="bg-white p-4 rounded-lg shadow border border-gray-100"><h4 class="font-bold mb-4 text-gray-700">Carga por Diseñador (Piezas)</h4><div class="h-64"><canvas id="deptLoadBarChartCanvas"></canvas></div></div></div>`;
-
-        const ctxPie = document.getElementById('deptLoadPieChartCanvas').getContext('2d');
-        deptLoadPieChart = new Chart(ctxPie, {
-            type: 'pie',
-            data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#9CA3AF'] }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-        });
-        const ctxBar = document.getElementById('deptLoadBarChartCanvas').getContext('2d');
-        const sortedDesigners = Object.entries(designerLoad).sort((a,b) => b[1] - a[1]);
-        deptLoadBarChart = new Chart(ctxBar, {
-            type: 'bar',
-            data: { labels: sortedDesigners.map(d => d[0]), datasets: [{ label: 'Piezas Asignadas', data: sortedDesigners.map(d => d[1]), backgroundColor: '#3B82F6' }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
-        });
-    }, 100);
-}
+// ======================================================
+// ===== PLAN SEMANAL (MEJORADO) =====
+// ======================================================
 
 function generateWorkPlan() {
     const container = document.getElementById('view-workPlanContent');
     const weekInput = document.getElementById('view-workPlanWeekSelector');
-    const summarySpan = document.getElementById('view-workPlanSummary');
     
     if (!weekInput.value) weekInput.value = getWeekIdentifierString(new Date());
     const weekIdentifier = weekInput.value;
+    
     container.innerHTML = '<div class="spinner"></div>';
 
-    const planData = firebaseWeeklyPlanMap.get(weekIdentifier) || [];
-
     setTimeout(() => {
+        const planData = firebaseWeeklyPlanMap.get(weekIdentifier) || [];
+        
         if (planData.length === 0) {
-            container.innerHTML = `<div class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300"><i class="fa-solid fa-calendar-xmark text-4xl text-gray-300 mb-3"></i><p class="text-gray-500 mb-2 font-medium">El plan para la semana ${weekIdentifier} está vacío.</p><p class="text-xs text-gray-400">Usa el botón "Cargar Urgentes" o selecciona órdenes desde el Dashboard.</p></div>`;
-            summarySpan.textContent = '0 órdenes'; return;
+            container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50"><p class="text-slate-400 font-medium">Plan vacío para ${weekIdentifier}</p></div>`;
+            document.getElementById('view-workPlanSummary').textContent = "0 órdenes";
+            return;
         }
 
-        let totalPieces = 0;
-        let completedCount = 0;
+        let totalPzs = 0;
+        let doneCount = 0;
 
+        // Ordenar: Completadas al final, luego por prioridad
         planData.sort((a, b) => {
-            const orderA = allOrders.find(o => o.orderId === a.orderId);
-            const orderB = allOrders.find(o => o.orderId === b.orderId);
-            const isDoneA = orderA && orderA.customStatus === 'Completada';
-            const isDoneB = orderB && orderB.customStatus === 'Completada';
-
-            if (isDoneA && !isDoneB) return 1; 
-            if (!isDoneA && isDoneB) return -1; 
+            const oA = allOrders.find(o => o.orderId === a.orderId);
+            const oB = allOrders.find(o => o.orderId === b.orderId);
+            const doneA = oA && oA.customStatus === 'Completada';
+            const doneB = oB && oB.customStatus === 'Completada';
             
+            if (doneA && !doneB) return 1;
+            if (!doneA && doneB) return -1;
             return (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1;
         });
 
-        let html = `<div class="bg-white rounded-lg shadow overflow-hidden border border-gray-200"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente / Estilo</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrega</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+        let html = `<div class="bg-white rounded-lg shadow border border-slate-200 overflow-hidden"><table class="min-w-full divide-y divide-slate-200 text-xs">
+            <thead class="bg-slate-50 font-bold text-slate-500 uppercase"><tr><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-left">Orden</th><th class="px-4 py-3 text-left">Diseñador</th><th class="px-4 py-3 text-left">Entrega</th><th class="px-4 py-3 text-right">Piezas</th><th class="px-4 py-3"></th></tr></thead>
+            <tbody class="divide-y divide-slate-100">`;
 
         planData.forEach(item => {
             const liveOrder = allOrders.find(o => o.orderId === item.orderId);
-            const currentStatus = liveOrder ? liveOrder.customStatus : '';
-            const isCompleted = currentStatus === 'Completada';
+            const isCompleted = liveOrder && liveOrder.customStatus === 'Completada';
+            const pzs = (item.cantidad||0) + (item.childPieces||0);
+            totalPzs += pzs;
+            if(isCompleted) doneCount++;
 
-            const pieces = (item.cantidad || 0) + (item.childPieces || 0);
-            totalPieces += pieces;
-            if (isCompleted) completedCount++;
-
-            let statusBadge = '';
-            let rowClasses = 'transition border-b last:border-b-0 ';
-
-            if (isCompleted) {
-                statusBadge = '<span class="bg-slate-600 text-white text-xs px-2 py-1 rounded font-bold shadow-sm"><i class="fa-solid fa-check mr-1"></i>LISTO</span>';
-                rowClasses += 'bg-gray-50 opacity-60 grayscale'; 
-            } else if (item.isLate) {
-                statusBadge = '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold border border-red-200">ATRASADA</span>';
-                rowClasses += 'hover:bg-red-50';
-            } else if (item.isAboutToExpire) {
-                statusBadge = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold border border-yellow-200">URGENTE</span>';
-                rowClasses += 'hover:bg-yellow-50';
+            let badge = '', rowClass = '';
+            if(isCompleted) {
+                badge = `<span class="bg-slate-600 text-white px-2 py-1 rounded font-bold flex items-center gap-1 w-fit"><i class="fa-solid fa-check"></i> LISTO</span>`;
+                rowClass = 'bg-slate-50 opacity-60 grayscale';
+            } else if(item.isLate) {
+                badge = `<span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold border border-red-200">ATRASADA</span>`;
+            } else if(item.isAboutToExpire) {
+                badge = `<span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold border border-yellow-200">URGENTE</span>`;
             } else {
-                statusBadge = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded border border-green-200">En Proceso</span>';
-                rowClasses += 'hover:bg-gray-50';
+                badge = `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded font-bold border border-blue-100">En Proceso</span>`;
             }
 
-            html += `<tr class="${rowClasses}">
-                <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
-                <td class="px-6 py-4">
-                    <div class="text-sm font-medium text-gray-900">${escapeHTML(item.cliente)}</div>
-                    <div class="text-xs text-gray-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
+            html += `<tr class="${rowClass} hover:bg-slate-50 transition">
+                <td class="px-4 py-3">${badge}</td>
+                <td class="px-4 py-3">
+                    <div class="font-bold text-slate-800">${escapeHTML(item.cliente)}</div>
+                    <div class="text-slate-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(item.designer || 'Sin asignar')}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">${pieces.toLocaleString()}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button class="text-red-600 hover:text-red-900 btn-remove-from-plan transition-colors p-2 rounded hover:bg-red-100" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}" title="Quitar del plan">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+                <td class="px-4 py-3">${escapeHTML(item.designer || 'Sin asignar')}</td>
+                <td class="px-4 py-3 text-slate-600">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
+                <td class="px-4 py-3 text-right font-bold text-slate-700">${pzs.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right">
+                    <button class="btn-remove-from-plan text-red-400 hover:text-red-600 p-1" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button>
                 </td>
             </tr>`;
         });
-        
         html += `</tbody></table></div>`;
         
-        const progressPct = planData.length > 0 ? Math.round((completedCount / planData.length) * 100) : 0;
-        html = `<div class="mb-4 flex items-center justify-between bg-blue-50 p-3 rounded border border-blue-100">
-                    <div class="flex items-center gap-3">
-                        <div class="w-32 bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: ${progressPct}%"></div>
-                        </div>
-                        <span class="text-sm font-medium text-blue-800">${progressPct}% Completado (${completedCount}/${planData.length})</span>
-                    </div>
-                </div>` + html;
+        const progress = Math.round((doneCount / planData.length) * 100) || 0;
+        html = `<div class="mb-4 bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-center justify-between">
+            <div class="flex items-center gap-3 w-full">
+                <span class="font-bold text-blue-800 text-xs whitespace-nowrap">${progress}% Completado</span>
+                <div class="w-full bg-blue-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: ${progress}%"></div></div>
+            </div>
+        </div>` + html;
 
         container.innerHTML = html;
-        summarySpan.textContent = `${planData.length} órdenes | ${totalPieces.toLocaleString()} pzs`;
+        document.getElementById('view-workPlanSummary').textContent = `${planData.length} órdenes | ${totalPzs.toLocaleString()} pzs`;
     }, 50);
 }
 
-async function loadUrgentOrdersToPlan() {
-    const weekInput = document.getElementById('view-workPlanWeekSelector');
-    if (!weekInput.value) { showCustomAlert('Selecciona una semana primero.', 'error'); return; }
-    const weekIdentifier = weekInput.value;
-    const urgentOrders = allOrders.filter(o => o.departamento === 'P_Art' && (o.isLate || o.isAboutToExpire));
-    if (urgentOrders.length === 0) { showCustomAlert('No hay órdenes urgentes o atrasadas en este momento.', 'info'); return; }
-    
-    const batch = db_firestore.batch(); 
-    let batchCount = 0;
-    const toProcess = urgentOrders.slice(0, 400);
-    for (const order of toProcess) {
-        const planEntryId = `${order.orderId}_${weekIdentifier}`;
-        const ref = db_firestore.collection('weeklyPlan').doc(planEntryId);
-        batch.set(ref, {
-            planEntryId: planEntryId, orderId: order.orderId, weekIdentifier: weekIdentifier, designer: order.designer,
-            planStatus: 'Pendiente', addedAt: new Date().toISOString(), cliente: order.cliente, codigoContrato: order.codigoContrato,
-            estilo: order.estilo, fechaDespacho: order.fechaDespacho ? order.fechaDespacho.toISOString() : null,
-            cantidad: order.cantidad, childPieces: order.childPieces, isLate: order.isLate, isAboutToExpire: order.isAboutToExpire,
-            schemaVersion: DB_SCHEMA_VERSION
-        }, { merge: true });
-        batchCount++;
-    }
-    if (batchCount > 0) {
-        try { await batch.commit(); showCustomAlert(`Se cargaron ${batchCount} órdenes urgentes al plan.`, 'success'); } 
-        catch (e) { console.error(e); showCustomAlert('Error al cargar urgentes.', 'error'); }
-    }
+// ======================================================
+// ===== GRÁFICOS Y MÉTRICAS (Placeholder Lógica) =====
+// ======================================================
+// Estas funciones se mantienen similares, solo se aseguran de 
+// renderizar en los nuevos contenedores ID.
+
+function destroyAllCharts() {
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
+    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
+    if (compareChart) { compareChart.destroy(); compareChart = null; }
 }
 
-async function removeOrderFromPlan(planEntryId, orderCode) {
-    if (!confirm(`¿Quitar la orden ${orderCode} del plan?`)) return;
-    try { await removeOrderFromWorkPlanDB(planEntryId); showCustomAlert('Orden quitada del plan.', 'success'); } 
-    catch (e) { showCustomAlert('Error al quitar orden.', 'error'); }
+function populateMetricsSidebar() {
+    const list = document.getElementById('metricsSidebarList');
+    list.innerHTML = '';
+    
+    const counts = {};
+    allOrders.filter(o => o.departamento === 'P_Art').forEach(o => {
+        const d = o.designer || 'Sin asignar';
+        counts[d] = (counts[d] || 0) + 1;
+    });
+    
+    Object.entries(counts).sort((a,b) => b[1] - a[1]).forEach(([name, count]) => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn w-full text-left px-3 py-2 text-xs font-medium text-slate-600 hover:bg-blue-50 rounded-lg flex justify-between items-center transition group';
+        btn.dataset.designer = name;
+        btn.innerHTML = `<span>${escapeHTML(name)}</span> <span class="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[10px] font-bold group-hover:bg-blue-100 group-hover:text-blue-600">${count}</span>`;
+        list.appendChild(btn);
+    });
 }
-// --- FUNCIONES DE NOTIFICACIONES MEJORADAS ---
 
-function toggleNotifications() {
-    const dropdown = document.getElementById('notificationDropdown');
-    if (dropdown) {
-        dropdown.classList.toggle('hidden');
-    }
+function generateDesignerMetrics(name) {
+    const content = document.getElementById('metricsDetail');
+    const safeName = escapeHTML(name);
+    
+    content.innerHTML = `
+        <div class="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">${safeName}</h2>
+                <p class="text-xs text-slate-500">Reporte individual de desempeño</p>
+            </div>
+            <div class="flex gap-2">
+                 <button class="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50" onclick="exportDesignerMetricsPDF('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-file-pdf mr-1"></i> PDF</button>
+                 <button class="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100" onclick="openCompareModal('${safeName.replace(/'/g, "\\'")}')">Comparar</button>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="h-56"><canvas id="designerDoughnutChartCanvas"></canvas></div>
+            <div class="h-56"><canvas id="designerBarChartCanvas"></canvas></div>
+        </div>
+        <div id="designerOrdersTableContainer"></div>`;
+
+    const orders = allOrders.filter(o => o.departamento === 'P_Art' && (name === 'Sin asignar' ? !o.designer : o.designer === name));
+    
+    // Gráficos
+    const statusMap = {};
+    orders.forEach(o => statusMap[o.customStatus||'Sin estado'] = (statusMap[o.customStatus||'Sin estado']||0)+1);
+    
+    const ctx1 = document.getElementById('designerDoughnutChartCanvas').getContext('2d');
+    designerDoughnutChart = new Chart(ctx1, {
+        type: 'doughnut',
+        data: { labels: Object.keys(statusMap), datasets: [{ data: Object.values(statusMap), backgroundColor: ['#fbbf24','#a78bfa','#60a5fa','#34d399','#9ca3af'] }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } } }
+    });
+    
+    // Tabla Simple
+    const tableDiv = document.getElementById('designerOrdersTableContainer');
+    tableDiv.innerHTML = `
+        <div class="overflow-hidden rounded-lg border border-slate-200">
+            <table class="min-w-full divide-y divide-slate-200 text-xs">
+                <thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left">Cliente</th><th class="px-4 py-2">Estilo</th><th class="px-4 py-2 text-right">Pzs</th></tr></thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    ${orders.map(o => `<tr><td class="px-4 py-2 font-medium">${escapeHTML(o.cliente)}</td><td class="px-4 py-2 text-slate-500">${escapeHTML(o.estilo)}</td><td class="px-4 py-2 text-right font-bold text-blue-600">${o.cantidad}</td></tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
 }
 
-document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('notificationDropdown');
-    const btn = document.getElementById('notificationBtn');
-    if (!dropdown || !btn) return;
+function generateDepartmentMetrics() {
+    const content = document.getElementById('departmentMetricsContent');
+    const active = allOrders.filter(o => o.departamento === 'P_Art');
+    const totalPzs = active.reduce((s,o) => s + o.cantidad, 0);
+    const designers = [...new Set(active.map(o => o.designer).filter(Boolean))].length;
     
-    if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.classList.add('hidden');
-    }
-});
+    content.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
+                <p class="text-[10px] font-bold uppercase text-slate-400">Órdenes Activas</p>
+                <p class="text-2xl font-bold text-slate-900 mt-1">${active.length}</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-purple-500">
+                <p class="text-[10px] font-bold uppercase text-slate-400">Carga Total (Piezas)</p>
+                <p class="text-2xl font-bold text-slate-900 mt-1">${totalPzs.toLocaleString()}</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-green-500">
+                <p class="text-[10px] font-bold uppercase text-slate-400">Diseñadores Activos</p>
+                <p class="text-2xl font-bold text-slate-900 mt-1">${designers}</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 h-80">
+                <h4 class="font-bold text-xs text-slate-700 mb-4">Distribución por Estado</h4>
+                <div class="h-64"><canvas id="deptLoadPieChartCanvas"></canvas></div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 h-80">
+                <h4 class="font-bold text-xs text-slate-700 mb-4">Carga por Diseñador</h4>
+                <div class="h-64"><canvas id="deptLoadBarChartCanvas"></canvas></div>
+            </div>
+        </div>`;
 
-function updateAlerts(stats) {
-    const totalAlerts = stats.veryLate + stats.aboutToExpire + stats.late;
+    const statusMap = {};
+    active.forEach(o => statusMap[o.customStatus||'Sin estado'] = (statusMap[o.customStatus||'Sin estado']||0)+1);
     
-    const badge = document.getElementById('notificationBadge');
-    const btn = document.getElementById('notificationBtn');
-    const list = document.getElementById('notificationList');
-    
-    if (!badge || !btn || !list) return;
+    const ctx1 = document.getElementById('deptLoadPieChartCanvas').getContext('2d');
+    deptLoadPieChart = new Chart(ctx1, {
+        type: 'pie',
+        data: { labels: Object.keys(statusMap), datasets: [{ data: Object.values(statusMap), backgroundColor: ['#fbbf24','#a78bfa','#60a5fa','#34d399','#9ca3af'] }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+    });
 
-    if (totalAlerts > 0) {
-        badge.textContent = totalAlerts > 99 ? '99+' : totalAlerts;
-        badge.classList.remove('hidden');
-        badge.classList.add('flex');
+    const loadMap = {};
+    active.forEach(o => { if(o.designer && o.designer !== EXCLUDE_DESIGNER_NAME) loadMap[o.designer] = (loadMap[o.designer]||0) + o.cantidad; });
+    const sortedLoad = Object.entries(loadMap).sort((a,b) => b[1]-a[1]);
+    
+    const ctx2 = document.getElementById('deptLoadBarChartCanvas').getContext('2d');
+    deptLoadBarChart = new Chart(ctx2, {
+        type: 'bar',
+        data: { labels: sortedLoad.map(x=>x[0]), datasets: [{ label: 'Piezas', data: sortedLoad.map(x=>x[1]), backgroundColor: '#3b82f6' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+}
+
+// ======================================================
+// ===== OTRAS UTILIDADES (EXPORT, PDF, RESET) =====
+// ======================================================
+function exportTableToExcel() {
+    if (allOrders.length === 0) return showCustomAlert('Nada que exportar', 'error');
+    const data = getFilteredOrders().map(o => ({
+        Cliente: o.cliente, Código: o.codigoContrato, Estilo: o.estilo, 
+        Depto: o.departamento, Fecha: o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
+        Diseñador: o.designer, Estado: o.customStatus, Cantidad: o.cantidad
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Datos");
+    XLSX.writeFile(wb, `Reporte_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function resetApp() {
+    showConfirmModal("¿Subir nuevo archivo? Se borrarán los datos locales.", () => {
+        // Reset UI
+        document.getElementById('appMainContainer').style.display = 'none';
+        document.getElementById('uploadSection').style.display = 'block';
+        document.getElementById('mainNavigation').style.display = 'none';
+        document.getElementById('appMainContainer').style.marginLeft = '0';
         
-        btn.classList.remove('text-slate-400');
-        btn.classList.add('text-slate-700'); 
-    } else {
-        badge.classList.add('hidden');
-        badge.classList.remove('flex');
-        btn.classList.add('text-slate-400');
-        btn.classList.remove('text-slate-700');
-    }
-
-    let htmlContent = '';
-
-    if (stats.veryLate > 0) {
-        htmlContent += `
-            <div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 cursor-pointer transition flex gap-3 items-start group">
-                <div class="mt-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_0_4px_rgba(239,68,68,0.2)]"></div>
-                <div>
-                    <p class="text-xs font-bold text-slate-800 group-hover:text-red-700">Muy Atrasadas (>7 días)</p>
-                    <p class="text-[10px] text-slate-500 mt-0.5">Tienes <span class="font-bold text-red-600">${stats.veryLate}</span> órdenes críticas.</p>
-                </div>
-            </div>`;
-    }
-
-    if (stats.aboutToExpire > 0) {
-        htmlContent += `
-            <div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 cursor-pointer transition flex gap-3 items-start group">
-                <div class="mt-0.5 h-2 w-2 rounded-full bg-yellow-400 shadow-[0_0_0_4px_rgba(250,204,21,0.2)]"></div>
-                <div>
-                    <p class="text-xs font-bold text-slate-800 group-hover:text-yellow-700">Vencen Pronto (≤2 días)</p>
-                    <p class="text-[10px] text-slate-500 mt-0.5">Atención a <span class="font-bold text-yellow-600">${stats.aboutToExpire}</span> órdenes.</p>
-                </div>
-            </div>`;
-    }
-    
-    if (stats.late > 0) {
-         htmlContent += `
-            <div onclick="setFilter('late'); toggleNotifications();" class="p-3 hover:bg-orange-50 cursor-pointer transition flex gap-3 items-start group">
-                <div class="mt-0.5 h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.2)]"></div>
-                <div>
-                    <p class="text-xs font-bold text-slate-800 group-hover:text-orange-700">Atrasadas</p>
-                    <p class="text-[10px] text-slate-500 mt-0.5"><span class="font-bold text-orange-600">${stats.late}</span> órdenes fuera de fecha.</p>
-                </div>
-            </div>`;
-    }
-
-    if (htmlContent === '') {
-        htmlContent = `
-            <div class="flex flex-col items-center justify-center py-8 px-4 text-center">
-                <i class="fa-regular fa-circle-check text-3xl text-green-500 mb-2 opacity-50"></i>
-                <p class="text-xs font-medium text-slate-600">¡Todo al día!</p>
-                <p class="text-[10px] text-slate-400">No hay alertas pendientes.</p>
-            </div>`;
-    }
-
-    list.innerHTML = htmlContent;
+        // Reset Data
+        allOrders = []; isExcelLoaded = false;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileName').textContent = '';
+        desconectarDatosDeFirebase();
+    });
 }
+
+// Fin de app.js
