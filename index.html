@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v6.3 (Optimizado)</title>
+    <title>Panel de Control - Arte v6.4 (Final)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -382,10 +382,10 @@
         </button>
     </div>
 
-    <div id="assignModal" class="modal">
+    <div id="assignModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="assignModalTitle">
         <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div class="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/80">
-                <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <h2 id="assignModalTitle" class="text-sm font-bold text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-pen-to-square text-blue-600"></i> Editar Orden
                 </h2>
                 <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-200 transition">✕</button>
@@ -450,9 +450,9 @@
         </div>
     </div>
 
-    <div id="multiAssignModal" class="modal">
+    <div id="multiAssignModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="multiAssignTitle">
          <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <h2 class="text-sm font-bold text-slate-900 mb-1">Edición Masiva</h2>
+            <h2 id="multiAssignTitle" class="text-sm font-bold text-slate-900 mb-1">Edición Masiva</h2>
             <p class="text-xs text-slate-500 mb-5">Aplicando cambios a <span id="multiModalCount" class="font-bold text-blue-600">0</span> órdenes.</p>
             <div class="space-y-4">
                 <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Diseñador</label><select id="multiModalDesigner" class="w-full rounded-lg border-slate-300 text-xs py-2"></select></div>
@@ -467,7 +467,7 @@
         </div>
     </div>
 
-    <div id="confirmModal" class="modal">
+    <div id="confirmModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
         <div class="modal-content bg-white rounded-xl shadow-xl w-full max-w-xs p-6 text-center">
             <div class="mx-auto flex items-center justify-center h-10 w-10 rounded-full bg-red-50 mb-4 text-red-600 text-lg">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -485,9 +485,9 @@
         </div>
     </div>
 
-    <div id="addChildModal" class="modal">
+    <div id="addChildModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addChildTitle">
         <div class="modal-content bg-white rounded-xl p-5 w-full max-w-sm">
-            <h2 class="font-bold text-sm mb-4">Nueva Orden Hija</h2>
+            <h2 id="addChildTitle" class="font-bold text-sm mb-4">Nueva Orden Hija</h2>
             <div id="parentOrderInfo" class="text-[10px] bg-blue-50 text-blue-700 p-2 rounded border border-blue-100 mb-4"></div>
             <div class="space-y-3">
                 <input id="childOrderCode" readonly class="w-full bg-slate-100 rounded-lg border-0 text-xs text-slate-500 py-2 px-3">
@@ -505,9 +505,9 @@
         </div>
     </div>
 
-    <div id="legendModal" class="modal">
+    <div id="legendModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="legendTitle">
         <div class="modal-content bg-white rounded-xl p-5 max-w-xs">
-            <div class="flex justify-between mb-3"><h3 class="font-bold text-xs uppercase tracking-wide text-slate-500">Guía de Colores</h3><button onclick="document.getElementById('legendModal').classList.remove('active')">✕</button></div>
+            <div class="flex justify-between mb-3"><h3 id="legendTitle" class="font-bold text-xs uppercase tracking-wide text-slate-500">Guía de Colores</h3><button onclick="document.getElementById('legendModal').classList.remove('active')">✕</button></div>
             <div class="space-y-2 text-xs font-medium text-slate-700">
                 <div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div>Muy Atrasada (>7 días)</div>
                 <div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50"><div class="w-2 h-2 rounded-full bg-orange-500 shadow-sm"></div>Atrasada</div>
@@ -517,9 +517,9 @@
         </div>
     </div>
 
-    <div id="designerManagerModal" class="modal">
+    <div id="designerManagerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="designerMgrTitle">
         <div class="modal-content bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 class="font-bold text-sm text-slate-900 mb-4">Gestionar Equipo de Diseño</h2>
+            <h2 id="designerMgrTitle" class="font-bold text-sm text-slate-900 mb-4">Gestionar Equipo de Diseño</h2>
             <div id="designerManagerList" class="max-h-60 overflow-y-auto mb-4 space-y-1 pr-1 scrollbar-thin bg-slate-50 rounded-lg border border-slate-100 p-2"></div>
             <div class="bg-white border border-slate-200 p-3 rounded-lg space-y-2 shadow-sm">
                 <input id="newDesignerName" placeholder="Nombre completo" class="w-full rounded border-slate-300 text-xs py-1.5">
@@ -530,9 +530,9 @@
         </div>
     </div>
 
-    <div id="selectCompareModal" class="modal">
+    <div id="selectCompareModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="selectCompareTitle">
         <div class="modal-content bg-white rounded-xl p-6 w-full max-w-sm">
-            <h2 class="font-bold text-sm mb-2">Comparar Desempeño</h2>
+            <h2 id="selectCompareTitle" class="font-bold text-sm mb-2">Comparar Desempeño</h2>
             <p class="text-xs text-slate-500 mb-4">Comparar <strong id="compareDesigner1Name" class="text-blue-600"></strong> contra:</p>
             <select id="compareDesignerSelect" class="w-full rounded-lg border-slate-300 mb-6 text-xs py-2"></select>
             <div class="flex justify-end gap-3">
@@ -542,10 +542,10 @@
         </div>
     </div>
 
-    <div id="compareModal" class="modal">
+    <div id="compareModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="compareResultsTitle">
         <div class="modal-content bg-white rounded-xl p-6 w-full max-w-3xl h-[80vh] flex flex-col">
             <div class="flex justify-between mb-4 border-b pb-2">
-                <h2 class="font-bold text-sm text-slate-800">Resultados de Comparación</h2>
+                <h2 id="compareResultsTitle" class="font-bold text-sm text-slate-800">Resultados de Comparación</h2>
                 <button onclick="closeCompareModals()">✕</button>
             </div>
             <div class="flex-1 overflow-y-auto pr-2">
@@ -555,9 +555,9 @@
         </div>
     </div>
 
-    <div id="weeklyReportModal" class="modal">
+    <div id="weeklyReportModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="weeklyReportTitle">
         <div class="modal-content bg-white rounded-xl p-6 w-full max-w-4xl h-[90vh] flex flex-col">
-            <h2 class="font-bold text-sm text-slate-900 mb-4">Generar Reporte Semanal</h2>
+            <h2 id="weeklyReportTitle" class="font-bold text-sm text-slate-900 mb-4">Generar Reporte Semanal</h2>
             <div class="mb-4 flex gap-4 items-end">
                 <input type="week" id="weekSelector" onchange="generateWeeklyReport()" class="rounded-lg border-slate-300 text-xs py-2">
                 <div id="weeklyReportSpinner" class="hidden"><i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i></div>

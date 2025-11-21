@@ -20,7 +20,7 @@ if (typeof firebase !== 'undefined' && !firebase.apps.length) {
 
 const db_firestore = firebase.firestore(); 
 
-// --- Configuración Global (SPRINT 3) ---
+// --- Configuración Global (SPRINT 3 - Centralizada) ---
 const CONFIG = {
     DEPARTMENTS: {
         ART: 'P_Art',
@@ -97,7 +97,7 @@ let compareChart = null;
 let currentCompareDesigner1 = '';
 
 // ======================================================
-// ===== 2. GESTOR DE MODALES (SPRINT 2 & 3) =====
+// ===== 2. GESTOR DE MODALES (FIX #5 - Z-INDEX DINÁMICO) =====
 // ======================================================
 
 const modalStack = []; 
@@ -106,9 +106,13 @@ function openModalById(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
 
-    // Confirmaciones siempre encima
+    // FIX #5: Z-Index Dinámico para soportar modales apilados correctamente
+    const baseZIndex = 2000;
+    modal.style.zIndex = baseZIndex + (modalStack.length * 10);
+
+    // Confirmaciones siempre encima de todo
     if (modalId === 'confirmModal') {
-        modal.style.zIndex = '3000';
+        modal.style.zIndex = parseInt(modal.style.zIndex) + 1000;
     }
 
     modal.classList.add('active');
@@ -222,9 +226,8 @@ function getWeekIdentifierString(d) {
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v6.3 Loaded (Optimized)');
+    console.log('App v6.4 Loaded (Optimized & Fixed)');
     
-    // Auth Listeners
     const btnLogin = document.getElementById('loginButton');
     if(btnLogin) btnLogin.addEventListener('click', iniciarLoginConGoogle);
     
@@ -249,7 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Search & Filter Listeners
     const searchInp = document.getElementById('searchInput');
     if(searchInp) searchInp.addEventListener('input', debounce((e) => { currentSearch = e.target.value; currentPage = 1; updateTable(); }, 300));
     
@@ -268,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 150));
     });
 
-    // Drag & Drop
     const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput');
     if(dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
@@ -277,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     }
 
-    // Delegación de Eventos para Elementos Dinámicos
+    // Delegación de Eventos (FIX #3) - Manejo centralizado
     const delegate = (id, sel, cb) => { const el = document.getElementById(id); if(el) el.addEventListener('click', e => { const t = e.target.closest(sel); if(t) cb(t, e); }); };
     
     delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
@@ -393,7 +394,7 @@ function mergeYActualizar() {
     recalculateChildPieces(); 
     autoCompleteBatchWrites = []; 
     
-    // SPRINT 1: Invalidar caché porque los datos cambiaron
+    // FIX #2: Invalidar caché porque los datos cambiaron
     filteredCache.key = null;
 
     for (let i = 0; i < allOrders.length; i++) {
@@ -410,8 +411,7 @@ function mergeYActualizar() {
             o.designer = ''; o.customStatus = ''; o.receivedDate = ''; o.notes = ''; o.completedDate = null;
         }
 
-        // SPRINT 3: Auto-Completado Seguro
-        // Detectar si la orden salió de Arte físicamente pero sigue abierta en sistema
+        // FIX #4: Lógica de Auto-Completado corregida (Evita duplicados)
         if (fb && o.departamento !== CONFIG.DEPARTMENTS.ART && o.departamento !== CONFIG.DEPARTMENTS.NONE) {
             if (fb.customStatus !== CONFIG.STATUS.COMPLETED && !autoCompletedOrderIds.has(o.orderId)) {
                 autoCompleteBatchWrites.push({
@@ -420,6 +420,7 @@ function mergeYActualizar() {
                     data: { customStatus: CONFIG.STATUS.COMPLETED, completedDate: new Date().toISOString(), lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION },
                     history: [`Salio de Arte (en ${o.departamento}) → Completada`]
                 });
+                autoCompletedOrderIds.add(o.orderId); // <--- CRÍTICO: Registramos para no volver a agregar
             }
         }
     }
@@ -601,7 +602,7 @@ function getFilteredOrders() {
 }
 
 // ======================================================
-// ===== 8. OPERACIONES BATCH & PLAN (SPRINT 2 - SEGURIDAD) =====
+// ===== 8. OPERACIONES BATCH & PLAN (SPRINT 2 - BLINDADAS) =====
 // ======================================================
 
 // Confirmar Auto-Completado
@@ -627,6 +628,8 @@ async function ejecutarAutoCompleteBatch() {
             batch.set(ref, w.data, { merge: true });
             const hRef = db_firestore.collection('history').doc();
             batch.set(hRef, { orderId: w.orderId, change: w.history[0], user, timestamp: new Date().toISOString() });
+            
+            // Ya está en el Set, pero aseguramos
             autoCompletedOrderIds.add(w.orderId);
         });
 
@@ -740,6 +743,7 @@ function navigateTo(viewId) {
     else if (viewId === 'workPlanView') generateWorkPlan();
     else if (viewId === 'designerMetricsView') {
         populateMetricsSidebar();
+        // Auto-seleccionar el primero si no hay nadie seleccionado (Lazy Load Fix)
         const detailText = document.getElementById('metricsDetail').innerText;
         if(detailText && detailText.includes('Selecciona')) {
             const firstBtn = document.querySelector('#metricsSidebarList .filter-btn');
@@ -983,7 +987,8 @@ function updateAllDesignerDropdowns() {
 window.changePage = (p) => { currentPage = p; updateTable(); };
 window.changeRowsPerPage = () => { rowsPerPage = parseInt(document.getElementById('rowsPerPage').value); currentPage = 1; updateTable(); };
 window.setFilter = (f) => { currentFilter = f; currentPage = 1; updateTable(); };
-window.sortTable = (k) => { sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc'; sortConfig.key = k; updateTable(); };
+// FIX #2: Invalidar caché al ordenar
+window.sortTable = (k) => { sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc'; sortConfig.key = k; filteredCache.key = null; updateTable(); };
 window.clearAllFilters = () => { 
     currentSearch = ''; currentClientFilter = ''; currentStyleFilter = ''; currentTeamFilter = ''; currentDepartamentoFilter = ''; 
     currentDesignerFilter = ''; currentCustomStatusFilter = ''; currentFilter = 'all'; currentDateFrom = ''; currentDateTo = '';
@@ -1026,7 +1031,7 @@ window.openAssignModal = async (id) => {
         </div>`).join('') : '<p class="text-slate-400 italic text-xs text-center py-4">Sin historial.</p>';
 
     await loadChildOrders();
-    openModalById('assignModal'); // SPRINT 2: Usar función centralizada
+    openModalById('assignModal');
 };
 
 window.saveAssignment = async () => {
@@ -1247,11 +1252,66 @@ window.generateDesignerMetrics = (name) => {
     document.getElementById('designerOrdersTableContainer').innerHTML = `<h3 class="font-bold text-sm text-slate-700 mb-3">Detalle</h3><div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm"><table class="min-w-full divide-y divide-slate-200 text-xs"><thead class="bg-slate-50 text-slate-500 font-bold uppercase"><tr><th class="px-4 py-3 text-left">Cliente</th><th class="px-4 py-3 text-left">Estilo</th><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-right">Piezas</th></tr></thead><tbody class="divide-y divide-slate-100 bg-white">${orders.length ? orders.map(x => `<tr><td class="px-4 py-2.5 font-medium">${escapeHTML(x.cliente)}</td><td class="px-4 py-2.5 text-slate-500">${escapeHTML(x.estilo)}</td><td class="px-4 py-2.5">${getCustomStatusBadge(x.customStatus)}</td><td class="px-4 py-2.5 text-right font-bold text-blue-600">${x.cantidad.toLocaleString()}</td></tr>`).join('') : '<tr><td colspan="4" class="p-4 text-center text-slate-400">Sin datos</td></tr>'}</tbody></table></div>`;
 };
 
+// FIX #6: Gráficos de Métricas Globales (Restaurados)
 window.generateDepartmentMetrics = () => {
-    document.getElementById('departmentMetricsContent').innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><p class="text-[10px] font-bold uppercase tracking-wider text-blue-500 mb-1">Total Activas</p><p class="text-3xl font-bold text-slate-900">${allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART).length}</p></div><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><p class="text-[10px] font-bold uppercase tracking-wider text-purple-500 mb-1">Carga Total</p><p class="text-3xl font-bold text-slate-900">${allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART).reduce((s,o)=>s+o.cantidad+o.childPieces,0).toLocaleString()}</p></div><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><p class="text-[10px] font-bold uppercase tracking-wider text-green-500 mb-1">Diseñadores Activos</p><p class="text-3xl font-bold text-slate-900">${[...new Set(allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART).map(o => o.designer).filter(Boolean))].length}</p></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 h-80 relative"><h4 class="font-bold text-sm text-slate-700 mb-4">Estado Global</h4><div class="h-60"><canvas id="deptLoadPieChartCanvas"></canvas></div></div><div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 h-80 relative"><h4 class="font-bold text-sm text-slate-700 mb-4">Carga por Diseñador</h4><div class="h-60"><canvas id="deptLoadBarChartCanvas"></canvas></div></div></div>`;
+    // 1. Calcular Datos Globales
+    const activeOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    const totalLoad = activeOrders.reduce((s,o) => s + o.cantidad + o.childPieces, 0);
+    const activeDesigners = [...new Set(activeOrders.map(o => o.designer).filter(Boolean))].length;
+
+    // 2. Renderizar HTML Base
+    document.getElementById('departmentMetricsContent').innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-blue-500 mb-1">Total Activas</p>
+                <p class="text-3xl font-bold text-slate-900">${activeOrders.length}</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-purple-500 mb-1">Carga Total (Pzs)</p>
+                <p class="text-3xl font-bold text-slate-900">${totalLoad.toLocaleString()}</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-green-500 mb-1">Diseñadores Activos</p>
+                <p class="text-3xl font-bold text-slate-900">${activeDesigners}</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 h-80 relative">
+                <h4 class="font-bold text-sm text-slate-700 mb-4">Estado Global</h4>
+                <div class="h-60"><canvas id="deptLoadPieChartCanvas"></canvas></div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 h-80 relative">
+                <h4 class="font-bold text-sm text-slate-700 mb-4">Carga por Diseñador (Top 10)</h4>
+                <div class="h-60"><canvas id="deptLoadBarChartCanvas"></canvas></div>
+            </div>
+        </div>`;
+
+    // 3. Generar Gráfico de Pastel (Estados)
+    const statusMap = { [CONFIG.STATUS.TRAY]:0, [CONFIG.STATUS.PROD]:0, [CONFIG.STATUS.AUDIT]:0, [CONFIG.STATUS.COMPLETED]:0, 'Sin estado':0 };
+    activeOrders.forEach(x => { const s = x.customStatus || 'Sin estado'; if(statusMap[s]!==undefined) statusMap[s]++; else statusMap['Sin estado']++; });
+
+    if (deptLoadPieChart) deptLoadPieChart.destroy();
+    deptLoadPieChart = new Chart(document.getElementById('deptLoadPieChartCanvas').getContext('2d'), {
+        type: 'pie',
+        data: { labels: Object.keys(statusMap), datasets: [{ data: Object.values(statusMap), backgroundColor: ['#fbbf24', '#a78bfa', '#60a5fa', '#10b981', '#9ca3af'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+    });
+
+    // 4. Generar Gráfico de Barras (Carga Top 10)
+    const loadMap = {};
+    activeOrders.forEach(o => { if(o.designer && o.designer !== CONFIG.EXCLUDED_DESIGNER) loadMap[o.designer] = (loadMap[o.designer] || 0) + o.cantidad; });
+    const sortedLoad = Object.entries(loadMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
     
-    // (Lógica de gráficos Dept omitida por brevedad, es idéntica a la anterior pero usando CONFIG)
-    // NOTA: Para producción real, copiar la lógica de generateDepartmentMetrics original y reemplazar 'P_Art' por CONFIG.DEPARTMENTS.ART
+    if (deptLoadBarChart) deptLoadBarChart.destroy();
+    deptLoadBarChart = new Chart(document.getElementById('deptLoadBarChartCanvas').getContext('2d'), {
+        type: 'bar',
+        data: { labels: sortedLoad.map(x => x[0]), datasets: [{ label: 'Piezas', data: sortedLoad.map(x => x[1]), backgroundColor: '#3b82f6', borderRadius: 4 }] },
+        options: { 
+            responsive: true, maintainAspectRatio: false, 
+            plugins: { legend: { display: false } }, 
+            scales: { x: { grid: { display: false }, ticks: { autoSkip: false, maxRotation: 45, minRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { borderDash: [2, 4] } } }
+        }
+    });
 };
 
 // ======================================================
@@ -1284,6 +1344,35 @@ window.startComparison = () => {
     openModalById('compareModal');
 };
 
+// FIX #9: Exportación a PDF para Diseñadores
+window.exportDesignerMetricsPDF = (name) => {
+    if (typeof window.jspdf === 'undefined') return showCustomAlert('Error: Librería PDF no cargada', 'error');
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFontSize(16); doc.text(`Reporte de Desempeño: ${name}`, 14, 15);
+    doc.setFontSize(10); doc.text(`Generado: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 22);
+    
+    const orders = allOrders.filter(x => x.departamento === CONFIG.DEPARTMENTS.ART && (name === 'Sin asignar' ? !x.designer : x.designer === name));
+    const body = orders.map(x => [x.cliente.substring(0, 20), x.codigoContrato, x.estilo.substring(0, 20), x.customStatus || '-', x.cantidad.toLocaleString()]);
+    
+    doc.autoTable({ 
+        head: [['Cliente', 'Contrato', 'Estilo', 'Estado', 'Pzs']], 
+        body: body, 
+        startY: 30,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [37, 99, 235] },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+    });
+    
+    const finalY = doc.lastAutoTable.finalY + 10;
+    const totalPzs = orders.reduce((s,o) => s+o.cantidad, 0);
+    doc.setFontSize(10);
+    doc.text(`Total Órdenes: ${orders.length} | Total Piezas: ${totalPzs.toLocaleString()}`, 14, finalY);
+    doc.save(`Metricas_${name.replace(/\s+/g,'_')}.pdf`);
+};
+
 window.exportTableToExcel = () => {
     if (allOrders.length === 0) return showCustomAlert('No hay datos', 'error');
     const data = getFilteredOrders().map(o => ({
@@ -1294,6 +1383,33 @@ window.exportTableToExcel = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Reporte");
     XLSX.writeFile(wb, `Reporte_Panel_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+window.generateWeeklyReport = () => {
+    const w = document.getElementById('weekSelector').value;
+    if(!w) return;
+    const [y, wk] = w.split('-W').map(Number);
+    const d = new Date(y, 0, 1 + (wk - 1) * 7);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    const start = new Date(d.setDate(diff)); start.setHours(0,0,0,0);
+    const end = new Date(start); end.setDate(end.getDate() + 6); end.setHours(23,59,59,999);
+    
+    const filtered = allOrders.filter(o => {
+        if(!o.receivedDate) return false;
+        const rd = new Date(o.receivedDate + 'T00:00:00');
+        return rd >= start && rd <= end;
+    });
+    
+    document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `<h3 class="font-bold mb-2">Resultados: ${filtered.length} órdenes</h3><table id="weeklyReportTable" class="w-full text-xs border-collapse"><thead><tr class="bg-gray-100 text-left"><th class="p-2 border">Fecha</th><th class="p-2 border">Cliente</th><th class="p-2 border">Estilo</th><th class="p-2 border text-right">Pzs</th></tr></thead><tbody>${filtered.map(o => `<tr><td class="p-2 border">${o.receivedDate}</td><td class="p-2 border">${o.cliente}</td><td class="p-2 border">${o.estilo}</td><td class="p-2 border text-right">${o.cantidad}</td></tr>`).join('')}</tbody></table>` : '<p class="text-center text-gray-400 py-8">No hay órdenes recibidas en este periodo.</p>';
+};
+
+window.exportWeeklyReportAsPDF = () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.text("Reporte Semanal de Entradas", 14, 15);
+    doc.autoTable({ html: '#weeklyReportTable', startY: 20, theme: 'grid', styles: { fontSize: 8 } });
+    doc.save("reporte_semanal.pdf");
 };
 
 window.showConfirmModal = (msg, cb) => {

@@ -269,3 +269,17 @@ table.data-table tr:hover td {
         display: none; 
     }
 }
+/* Bloqueo de UI durante procesos Batch */
+body.processing-batch {
+    pointer-events: none; /* Bloquea clics */
+    cursor: wait;
+}
+
+body.processing-batch::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.5);
+    z-index: 2999; /* Debajo de los modales de alerta (3000) */
+    backdrop-filter: blur(1px);
+}
