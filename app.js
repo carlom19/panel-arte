@@ -220,7 +220,7 @@ function openLegendModal() {
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM cargado. Inicializando App v5.2 (Final UX - Corregido)...');
+    console.log('DOM cargado. Inicializando App v5.3 (Logic Updated)...');
     
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
@@ -508,19 +508,27 @@ function mergeYActualizar() {
             order.designer = ''; order.customStatus = ''; order.receivedDate = ''; order.notes = ''; order.completedDate = null;
         }
 
-        // Lógica de Auto-Completado
+        // Lógica de Auto-Completado Mejorada:
+        // Si la orden existe en FB y el departamento NO es P_Art (y no es "Sin Departamento"),
+        // significa que la orden salió de arte y debe marcarse completada.
         if (fbData && 
-            (fbData.customStatus === 'Bandeja' || fbData.customStatus === 'Producción' || fbData.customStatus === 'Auditoría') &&
-            order.departamento !== 'P_Art' && order.departamento !== 'Sin Departamento') 
+            order.departamento !== 'P_Art' && 
+            order.departamento !== 'Sin Departamento') 
         {
             if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(order.orderId)) {
                 order.customStatus = 'Completada';
                 const newCompletedDate = new Date().toISOString();
                 order.completedDate = newCompletedDate;
+                
                 autoCompleteBatchWrites.push({
                     orderId: order.orderId,
-                    data: { customStatus: 'Completada', completedDate: newCompletedDate, lastModified: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION },
-                    history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${order.departamento})`]
+                    data: { 
+                        customStatus: 'Completada', 
+                        completedDate: newCompletedDate, 
+                        lastModified: new Date().toISOString(), 
+                        schemaVersion: DB_SCHEMA_VERSION 
+                    },
+                    history: [`Salio de Arte (ahora en ${order.departamento}) → Completada automáticamente`]
                 });
                 autoCompletedOrderIds.add(order.orderId);
             }
@@ -707,12 +715,10 @@ async function logToFirestore(context, error) {
 function handleDrop(e){ const dt = e.dataTransfer; handleFiles(dt.files); }
 function handleFileSelect(e){ handleFiles(e.target.files); }
 
-// --- FUNCIÓN CORREGIDA PARA EVITAR ERROR NULL ---
 function handleFiles(files){
     if (!files || files.length === 0) return;
     const file = files[0];
     
-    // Verificación de seguridad para actualizar el nombre del archivo
     const fileNameElement = document.getElementById('fileName');
     if (fileNameElement) {
         fileNameElement.textContent = file.name;
@@ -832,14 +838,25 @@ async function processFile(file) {
             let currentStatus = fbData ? fbData.customStatus : '';
             let currentCompletedDate = fbData ? fbData.completedDate : null;
 
-            if (fbData && (fbData.customStatus === 'Bandeja' || fbData.customStatus === 'Producción' || fbData.customStatus === 'Auditoría') && orderDepartamento !== 'P_Art' && orderDepartamento !== 'Sin Departamento') {
+            // Lógica de Auto-Completado al Cargar:
+            // Si existe en FB y NO está en P_Art, marcar completada.
+            if (fbData && 
+                orderDepartamento !== 'P_Art' && 
+                orderDepartamento !== 'Sin Departamento') 
+            {
                 if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(orderId)) {
                     currentStatus = 'Completada';
                     currentCompletedDate = new Date().toISOString();
+                    
                     autoCompleteBatchWrites.push({
                         orderId: orderId,
-                        data: { customStatus: 'Completada', completedDate: currentCompletedDate, lastModified: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION },
-                        history: [`Estado automático: ${fbData.customStatus} → Completada (movido a ${orderDepartamento})`]
+                        data: { 
+                            customStatus: 'Completada', 
+                            completedDate: currentCompletedDate, 
+                            lastModified: new Date().toISOString(), 
+                            schemaVersion: DB_SCHEMA_VERSION 
+                        },
+                        history: [`Salio de Arte (ahora en ${orderDepartamento}) → Completada automáticamente`]
                     });
                     autoCompletedOrderIds.add(orderId);
                 }
@@ -1113,7 +1130,7 @@ async function saveMultiAssignment() {
                 if(newDesigner) update.designer = newDesigner;
                 if(newStatus) update.customStatus = newStatus;
                 if(newDate) update.receivedDate = newDate;
-                if(newNotes) update.notes = (order.notes ? order.notes + '\n' : '') + newNotes; // Append note
+                if(newNotes) update.notes = (order.notes ? order.notes + '\n' : '') + newNotes; 
                 
                 batch.set(ref, update, { merge: true });
                 count++;
@@ -1325,39 +1342,7 @@ function updateStats(stats) {
     document.getElementById('statThisWeek').textContent = stats.thisWeek;
 }
 
-function updateAlerts(stats) {
-    // Calcular el total de notificaciones (Muy atrasadas + Por vencer)
-    const totalAlerts = stats.veryLate + stats.aboutToExpire;
-    
-    // Referencias a los elementos de la campana
-    const badge = document.getElementById('notificationBadge');
-    const btn = document.getElementById('notificationBtn');
-    
-    if (badge && btn) {
-        if (totalAlerts > 0) {
-            // Mostrar badge y número
-            badge.textContent = totalAlerts > 99 ? '99+' : totalAlerts;
-            badge.classList.remove('hidden');
-            badge.classList.add('flex');
-            
-            // Cambiar color de campana si hay alertas
-            btn.classList.remove('text-slate-400');
-            btn.classList.add('text-red-500', 'animate-pulse'); // Efecto pulso sutil
-            
-            // Tooltip descriptivo al pasar el mouse
-            btn.title = `Atención: ${stats.veryLate} atrasadas, ${stats.aboutToExpire} por vencer`;
-        } else {
-            // Ocultar badge si no hay alertas
-            badge.classList.add('hidden');
-            badge.classList.remove('flex');
-            
-            // Restaurar color original
-            btn.classList.add('text-slate-400');
-            btn.classList.remove('text-red-500', 'animate-pulse');
-            btn.title = "Sin alertas pendientes";
-        }
-    }
-}
+
 
 function updateTable() {
     const filtered = getFilteredOrders();
@@ -1705,7 +1690,7 @@ function generateWeeklyReport() {
 
             const filteredOrders = allOrders.filter(order => {
                 if (!order.receivedDate) return false;
-                const receivedDate = new Date(order.receivedDate + 'T00:00:00Z'); // ✅ CORRECCIÓN: Agregar UTC
+                const receivedDate = new Date(order.receivedDate + 'T00:00:00Z'); 
                 return receivedDate >= startDate && receivedDate <= endDate;
             });
 
@@ -1938,6 +1923,7 @@ function generateWorkPlan() {
     const container = document.getElementById('view-workPlanContent');
     const weekInput = document.getElementById('view-workPlanWeekSelector');
     const summarySpan = document.getElementById('view-workPlanSummary');
+    
     if (!weekInput.value) weekInput.value = getWeekIdentifierString(new Date());
     const weekIdentifier = weekInput.value;
     container.innerHTML = '<div class="spinner"></div>';
@@ -1951,19 +1937,79 @@ function generateWorkPlan() {
         }
 
         let totalPieces = 0;
-        let html = `<div class="bg-white rounded-lg shadow overflow-hidden border border-gray-200"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prioridad</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente / Estilo</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrega</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+        let completedCount = 0;
 
-        planData.sort((a, b) => (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1);
+        planData.sort((a, b) => {
+            const orderA = allOrders.find(o => o.orderId === a.orderId);
+            const orderB = allOrders.find(o => o.orderId === b.orderId);
+            const isDoneA = orderA && orderA.customStatus === 'Completada';
+            const isDoneB = orderB && orderB.customStatus === 'Completada';
+
+            if (isDoneA && !isDoneB) return 1; 
+            if (!isDoneA && isDoneB) return -1; 
+            
+            return (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1;
+        });
+
+        let html = `<div class="bg-white rounded-lg shadow overflow-hidden border border-gray-200"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente / Estilo</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Diseñador</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrega</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Piezas</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
 
         planData.forEach(item => {
+            const liveOrder = allOrders.find(o => o.orderId === item.orderId);
+            const currentStatus = liveOrder ? liveOrder.customStatus : '';
+            const isCompleted = currentStatus === 'Completada';
+
             const pieces = (item.cantidad || 0) + (item.childPieces || 0);
             totalPieces += pieces;
-            const statusBadge = item.isLate ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">ATRASADA</span>' : item.isAboutToExpire ? '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">URGENTE</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Normal</span>';
-            html += `<tr class="hover:bg-gray-50 transition"><td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td><td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${escapeHTML(item.cliente)}</div><div class="text-xs text-gray-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(item.designer || 'Sin asignar')}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">${pieces.toLocaleString()}</td><td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button class="text-red-600 hover:text-red-900 btn-remove-from-plan transition-colors" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+            if (isCompleted) completedCount++;
+
+            let statusBadge = '';
+            let rowClasses = 'transition border-b last:border-b-0 ';
+
+            if (isCompleted) {
+                statusBadge = '<span class="bg-slate-600 text-white text-xs px-2 py-1 rounded font-bold shadow-sm"><i class="fa-solid fa-check mr-1"></i>LISTO</span>';
+                rowClasses += 'bg-gray-50 opacity-60 grayscale'; 
+            } else if (item.isLate) {
+                statusBadge = '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold border border-red-200">ATRASADA</span>';
+                rowClasses += 'hover:bg-red-50';
+            } else if (item.isAboutToExpire) {
+                statusBadge = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold border border-yellow-200">URGENTE</span>';
+                rowClasses += 'hover:bg-yellow-50';
+            } else {
+                statusBadge = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded border border-green-200">En Proceso</span>';
+                rowClasses += 'hover:bg-gray-50';
+            }
+
+            html += `<tr class="${rowClasses}">
+                <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+                <td class="px-6 py-4">
+                    <div class="text-sm font-medium text-gray-900">${escapeHTML(item.cliente)}</div>
+                    <div class="text-xs text-gray-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(item.designer || 'Sin asignar')}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">${pieces.toLocaleString()}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button class="text-red-600 hover:text-red-900 btn-remove-from-plan transition-colors p-2 rounded hover:bg-red-100" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}" title="Quitar del plan">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
         });
+        
         html += `</tbody></table></div>`;
+        
+        const progressPct = planData.length > 0 ? Math.round((completedCount / planData.length) * 100) : 0;
+        html = `<div class="mb-4 flex items-center justify-between bg-blue-50 p-3 rounded border border-blue-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-32 bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: ${progressPct}%"></div>
+                        </div>
+                        <span class="text-sm font-medium text-blue-800">${progressPct}% Completado (${completedCount}/${planData.length})</span>
+                    </div>
+                </div>` + html;
+
         container.innerHTML = html;
-        summarySpan.textContent = `${planData.length} órdenes | ${totalPieces.toLocaleString()} piezas`;
+        summarySpan.textContent = `${planData.length} órdenes | ${totalPieces.toLocaleString()} pzs`;
     }, 50);
 }
 
@@ -2002,7 +2048,6 @@ async function removeOrderFromPlan(planEntryId, orderCode) {
 }
 // --- FUNCIONES DE NOTIFICACIONES MEJORADAS ---
 
-// 1. Función para abrir/cerrar el menú
 function toggleNotifications() {
     const dropdown = document.getElementById('notificationDropdown');
     if (dropdown) {
@@ -2010,19 +2055,16 @@ function toggleNotifications() {
     }
 }
 
-// Cerrar el menú si haces clic fuera de él
 document.addEventListener('click', function(event) {
     const dropdown = document.getElementById('notificationDropdown');
     const btn = document.getElementById('notificationBtn');
     if (!dropdown || !btn) return;
     
-    // Si el clic NO fue en el botón NI dentro del menú, cierra el menú
     if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
         dropdown.classList.add('hidden');
     }
 });
 
-// 2. Función Actualizada que llena el menú
 function updateAlerts(stats) {
     const totalAlerts = stats.veryLate + stats.aboutToExpire + stats.late;
     
@@ -2032,14 +2074,13 @@ function updateAlerts(stats) {
     
     if (!badge || !btn || !list) return;
 
-    // A. Actualizar el Badge (Globito rojo)
     if (totalAlerts > 0) {
         badge.textContent = totalAlerts > 99 ? '99+' : totalAlerts;
         badge.classList.remove('hidden');
         badge.classList.add('flex');
         
         btn.classList.remove('text-slate-400');
-        btn.classList.add('text-slate-700'); // Color activo
+        btn.classList.add('text-slate-700'); 
     } else {
         badge.classList.add('hidden');
         badge.classList.remove('flex');
@@ -2047,10 +2088,8 @@ function updateAlerts(stats) {
         btn.classList.remove('text-slate-700');
     }
 
-    // B. Construir la lista de mensajes dentro del menú
     let htmlContent = '';
 
-    // Alerta de Muy Atrasadas
     if (stats.veryLate > 0) {
         htmlContent += `
             <div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 cursor-pointer transition flex gap-3 items-start group">
@@ -2062,7 +2101,6 @@ function updateAlerts(stats) {
             </div>`;
     }
 
-    // Alerta de Por Vencer
     if (stats.aboutToExpire > 0) {
         htmlContent += `
             <div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 cursor-pointer transition flex gap-3 items-start group">
@@ -2074,7 +2112,6 @@ function updateAlerts(stats) {
             </div>`;
     }
     
-    // Alerta de Atrasadas (Normales)
     if (stats.late > 0) {
          htmlContent += `
             <div onclick="setFilter('late'); toggleNotifications();" class="p-3 hover:bg-orange-50 cursor-pointer transition flex gap-3 items-start group">
@@ -2086,7 +2123,6 @@ function updateAlerts(stats) {
             </div>`;
     }
 
-    // Estado Vacío
     if (htmlContent === '') {
         htmlContent = `
             <div class="flex flex-col items-center justify-center py-8 px-4 text-center">
