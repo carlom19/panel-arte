@@ -25,6 +25,7 @@ let allOrders = [];
 let selectedOrders = new Set();
 let currentFilter = 'all';
 let currentSearch = '';
+
 // Filtros
 let currentClientFilter = '';
 let currentStyleFilter = '';
@@ -47,29 +48,32 @@ let paginatedOrders = [];
 // --- Firebase ---
 let usuarioActual = null; 
 const db_firestore = firebase.firestore(); 
-// Listeners
+
+// Listeners (para poder desconectarlos al salir)
 let unsubscribeAssignments = null;
 let unsubscribeHistory = null;
 let unsubscribeChildOrders = null;
 let unsubscribeDesigners = null;
 let unsubscribeWeeklyPlan = null;
 
-// --- Mapas de Datos (Caché) ---
+// --- Mapas de Datos (Caché local) ---
 let firebaseAssignmentsMap = new Map();
 let firebaseHistoryMap = new Map();
 let firebaseChildOrdersMap = new Map();
 let firebaseDesignersMap = new Map(); 
 let firebaseWeeklyPlanMap = new Map();
 
-// --- Listas y Config ---
+// --- Listas y Configuración ---
 let designerList = []; 
 let needsRecalculation = true; 
 const EXCLUDE_DESIGNER_NAME = 'Magdali Fernandez'; 
 const DB_SCHEMA_VERSION = 1; 
+
+// Variables para Batch de Auto-Completado
 let autoCompleteBatchWrites = []; 
 let autoCompletedOrderIds = new Set(); 
 
-// --- Gráficos ---
+// --- Instancias de Gráficos (para destruirlos antes de redibujar) ---
 let designerDoughnutChart = null;
 let designerBarChart = null;
 let deptLoadPieChart = null;
@@ -79,32 +83,31 @@ let currentCompareDesigner1 = '';
 
 
 // ======================================================
-// ===== SISTEMA DE NAVEGACIÓN (ROUTER) =====
+// ===== SISTEMA DE NAVEGACIÓN (ROUTER) - NUEVO =====
 // ======================================================
 
 function navigateTo(viewId) {
     if (!isExcelLoaded) return;
 
-    // 1. Ocultar todas las vistas principales
+    // 1. Ocultar todas las vistas principales (que tienen la clase .main-view)
     document.querySelectorAll('.main-view').forEach(el => el.style.display = 'none');
     
     // 2. Mostrar la vista seleccionada
     const target = document.getElementById(viewId);
     if (target) {
         target.style.display = 'block';
-        // Scroll al top al cambiar de vista
         window.scrollTo(0, 0);
     }
 
     // 3. Actualizar estado visual del Sidebar
     document.querySelectorAll('.nav-item').forEach(btn => {
-        // Resetear estilos base
-        btn.classList.remove('bg-slate-800', 'text-white', 'shadow-md', 'border-l-4', 'border-blue-500');
+        // Resetear estilos a inactivo
+        btn.classList.remove('bg-slate-800', 'text-white', 'shadow-md');
         btn.classList.add('text-slate-400');
         
-        // Resetear iconos
+        // Resetear color de iconos
         const icon = btn.querySelector('i');
-        if(icon) icon.classList.remove('text-blue-400', 'text-orange-400', 'text-purple-400', 'text-green-400');
+        if(icon) icon.className = icon.className.replace(/text-\w+-400/g, '').trim();
     });
 
     const activeBtn = document.getElementById('nav-' + viewId);
@@ -114,21 +117,23 @@ function navigateTo(viewId) {
         
         // Colorear icono según la sección para feedback visual
         const icon = activeBtn.querySelector('i');
-        if (viewId === 'dashboard' && icon) icon.classList.add('text-blue-400');
-        if (viewId === 'workPlanView' && icon) icon.classList.add('text-orange-400');
-        if (viewId === 'designerMetricsView' && icon) icon.classList.add('text-purple-400');
-        if (viewId === 'departmentMetricsView' && icon) icon.classList.add('text-green-400');
+        if (icon) {
+            if (viewId === 'dashboard') icon.classList.add('text-blue-400');
+            if (viewId === 'workPlanView') icon.classList.add('text-orange-400');
+            if (viewId === 'designerMetricsView') icon.classList.add('text-purple-400');
+            if (viewId === 'departmentMetricsView') icon.classList.add('text-green-400');
+        }
     }
 
-    // 4. Ejecutar lógica específica de la vista
+    // 4. Ejecutar lógica específica de inicialización de la vista
     if (viewId === 'dashboard') {
         updateDashboard();
     } else if (viewId === 'workPlanView') {
         generateWorkPlan();
     } else if (viewId === 'designerMetricsView') {
         populateMetricsSidebar();
-        // Seleccionar el primer diseñador si no hay nadie seleccionado
-        if(document.getElementById('metricsDetail').innerHTML.includes('Selecciona')) {
+        // Si no hay un diseñador seleccionado (mensaje por defecto), seleccionar el primero
+        if(document.getElementById('metricsDetail').innerText.includes('Selecciona')) {
             const firstBtn = document.querySelector('#metricsSidebarList .filter-btn');
             if(firstBtn) firstBtn.click();
         }
@@ -136,7 +141,7 @@ function navigateTo(viewId) {
         generateDepartmentMetrics();
     }
 
-    // 5. Limpieza de recursos (Gráficos)
+    // 5. Limpieza de recursos (Gráficos) si salimos de métricas
     if (viewId !== 'designerMetricsView' && viewId !== 'departmentMetricsView') {
         destroyAllCharts();
     }
@@ -227,13 +232,13 @@ function checkAndCloseModalStack() {
     if (activeModals.length === 0) document.body.classList.remove('modal-open');
 }
 
-// --- Inicialización ---
+// --- INICIALIZACIÓN DEL DOM ---
 document.addEventListener('DOMContentLoaded', (event) => {
     console.log('DOM cargado. Inicializando App v6.0...');
     
     safeAddEventListener('loginButton', 'click', iniciarLoginConGoogle);
     safeAddEventListener('logoutButton', 'click', iniciarLogout);
-    safeAddEventListener('logoutNavBtn', 'click', iniciarLogout); // Nuevo botón sidebar
+    safeAddEventListener('logoutNavBtn', 'click', iniciarLogout); 
 
     firebase.auth().onAuthStateChanged((user) => {
         const loginSection = document.getElementById('loginSection');
@@ -243,25 +248,25 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         if (user) {
             usuarioActual = user;
-            document.getElementById('userName').textContent = usuarioActual.displayName || 'Usuario';
-            document.getElementById('navUserName').textContent = usuarioActual.displayName || 'Usuario';
+            if(document.getElementById('userName')) document.getElementById('userName').textContent = usuarioActual.displayName || 'Usuario';
+            if(document.getElementById('navUserName')) document.getElementById('navUserName').textContent = usuarioActual.displayName || 'Usuario';
             
             loginSection.style.display = 'none';
             
             if (!isExcelLoaded) {
                 // Estado: Logueado pero sin Excel
                 uploadSection.style.display = 'block';
-                appMainContainer.style.display = 'none'; // Ocultar vistas
-                nav.style.display = 'none'; // Ocultar sidebar
+                appMainContainer.style.display = 'none'; 
+                nav.style.display = 'none'; 
                 nav.style.transform = 'translateX(-100%)';
                 appMainContainer.style.marginLeft = '0';
             } else {
-                // Estado: Logueado y Excel cargado (Recarga o similar)
+                // Estado: Logueado y Excel cargado
                 uploadSection.style.display = 'none';
                 appMainContainer.style.display = 'block';
                 nav.style.display = 'flex';
                 nav.style.transform = 'translateX(0)';
-                appMainContainer.style.marginLeft = '16rem'; // w-64
+                appMainContainer.style.marginLeft = '16rem'; 
             }
             conectarDatosDeFirebase();
 
@@ -314,7 +319,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         fileInput.addEventListener('change', handleFileSelect);
     }
 
-    // Delegación de eventos para listas dinámicas
+    // Delegación de eventos
     const safeClickDelegate = (id, selector, callback) => {
         const el = document.getElementById(id);
         if(el) el.addEventListener('click', (e) => {
@@ -324,13 +329,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
     };
 
     safeClickDelegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
+    
     safeClickDelegate('metricsSidebarList', '.filter-btn', (btn) => {
-        // UX selección visual
         document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-50', 'border-blue-200'));
         btn.classList.add('active', 'bg-blue-50', 'border-blue-200');
         generateDesignerMetrics(btn.dataset.designer);
     });
+    
     safeClickDelegate('childOrdersList', '.btn-delete-child', (btn, e) => { e.stopPropagation(); deleteChildOrder(btn.dataset.childId, btn.dataset.childCode); });
+    
     safeClickDelegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
 
     // Atajos de teclado
@@ -349,7 +356,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 });
 
 // ======================================================
-// ===== FUNCIONES DE FIREBASE =====
+// ===== FUNCIONES DE FIREBASE (NÚCLEO) =====
 // ======================================================
 
 function iniciarLoginConGoogle() {
@@ -359,21 +366,19 @@ function iniciarLoginConGoogle() {
 
 function iniciarLogout() {
     firebase.auth().signOut().then(() => {
-        document.getElementById('mainNavigation').style.transform = 'translateX(-100%)'; // Ocultar sidebar
+        document.getElementById('mainNavigation').style.transform = 'translateX(-100%)';
         document.getElementById('appMainContainer').style.marginLeft = '0';
     });
 }
 
 function conectarDatosDeFirebase() {
     if (!usuarioActual) return;
-    const dbStatus = document.getElementById('dbStatus'); // En header
-    const navDbStatus = document.getElementById('navDbStatus'); // En sidebar
+    const navDbStatus = document.getElementById('navDbStatus'); 
 
     const setStatus = (connected) => {
         const html = connected 
             ? `<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Conectado`
             : `<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> Conectando...`;
-        if(dbStatus) dbStatus.innerHTML = html;
         if(navDbStatus) navDbStatus.innerHTML = html;
     };
 
@@ -462,7 +467,7 @@ function mergeYActualizar() {
             order.designer = ''; order.customStatus = ''; order.receivedDate = ''; order.notes = ''; order.completedDate = null;
         }
 
-        // AUTO-COMPLETADO: Si salió de P_Art y no está completada
+        // Lógica de Auto-Completado Mejorada
         if (fbData && order.departamento !== 'P_Art' && order.departamento !== 'Sin Departamento') {
             if (fbData.customStatus !== 'Completada' && !autoCompletedOrderIds.has(order.orderId)) {
                 order.customStatus = 'Completada';
@@ -498,9 +503,11 @@ async function ejecutarAutoCompleteBatch() {
     autoCompleteBatchWrites.forEach(write => {
         const assignmentRef = db_firestore.collection('assignments').doc(write.orderId);
         batch.set(assignmentRef, write.data, { merge: true });
-        // Historial
-        const historyRef = db_firestore.collection('history').doc();
-        batch.set(historyRef, { orderId: write.orderId, change: write.history[0], user: user, timestamp: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION });
+        
+        write.history.forEach(change => {
+            const historyRef = db_firestore.collection('history').doc();
+            batch.set(historyRef, { orderId: write.orderId, change: change, user: user, timestamp: new Date().toISOString(), schemaVersion: DB_SCHEMA_VERSION });
+        });
     });
 
     try {
@@ -510,7 +517,8 @@ async function ejecutarAutoCompleteBatch() {
     } catch (error) { console.error("Error batch:", error); }
 }
 
-// --- CRUD Básico ---
+// --- CRUD (Operaciones de Base de Datos) ---
+
 async function saveAssignmentToDB_Firestore(orderId, dataToSave, historyChanges = []) {
     if (!usuarioActual) throw new Error("No autenticado");
     const batch = db_firestore.batch();
@@ -547,6 +555,46 @@ async function deleteDesigner(docId, name) {
             showCustomAlert('Diseñador eliminado', 'success');
         } catch (e) { showCustomAlert(e.message, 'error'); }
     });
+}
+
+async function saveChildOrderToDB(childOrder) {
+    childOrder.schemaVersion = DB_SCHEMA_VERSION;
+    return await db_firestore.collection('childOrders').doc(childOrder.childOrderId).set(childOrder);
+}
+
+async function deleteChildOrderFromDB(childOrderId) {
+    return await db_firestore.collection('childOrders').doc(childOrderId).delete();
+}
+
+async function addOrderToWorkPlanDB(order, weekIdentifier) {
+    const planEntryId = `${order.orderId}_${weekIdentifier}`;
+    const planRef = db_firestore.collection('weeklyPlan').doc(planEntryId);
+    const doc = await planRef.get();
+    if (doc.exists) return false; 
+
+    const planEntry = {
+        planEntryId: planEntryId,
+        orderId: order.orderId,
+        weekIdentifier: weekIdentifier,
+        designer: order.designer,
+        planStatus: 'Pendiente', 
+        addedAt: new Date().toISOString(),
+        cliente: order.cliente,
+        codigoContrato: order.codigoContrato,
+        estilo: order.estilo,
+        fechaDespacho: order.fechaDespacho ? new Date(order.fechaDespacho).toISOString() : null,
+        cantidad: order.cantidad,
+        childPieces: order.childPieces,
+        isLate: order.isLate,
+        isAboutToExpire: order.isAboutToExpire,
+        schemaVersion: DB_SCHEMA_VERSION
+    };
+    await planRef.set(planEntry);
+    return true; 
+}
+
+async function removeOrderFromWorkPlanDB(planEntryId) {
+    return await db_firestore.collection('weeklyPlan').doc(planEntryId).delete();
 }
 
 // ======================================================
@@ -601,7 +649,6 @@ async function processFile(file) {
             { pattern: /p[_\s]*shipping/i, name: 'P_Shipping' }
         ];
         
-        // Optimización: Pre-mapeo de índices de departamentos
         const deptIndices = [];
         headers.forEach((h, i) => {
             const match = departmentPatterns.find(d => d.pattern.test(h));
@@ -616,7 +663,6 @@ async function processFile(file) {
         for (const row of rows) {
             if (!row || row.every(c => !c)) continue;
             
-            // Fecha cascada
             if (col.fecha >= 0 && row[col.fecha]) {
                 const raw = row[col.fecha];
                 if (typeof raw === 'number') currentDate = new Date((raw - 25569) * 86400000);
@@ -630,7 +676,6 @@ async function processFile(file) {
 
             if (!currentClient || !currentContrato) continue;
 
-            // Detectar departamento y cantidad
             let qty = 0, dept = "Sin Departamento";
             for (let i = deptIndices.length - 1; i >= 0; i--) {
                 const val = row[deptIndices[i].index];
@@ -641,7 +686,6 @@ async function processFile(file) {
             }
             if (qty <= 0) dept = "Sin Departamento";
 
-            // ID y Fechas
             const fDespacho = currentDate ? new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()) : null;
             const orderId = `${currentClient}_${currentContrato}_${fDespacho ? fDespacho.getTime() : 'nodate'}_${currentStyle}`;
             
@@ -649,12 +693,10 @@ async function processFile(file) {
             let daysLate = 0;
             if (fDespacho && fDespacho < today) daysLate = Math.ceil((today - fDespacho) / 86400000);
             
-            // Estado Firebase
             const fbData = firebaseAssignmentsMap.get(orderId);
             let status = fbData ? fbData.customStatus : '';
             let compDate = fbData ? fbData.completedDate : null;
 
-            // Lógica Auto-Completado
             if (fbData && dept !== 'P_Art' && dept !== 'Sin Departamento') {
                 if (status !== 'Completada' && !autoCompletedOrderIds.has(orderId)) {
                     status = 'Completada';
@@ -685,7 +727,7 @@ async function processFile(file) {
         
         if (autoCompleteBatchWrites.length > 0) await ejecutarAutoCompleteBatch();
 
-        // UI SWITCH -> Mostrar App y Sidebar
+        // MOSTRAR INTERFAZ PRINCIPAL
         document.getElementById('uploadSection').style.display = 'none';
         document.getElementById('appMainContainer').style.display = 'block';
         document.getElementById('appMainContainer').style.marginLeft = '16rem';
@@ -694,7 +736,7 @@ async function processFile(file) {
         nav.style.display = 'flex';
         nav.style.transform = 'translateX(0)';
 
-        navigateTo('dashboard'); // Ir al inicio
+        navigateTo('dashboard'); 
 
     } catch (error) {
         showCustomAlert('Error: ' + error.message, 'error');
@@ -722,7 +764,7 @@ function updateDashboard() {
     
     const artOrders = allOrders.filter(o => o.departamento === 'P_Art');
     
-    // Stats
+    // Estadísticas Superiores
     const totalPzs = artOrders.reduce((s, o) => s + o.cantidad + o.childPieces, 0);
     document.getElementById('statTotal').textContent = artOrders.length;
     document.getElementById('statTotalPieces').textContent = totalPzs.toLocaleString();
@@ -730,7 +772,10 @@ function updateDashboard() {
     document.getElementById('statExpiring').textContent = artOrders.filter(o => o.isAboutToExpire).length;
     document.getElementById('statOnTime').textContent = artOrders.filter(o => !o.isLate && !o.isAboutToExpire).length;
     
-    // Top Clients
+    // Notificaciones
+    updateAlerts(calculateStats(artOrders));
+
+    // Top Clients Widget
     const clients = {};
     artOrders.forEach(o => clients[o.cliente] = (clients[o.cliente]||0)+1);
     const top = Object.entries(clients).sort((a,b)=>b[1]-a[1]).slice(0,10);
@@ -744,16 +789,50 @@ function updateDashboard() {
     updateTable();
 }
 
+function calculateStats(orders) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    return {
+        total: orders.length,
+        late: orders.filter(o => o.isLate).length,
+        veryLate: orders.filter(o => o.isVeryLate).length,
+        aboutToExpire: orders.filter(o => o.isAboutToExpire).length,
+        onTime: orders.filter(o => !o.isLate && !o.isAboutToExpire).length
+    };
+}
+
+function updateAlerts(stats) {
+    const total = stats.veryLate + stats.aboutToExpire + stats.late;
+    const badge = document.getElementById('notificationBadge');
+    const list = document.getElementById('notificationList');
+    
+    if (!badge || !list) return;
+    
+    if (total > 0) {
+        badge.textContent = total > 99 ? '99+' : total;
+        badge.classList.remove('hidden'); badge.classList.add('flex');
+    } else {
+        badge.classList.add('hidden'); badge.classList.remove('flex');
+    }
+
+    let html = '';
+    if(stats.veryLate > 0) html += `<div onclick="setFilter('veryLate')" class="p-3 hover:bg-red-50 cursor-pointer border-b border-slate-50"><p class="text-xs font-bold text-red-600">Muy Atrasadas</p><p class="text-[10px] text-slate-500">${stats.veryLate} órdenes críticas</p></div>`;
+    if(stats.aboutToExpire > 0) html += `<div onclick="setFilter('aboutToExpire')" class="p-3 hover:bg-yellow-50 cursor-pointer border-b border-slate-50"><p class="text-xs font-bold text-yellow-600">Por Vencer</p><p class="text-[10px] text-slate-500">${stats.aboutToExpire} vencen pronto</p></div>`;
+    
+    list.innerHTML = html || '<div class="p-4 text-center text-[10px] text-slate-400">Sin alertas pendientes</div>';
+}
+
+function toggleNotifications() {
+    document.getElementById('notificationDropdown').classList.toggle('hidden');
+}
+
 function updateTable() {
     const filtered = getFilteredOrders();
     const start = (currentPage - 1) * rowsPerPage;
     paginatedOrders = filtered.slice(start, start + rowsPerPage);
     
-    // Contadores
     document.getElementById('resultCount').textContent = filtered.length;
     document.getElementById('resultPieces').textContent = filtered.reduce((s,o)=>s+o.cantidad+o.childPieces,0).toLocaleString();
 
-    // Render
     const tbody = document.getElementById('tableBody');
     if (paginatedOrders.length === 0) {
         tbody.innerHTML = `<tr><td colspan="14" class="text-center py-8 text-slate-400 italic">No se encontraron órdenes.</td></tr>`;
@@ -766,7 +845,7 @@ function updateTable() {
             return `
             <tr class="${rowClass} hover:bg-blue-50 transition-colors cursor-pointer" onclick="openAssignModal('${order.orderId}')">
                 <td class="px-3 py-2" onclick="event.stopPropagation()">
-                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="rounded border-slate-300 text-blue-600" data-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId)?'checked':''}>` : ''}
+                    ${order.departamento === 'P_Art' ? `<input type="checkbox" class="rounded border-slate-300 text-blue-600" data-order-id="${order.orderId}" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId)?'checked':''}>` : ''}
                 </td>
                 <td class="px-3 py-2" data-label="Estado">${statusBadge}</td>
                 <td class="px-3 py-2 font-medium text-slate-700" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
@@ -787,12 +866,10 @@ function updateTable() {
         }).join('');
     }
     
-    // Checkboxes globales
     const allChecked = paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrders.has(o.orderId));
     const selectAll = document.getElementById('selectAll');
     if(selectAll) selectAll.checked = allChecked;
     
-    // Barra flotante
     const bar = document.getElementById('multiSelectBar');
     if (selectedOrders.size > 0) {
         bar.style.opacity = '1'; bar.style.transform = 'translateX(-50%) translateY(0)'; bar.style.pointerEvents = 'auto';
@@ -802,7 +879,7 @@ function updateTable() {
     }
 }
 
-// Filtros Helper
+// --- Helpers Visuales ---
 function getFilteredOrders() {
     let res = allOrders;
     const s = currentSearch.toLowerCase();
@@ -810,7 +887,7 @@ function getFilteredOrders() {
     
     if(currentClientFilter) res = res.filter(o => o.cliente === currentClientFilter);
     if(currentDepartamentoFilter) res = res.filter(o => o.departamento === currentDepartamentoFilter);
-    else res = res.filter(o => o.departamento === 'P_Art'); // Default P_Art
+    else res = res.filter(o => o.departamento === 'P_Art'); 
     
     if(currentDesignerFilter) res = res.filter(o => o.designer === currentDesignerFilter);
     if(currentCustomStatusFilter) res = res.filter(o => o.customStatus === currentCustomStatusFilter);
@@ -818,7 +895,6 @@ function getFilteredOrders() {
     if(currentFilter === 'veryLate') res = res.filter(o => o.isVeryLate);
     if(currentFilter === 'aboutToExpire') res = res.filter(o => o.isAboutToExpire);
     
-    // Sort
     res.sort((a,b) => {
         let va = a[sortConfig.key], vb = b[sortConfig.key];
         if(sortConfig.key === 'date') { va = a.fechaDespacho?.getTime()||0; vb = b.fechaDespacho?.getTime()||0; }
@@ -827,22 +903,18 @@ function getFilteredOrders() {
     return res;
 }
 
-// --- Helpers Visuales ---
 function getStatusBadge(order) {
     if (order.isVeryLate) return `<span class="status-badge bg-red-100 text-red-700 ring-1 ring-red-600/10">MUY ATRASADA</span>`;
     if (order.isLate) return `<span class="status-badge bg-orange-100 text-orange-700 ring-1 ring-orange-600/10">ATRASADA</span>`;
     if (order.isAboutToExpire) return `<span class="status-badge bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20">URGENTE</span>`;
     return `<span class="status-badge bg-green-100 text-green-700 ring-1 ring-green-600/20">A TIEMPO</span>`;
 }
+
 function getCustomStatusBadge(status) {
-    const cls = { 
-        'Bandeja': 'bg-yellow-50 text-yellow-700 border-yellow-200', 
-        'Producción': 'bg-purple-50 text-purple-700 border-purple-200', 
-        'Auditoría': 'bg-blue-50 text-blue-700 border-blue-200', 
-        'Completada': 'bg-slate-100 text-slate-600 border-slate-200' 
-    };
+    const cls = { 'Bandeja': 'bg-yellow-50 text-yellow-700 border-yellow-200', 'Producción': 'bg-purple-50 text-purple-700 border-purple-200', 'Auditoría': 'bg-blue-50 text-blue-700 border-blue-200', 'Completada': 'bg-slate-100 text-slate-600 border-slate-200' };
     return status ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold border ${cls[status]||'bg-gray-50'}">${status}</span>` : '-';
 }
+
 function formatDate(d) { return d ? d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'}) : '-'; }
 
 function populateFilterDropdowns() {
@@ -857,29 +929,18 @@ function populateFilterDropdowns() {
     fill('departamentoFilter', 'departamento');
     updateAllDesignerDropdowns();
 }
+
 function updateAllDesignerDropdowns() {
     const html = '<option value="">Todos</option>' + designerList.map(d=>`<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
-    document.getElementById('designerFilter').innerHTML = html;
-    document.getElementById('modalDesigner').innerHTML = '<option value="">Sin asignar</option>' + designerList.map(d=>`<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
-    document.getElementById('multiModalDesigner').innerHTML = '<option value="">Sin asignar</option>' + designerList.map(d=>`<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    if(document.getElementById('designerFilter')) document.getElementById('designerFilter').innerHTML = html;
+    if(document.getElementById('modalDesigner')) document.getElementById('modalDesigner').innerHTML = '<option value="">Sin asignar</option>' + designerList.map(d=>`<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    if(document.getElementById('multiModalDesigner')) document.getElementById('multiModalDesigner').innerHTML = '<option value="">Sin asignar</option>' + designerList.map(d=>`<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
 }
 
 // ======================================================
-// ===== SELECCIÓN Y ASIGNACIÓN =====
+// ===== ASIGNACIÓN Y MODALES =====
 // ======================================================
-function toggleOrderSelection(id) {
-    if(selectedOrders.has(id)) selectedOrders.delete(id); else selectedOrders.add(id);
-    updateTable();
-}
-function toggleSelectAll() {
-    const visibleIds = paginatedOrders.map(o=>o.orderId);
-    const all = document.getElementById('selectAll').checked;
-    visibleIds.forEach(id => all ? selectedOrders.add(id) : selectedOrders.delete(id));
-    updateTable();
-}
-function clearSelection() { selectedOrders.clear(); updateTable(); }
 
-// Modal Editar
 async function openAssignModal(id) {
     currentEditingOrderId = id;
     const o = allOrders.find(x => x.orderId === id);
@@ -896,7 +957,6 @@ async function openAssignModal(id) {
     document.getElementById('modalReceivedDate').value = o.receivedDate || '';
     document.getElementById('modalNotes').value = o.notes || '';
     
-    // Historial
     const h = firebaseHistoryMap.get(id) || [];
     document.getElementById('modalHistory').innerHTML = h.map(x => 
         `<div class="border-b border-slate-100 pb-1 last:border-0">
@@ -905,16 +965,7 @@ async function openAssignModal(id) {
          </div>`
     ).join('') || '<p class="text-slate-400 italic">Sin historial</p>';
 
-    // Hijas
-    const children = firebaseChildOrdersMap.get(id) || [];
-    document.getElementById('childOrderCount').textContent = children.length;
-    document.getElementById('childOrdersList').innerHTML = children.map(c => 
-        `<div class="flex justify-between items-center bg-white p-1.5 rounded border border-slate-100 text-[10px]">
-            <span><strong class="text-blue-600">${c.childCode}</strong> (${c.cantidad} pzs)</span>
-            <button class="btn-delete-child text-red-400 hover:text-red-600" data-child-id="${c.childOrderId}" data-child-code="${c.childCode}">✕</button>
-        </div>`
-    ).join('') || '<p class="text-slate-400 italic text-[10px] p-1">Sin hijas</p>';
-    
+    await loadChildOrders();
     document.getElementById('assignModal').classList.add('active');
     document.body.classList.add('modal-open');
 }
@@ -951,8 +1002,101 @@ async function saveAssignment() {
     finally { setButtonLoading('saveAssignmentButton', false); }
 }
 
+async function loadChildOrders() {
+    const list = document.getElementById('childOrdersList');
+    if (!currentEditingOrderId) return;
+    const children = firebaseChildOrdersMap.get(currentEditingOrderId) || [];
+    document.getElementById('childOrderCount').textContent = children.length;
+    
+    list.innerHTML = children.map(c => 
+        `<div class="flex justify-between items-center bg-white p-1.5 rounded border border-slate-100 text-[10px]">
+            <span><strong class="text-blue-600">${c.childCode}</strong> (${c.cantidad} pzs)</span>
+            <button class="btn-delete-child text-red-400 hover:text-red-600" data-child-id="${c.childOrderId}" data-child-code="${c.childCode}">✕</button>
+        </div>`
+    ).join('') || '<p class="text-slate-400 italic text-[10px] p-1">Sin hijas</p>';
+}
+
+function openAddChildModal() {
+    if (!currentEditingOrderId) return;
+    const o = allOrders.find(x => x.orderId === currentEditingOrderId);
+    document.getElementById('parentOrderInfo').textContent = `${o.cliente} - ${o.estilo}`;
+    document.getElementById('childOrderCode').value = o.codigoContrato + '-';
+    document.getElementById('addChildModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+
+function updateChildOrderCode() {
+    const o = allOrders.find(x => x.orderId === currentEditingOrderId);
+    const num = document.getElementById('childOrderNumber').value;
+    document.getElementById('childOrderCode').value = `${o.codigoContrato}-${num}`;
+}
+
+async function saveChildOrder() {
+    try {
+        const o = allOrders.find(x => x.orderId === currentEditingOrderId);
+        const num = document.getElementById('childOrderNumber').value;
+        const pcs = parseInt(document.getElementById('childPieces').value);
+        const date = document.getElementById('childDeliveryDate').value;
+        
+        if(!num || !pcs) return showCustomAlert('Faltan datos', 'error');
+        
+        const child = {
+            childOrderId: `${o.orderId}_child_${Date.now()}`,
+            parentOrderId: o.orderId,
+            childCode: `${o.codigoContrato}-${num}`,
+            cantidad: pcs,
+            fechaDespacho: date ? new Date(date) : o.fechaDespacho,
+            createdAt: new Date().toISOString()
+        };
+        
+        await saveChildOrderToDB(child);
+        document.getElementById('addChildModal').classList.remove('active');
+        showCustomAlert('Orden hija creada', 'success');
+    } catch(e) { showCustomAlert(e.message, 'error'); }
+}
+
+function closeAddChildModal() {
+    document.getElementById('addChildModal').classList.remove('active');
+    document.body.classList.remove('modal-open');
+}
+
+function openMultiAssignModal() {
+    if (selectedOrders.size === 0) return;
+    document.getElementById('multiModalCount').textContent = selectedOrders.size;
+    document.getElementById('multiAssignModal').classList.add('active');
+}
+function closeMultiModal() {
+    document.getElementById('multiAssignModal').classList.remove('active');
+}
+
+async function saveMultiAssignment() {
+    if (selectedOrders.size === 0) return;
+    setButtonLoading('saveMultiAssignmentButton', true);
+    try {
+        const designer = document.getElementById('multiModalDesigner').value;
+        const status = document.getElementById('multiModalStatus').value;
+        const batch = db_firestore.batch();
+        let count = 0;
+        
+        selectedOrders.forEach(id => {
+            const ref = db_firestore.collection('assignments').doc(id);
+            const data = { schemaVersion: DB_SCHEMA_VERSION };
+            if(designer) data.designer = designer;
+            if(status) data.customStatus = status;
+            batch.set(ref, data, { merge: true });
+            count++;
+        });
+        
+        await batch.commit();
+        closeMultiModal();
+        clearSelection();
+        showCustomAlert(`${count} órdenes actualizadas`, 'success');
+    } catch(e) { showCustomAlert(e.message, 'error'); }
+    finally { setButtonLoading('saveMultiAssignmentButton', false); }
+}
+
 // ======================================================
-// ===== PLAN SEMANAL (MEJORADO) =====
+// ===== PLAN SEMANAL (Visual Mejorado) =====
 // ======================================================
 
 function generateWorkPlan() {
@@ -1040,19 +1184,39 @@ function generateWorkPlan() {
     }, 50);
 }
 
-// ======================================================
-// ===== GRÁFICOS Y MÉTRICAS (Placeholder Lógica) =====
-// ======================================================
-// Estas funciones se mantienen similares, solo se aseguran de 
-// renderizar en los nuevos contenedores ID.
-
-function destroyAllCharts() {
-    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
-    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
-    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
-    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
-    if (compareChart) { compareChart.destroy(); compareChart = null; }
+async function loadUrgentOrdersToPlan() {
+    const weekIdentifier = document.getElementById('view-workPlanWeekSelector').value;
+    if (!weekIdentifier) return showCustomAlert('Selecciona semana', 'error');
+    
+    const urgents = allOrders.filter(o => o.departamento === 'P_Art' && (o.isLate || o.isAboutToExpire));
+    if(urgents.length === 0) return showCustomAlert('No hay urgentes', 'info');
+    
+    const batch = db_firestore.batch();
+    urgents.slice(0, 400).forEach(o => {
+        const id = `${o.orderId}_${weekIdentifier}`;
+        const ref = db_firestore.collection('weeklyPlan').doc(id);
+        batch.set(ref, {
+            planEntryId: id, orderId: o.orderId, weekIdentifier, 
+            cliente: o.cliente, codigoContrato: o.codigoContrato, estilo: o.estilo,
+            fechaDespacho: o.fechaDespacho ? o.fechaDespacho.toISOString() : null,
+            cantidad: o.cantidad, isLate: o.isLate, isAboutToExpire: o.isAboutToExpire,
+            designer: o.designer, addedAt: new Date().toISOString()
+        }, {merge: true});
+    });
+    
+    await batch.commit();
+    showCustomAlert('Urgentes cargadas', 'success');
 }
+
+async function removeOrderFromPlan(planEntryId, code) {
+    if(!confirm(`¿Quitar orden ${code}?`)) return;
+    await removeOrderFromWorkPlanDB(planEntryId);
+    showCustomAlert('Orden removida', 'success');
+}
+
+// ======================================================
+// ===== GRÁFICOS Y MÉTRICAS =====
+// ======================================================
 
 function populateMetricsSidebar() {
     const list = document.getElementById('metricsSidebarList');
@@ -1100,6 +1264,7 @@ function generateDesignerMetrics(name) {
     const statusMap = {};
     orders.forEach(o => statusMap[o.customStatus||'Sin estado'] = (statusMap[o.customStatus||'Sin estado']||0)+1);
     
+    if(designerDoughnutChart) designerDoughnutChart.destroy();
     const ctx1 = document.getElementById('designerDoughnutChartCanvas').getContext('2d');
     designerDoughnutChart = new Chart(ctx1, {
         type: 'doughnut',
@@ -1155,6 +1320,7 @@ function generateDepartmentMetrics() {
     const statusMap = {};
     active.forEach(o => statusMap[o.customStatus||'Sin estado'] = (statusMap[o.customStatus||'Sin estado']||0)+1);
     
+    if(deptLoadPieChart) deptLoadPieChart.destroy();
     const ctx1 = document.getElementById('deptLoadPieChartCanvas').getContext('2d');
     deptLoadPieChart = new Chart(ctx1, {
         type: 'pie',
@@ -1166,6 +1332,7 @@ function generateDepartmentMetrics() {
     active.forEach(o => { if(o.designer && o.designer !== EXCLUDE_DESIGNER_NAME) loadMap[o.designer] = (loadMap[o.designer]||0) + o.cantidad; });
     const sortedLoad = Object.entries(loadMap).sort((a,b) => b[1]-a[1]);
     
+    if(deptLoadBarChart) deptLoadBarChart.destroy();
     const ctx2 = document.getElementById('deptLoadBarChartCanvas').getContext('2d');
     deptLoadBarChart = new Chart(ctx2, {
         type: 'bar',
@@ -1174,9 +1341,6 @@ function generateDepartmentMetrics() {
     });
 }
 
-// ======================================================
-// ===== OTRAS UTILIDADES (EXPORT, PDF, RESET) =====
-// ======================================================
 function exportTableToExcel() {
     if (allOrders.length === 0) return showCustomAlert('Nada que exportar', 'error');
     const data = getFilteredOrders().map(o => ({
@@ -1205,5 +1369,3 @@ function resetApp() {
         desconectarDatosDeFirebase();
     });
 }
-
-// Fin de app.js
