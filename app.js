@@ -1445,8 +1445,8 @@ function generateDepartmentMetrics() {
     }, 100);
 }
 
-// ======================================================
-// ===== 14. GRÁFICOS Y PLAN SEMANAL =====
+/// ======================================================
+// ===== 14. GRÁFICOS Y PLAN SEMANAL (FALTANTE) =====
 // ======================================================
 
 function destroyAllCharts() {
@@ -1460,54 +1460,102 @@ function destroyAllCharts() {
 function generateWorkPlan() {
     const container = document.getElementById('view-workPlanContent');
     const weekInput = document.getElementById('view-workPlanWeekSelector');
+    
+    // Validación básica
+    if (!weekInput) return;
     if (!weekInput.value) weekInput.value = getWeekIdentifierString(new Date());
+    
     const weekIdentifier = weekInput.value;
     
     container.innerHTML = '<div class="spinner"></div>';
+    
     setTimeout(() => {
         const planData = firebaseWeeklyPlanMap.get(weekIdentifier) || [];
+        
         if (planData.length === 0) {
-            container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50"><i class="fa-regular fa-calendar-xmark text-3xl text-slate-300 mb-2"></i><p class="text-slate-400 font-medium">Plan vacío.</p></div>`;
-            document.getElementById('view-workPlanSummary').textContent = "0 órdenes";
+            container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+                <i class="fa-regular fa-calendar-xmark text-3xl text-slate-300 mb-2"></i>
+                <p class="text-slate-400 font-medium">El plan para la semana ${weekIdentifier} está vacío.</p>
+            </div>`;
+            const summary = document.getElementById('view-workPlanSummary');
+            if(summary) summary.textContent = "0 órdenes";
             return;
         }
 
         let totalPzs = 0, doneCount = 0;
+        
+        // Ordenar: Primero completadas, luego atrasadas, luego normales
         planData.sort((a, b) => {
             const oa = allOrders.find(x => x.orderId === a.orderId);
             const da = oa && oa.customStatus === CONFIG.STATUS.COMPLETED;
             const db = allOrders.find(x => x.orderId === b.orderId) && allOrders.find(x => x.orderId === b.orderId).customStatus === CONFIG.STATUS.COMPLETED;
-            if (da && !db) return 1; if (!da && db) return -1;
-            return (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1;
+            
+            if (da && !db) return 1; // Completadas al final
+            if (!da && db) return -1;
+            return (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1; // Atrasadas primero
         });
 
-        let html = `<div class="bg-white rounded-lg shadow border border-slate-200 overflow-hidden"><table class="min-w-full divide-y divide-slate-200 text-xs"><thead class="bg-slate-50 font-bold text-slate-500 uppercase"><tr><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-left">Orden</th><th class="px-4 py-3 text-left">Diseñador</th><th class="px-4 py-3 text-left">Entrega</th><th class="px-4 py-3 text-right">Piezas</th><th class="px-4 py-3"></th></tr></thead><tbody class="divide-y divide-slate-100">`;
+        let html = `
+        <div class="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
+            <table class="min-w-full divide-y divide-slate-200 text-xs">
+                <thead class="bg-slate-50 font-bold text-slate-500 uppercase">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Estado</th>
+                        <th class="px-4 py-3 text-left">Orden</th>
+                        <th class="px-4 py-3 text-left">Diseñador</th>
+                        <th class="px-4 py-3 text-left">Entrega</th>
+                        <th class="px-4 py-3 text-right">Piezas</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">`;
 
         planData.forEach(item => {
             const liveOrder = allOrders.find(o => o.orderId === item.orderId);
             const isCompleted = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
             const pzs = (item.cantidad || 0) + (item.childPieces || 0);
-            totalPzs += pzs; if (isCompleted) doneCount++;
+            totalPzs += pzs; 
+            if (isCompleted) doneCount++;
 
-            let badge = isCompleted ? `<span class="bg-slate-600 text-white px-2 py-1 rounded font-bold flex items-center gap-1 w-fit shadow-sm"><i class="fa-solid fa-check"></i> LISTO</span>` : item.isLate ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold border border-red-200">ATRASADA</span>` : `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded font-bold border border-blue-100">En Proceso</span>`;
+            let badge = isCompleted 
+                ? `<span class="bg-slate-600 text-white px-2 py-1 rounded font-bold flex items-center gap-1 w-fit shadow-sm"><i class="fa-solid fa-check"></i> LISTO</span>` 
+                : item.isLate 
+                    ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold border border-red-200">ATRASADA</span>` 
+                    : `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded font-bold border border-blue-100">En Proceso</span>`;
+            
             let rowClasses = isCompleted ? 'bg-slate-50 opacity-60 grayscale' : 'hover:bg-slate-50';
 
-            html += `<tr class="${rowClasses}"><td class="px-4 py-3">${badge}</td><td class="px-4 py-3"><div class="font-bold text-slate-800 text-sm">${escapeHTML(item.cliente)}</div><div class="text-slate-500 text-[11px]">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td><td class="px-4 py-3 font-medium text-slate-700">${escapeHTML(item.designer || 'Sin asignar')}</td><td class="px-4 py-3 text-slate-600">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td><td class="px-4 py-3 text-right font-bold text-slate-800">${pzs.toLocaleString()}</td><td class="px-4 py-3 text-right"><button class="btn-remove-from-plan text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+            html += `
+            <tr class="${rowClasses}">
+                <td class="px-4 py-3">${badge}</td>
+                <td class="px-4 py-3">
+                    <div class="font-bold text-slate-800 text-sm">${escapeHTML(item.cliente)}</div>
+                    <div class="text-slate-500 text-[11px]">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
+                </td>
+                <td class="px-4 py-3 font-medium text-slate-700">${escapeHTML(item.designer || 'Sin asignar')}</td>
+                <td class="px-4 py-3 text-slate-600">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
+                <td class="px-4 py-3 text-right font-bold text-slate-800">${pzs.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right">
+                    <button class="btn-remove-from-plan text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
         });
+        
         html += `</tbody></table></div>`;
+        
         const progress = planData.length > 0 ? Math.round((doneCount / planData.length) * 100) : 0;
         
-        container.innerHTML = `<div class="mb-6 bg-white border border-blue-100 p-4 rounded-xl shadow-sm flex items-center justify-between gap-6"><div class="flex-1"><div class="flex justify-between mb-2"><span class="font-bold text-slate-700 text-xs uppercase">Progreso</span><span class="font-bold text-blue-600 text-xs">${progress}%</span></div><div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden"><div class="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-700" style="width: ${progress}%"></div></div></div><div class="text-right"><div class="text-2xl font-bold text-slate-800">${doneCount}/${planData.length}</div><div class="text-[10px] text-slate-400 font-bold uppercase mt-1">Completadas</div></div></div>` + html;
-        document.getElementById('view-workPlanSummary').textContent = `${planData.length} órdenes | ${totalPzs.toLocaleString()} pzs`;
-    }, 50);
-}
-
-window.removeOrderFromPlan = (id, code) => {
-    showConfirmModal(`¿Quitar ${code} del plan?`, async () => {
-        await safeFirestoreOperation(() => db_firestore.collection('weeklyPlan').doc(id).delete(), 'Quitando...', 'Orden removida');
-        generateWorkPlan();
-    });
-};
+        container.innerHTML = `
+        <div class="mb-6 bg-white border border-blue-100 p-4 rounded-xl shadow-sm flex items-center justify-between gap-6">
+            <div class="flex-1">
+                <div class="flex justify-between mb-2">
+                    <span class="font-bold text-slate-700 text-xs uppercase">Progreso Semanal</span>
+                    <span class="font-bold text-blue-600 text-xs">${progress}%</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-60
 
 // ======================================================
 // ===== 15. EXPORTACIÓN Y COMPARACIÓN =====
