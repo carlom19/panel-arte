@@ -456,7 +456,7 @@ function recalculateChildPieces() {
 }
 
 // ======================================================
-// ===== 6. PARSER EXCEL (CORE - CON FIX DE IDs) =====
+// ===== 6. PARSER EXCEL (CORE) - CORREGIDO =====
 // ======================================================
 
 function handleFiles(files){ if(files.length){ document.getElementById('fileName').textContent = files[0].name; processFile(files[0]); } }
@@ -471,6 +471,7 @@ async function processFile(file) {
         
         const arr = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
         let hIdx = -1;
+        // Búsqueda inteligente de encabezados
         for (let i = 0; i < Math.min(arr.length, 15); i++) {
             const r = arr[i].map(c => String(c).toLowerCase());
             if (r.some(c => c.includes('fecha')) && r.some(c => c.includes('cliente'))) { hIdx = i; break; }
@@ -480,6 +481,7 @@ async function processFile(file) {
         const headers = arr[hIdx].map(h => String(h).trim().toLowerCase());
         const rows = arr.slice(hIdx + 1);
         
+        // Mapeo dinámico de columnas
         const cols = {
             fecha: headers.findIndex(h => h.includes('fecha')),
             cliente: headers.findIndex(h => h.includes('cliente')),
@@ -505,6 +507,7 @@ async function processFile(file) {
         for (const r of rows) {
             if (!r || r.every(c => !c)) continue;
             
+            // Extracción segura de datos
             let currDate = null;
             if (cols.fecha >= 0 && r[cols.fecha]) { const v = r[cols.fecha]; currDate = typeof v === 'number' ? new Date((v - 25569) * 86400000) : new Date(v); }
             
@@ -515,6 +518,7 @@ async function processFile(file) {
             const cSty = cols.estilo >= 0 ? String(r[cols.estilo]).trim() : "";
             const cTeam = cols.team >= 0 ? String(r[cols.team]).trim() : "";
 
+            // Determinar departamento y cantidad
             let qty = 0, dept = CONFIG.DEPARTMENTS.NONE;
             for (let i = deptCols.length - 1; i >= 0; i--) {
                 const val = r[deptCols[i].idx];
@@ -526,13 +530,13 @@ async function processFile(file) {
 
             const fd = currDate ? new Date(currDate.getFullYear(), currDate.getMonth(), currDate.getDate()) : null;
             
-            // --- CORRECCIÓN CRÍTICA DE ID ---
-            // Sanitizamos el ID igual que el importador para que coincidan (reemplazar / por _)
+            // --- FIX IMPORTANTE: Sanitización de ID ---
+            // Generamos el ID crudo y luego reemplazamos / y # igual que hizo el importador
             const rawId = `${cCli}_${cCod}_${fd ? fd.getTime() : 'nodate'}_${cSty}`;
             const oid = rawId.replace(/\//g, '_').replace(/#/g, ''); 
-            // --------------------------------
+            // ------------------------------------------
 
-            const fb = firebaseAssignmentsMap.get(oid); 
+            const fb = firebaseAssignmentsMap.get(oid); // Datos previos de Firebase si existen
 
             const today = new Date(); today.setHours(0,0,0,0);
             const dl = (fd && fd < today) ? Math.ceil((today - fd) / 86400000) : 0;
@@ -548,7 +552,7 @@ async function processFile(file) {
 
         allOrders = processed; isExcelLoaded = true; needsRecalculation = true;
         recalculateChildPieces();
-        mergeYActualizar(); 
+        mergeYActualizar(); // Aplicar lógica de fusión y auto-completado
 
         // UI Reset
         document.getElementById('uploadSection').style.display = 'none';
@@ -556,7 +560,7 @@ async function processFile(file) {
         document.getElementById('appMainContainer').classList.add('main-content-shifted');
         document.getElementById('mainNavigation').style.display = 'flex';
         document.getElementById('mainNavigation').style.transform = 'translateX(0)';
-        navigateTo('dashboard'); // Se define en Parte 3
+        navigateTo('dashboard'); // Se definirá en Parte 3
 
     } catch (e) { showCustomAlert('Error: ' + e.message, 'error'); console.error(e); } 
     finally { hideLoading(); }
