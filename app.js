@@ -20,7 +20,7 @@ if (typeof firebase !== 'undefined' && !firebase.apps.length) {
 
 const db_firestore = firebase.firestore(); 
 
-// --- Configuración Global (SPRINT 3 - Centralizada) ---
+// --- Configuración Global ---
 const CONFIG = {
     DEPARTMENTS: {
         ART: 'P_Art',
@@ -64,7 +64,7 @@ let currentPage = 1;
 let rowsPerPage = CONFIG.PAGINATION_DEFAULT;
 let paginatedOrders = [];
 
-// Caché de Filtrado (SPRINT 1)
+// Caché de Filtrado
 let filteredCache = { key: null, results: [], timestamp: 0 };
 
 // Variables de Edición y Batch
@@ -97,7 +97,7 @@ let compareChart = null;
 let currentCompareDesigner1 = '';
 
 // ======================================================
-// ===== 2. GESTOR DE MODALES (FIX #5 - Z-INDEX DINÁMICO) =====
+// ===== 2. GESTOR DE MODALES (Z-INDEX DINÁMICO) =====
 // ======================================================
 
 const modalStack = []; 
@@ -106,11 +106,9 @@ function openModalById(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
 
-    // FIX #5: Z-Index Dinámico para soportar modales apilados correctamente
     const baseZIndex = 2000;
     modal.style.zIndex = baseZIndex + (modalStack.length * 10);
 
-    // Confirmaciones siempre encima de todo
     if (modalId === 'confirmModal') {
         modal.style.zIndex = parseInt(modal.style.zIndex) + 1000;
     }
@@ -119,7 +117,6 @@ function openModalById(modalId) {
     modalStack.push(modalId);
     document.body.classList.add('modal-open');
 
-    // Accesibilidad: Focus Trap (Sprint 3)
     const firstInput = modal.querySelector('input, select, textarea');
     if (firstInput) {
         setTimeout(() => firstInput.focus(), 100); 
@@ -143,12 +140,10 @@ function closeAllModals() {
     document.body.classList.remove('modal-open');
 }
 
-// Listeners Globales UI
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modalStack.length > 0) closeTopModal();
 });
 
-// Alias para compatibilidad con HTML
 window.closeModal = () => closeTopModal();
 window.closeConfirmModal = () => closeTopModal();
 window.closeMultiModal = () => closeTopModal();
@@ -156,12 +151,12 @@ window.closeAddChildModal = () => closeTopModal();
 window.closeDesignerManager = () => closeTopModal();
 window.closeCompareModals = () => closeAllModals();
 window.closeWeeklyReportModal = () => closeTopModal();
+window.closeLegendModal = () => closeTopModal();
 
 // ======================================================
-// ===== 3. UTILIDADES Y MANEJO DE ERRORES (SPRINT 2) =====
+// ===== 3. UTILIDADES Y MANEJO DE ERRORES =====
 // ======================================================
 
-// Operación Segura con Timeout y Manejo de Errores
 async function safeFirestoreOperation(operation, loadingMsg = 'Procesando...', successMsg = null) {
     showLoading(loadingMsg);
     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 10000));
@@ -222,13 +217,13 @@ function getWeekIdentifierString(d) {
 }
 
 // ======================================================
-// ===== 4. INICIALIZACIÓN Y AUTH (ACTUALIZADO) =====
+// ===== 4. INICIALIZACIÓN Y AUTH =====
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v6.5 Loaded (Mini Sidebar Ready)');
+    console.log('App v6.7 Loaded (Fixed & Complete)');
     
-    // --- 1. Listeners de Auth ---
+    // Listeners de Auth
     const btnLogin = document.getElementById('loginButton');
     if(btnLogin) btnLogin.addEventListener('click', iniciarLoginConGoogle);
     
@@ -253,13 +248,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- 2. NUEVO: Listener para Toggle Sidebar (Sprint 4) ---
+    // Listener para Sidebar Mini
     const sidebarBtn = document.getElementById('sidebarToggleBtn');
     if (sidebarBtn) {
         sidebarBtn.addEventListener('click', () => {
             document.body.classList.toggle('sidebar-collapsed');
-            
-            // Cambiar icono
             const icon = sidebarBtn.querySelector('i');
             if (document.body.classList.contains('sidebar-collapsed')) {
                 icon.className = 'fa-solid fa-indent'; 
@@ -269,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 3. Listeners de Búsqueda y Filtros ---
+    // Listeners de Búsqueda y Filtros
     const searchInp = document.getElementById('searchInput');
     if(searchInp) searchInp.addEventListener('input', debounce((e) => { currentSearch = e.target.value; currentPage = 1; updateTable(); }, 300));
     
@@ -288,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 150));
     });
 
-    // --- 4. Drag & Drop ---
+    // Drag & Drop
     const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput');
     if(dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
@@ -297,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     }
 
-    // --- 5. Delegación de Eventos ---
+    // Delegación de Eventos
     const delegate = (id, sel, cb) => { const el = document.getElementById(id); if(el) el.addEventListener('click', e => { const t = e.target.closest(sel); if(t) cb(t, e); }); };
     
     delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
@@ -342,7 +335,7 @@ function conectarDatosDeFirebase() {
 
     setStatus(false);
     
-    // 1. Asignaciones
+    // Asignaciones
     unsubscribeAssignments = db_firestore.collection('assignments').onSnapshot(s => {
         firebaseAssignmentsMap.clear();
         s.forEach(d => firebaseAssignmentsMap.set(d.id, d.data()));
@@ -350,7 +343,7 @@ function conectarDatosDeFirebase() {
         setStatus(true);
     });
 
-    // 2. Historial
+    // Historial
     unsubscribeHistory = db_firestore.collection('history').onSnapshot(s => {
         firebaseHistoryMap.clear();
         s.forEach(d => { 
@@ -360,7 +353,7 @@ function conectarDatosDeFirebase() {
         });
     });
 
-    // 3. Órdenes Hijas
+    // Órdenes Hijas
     unsubscribeChildOrders = db_firestore.collection('childOrders').onSnapshot(s => {
         firebaseChildOrdersMap.clear();
         s.forEach(d => { 
@@ -372,7 +365,7 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded) mergeYActualizar();
     });
     
-    // 4. Diseñadores
+    // Diseñadores
     unsubscribeDesigners = db_firestore.collection('designers').orderBy('name').onSnapshot(s => {
         firebaseDesignersMap.clear(); 
         let newDesignerList = [];
@@ -387,7 +380,7 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded && document.getElementById('dashboard').style.display === 'block') updateDashboard();
     });
 
-    // 5. Plan Semanal
+    // Plan Semanal
     unsubscribeWeeklyPlan = db_firestore.collection('weeklyPlan').onSnapshot(s => {
         firebaseWeeklyPlanMap.clear();
         s.forEach(d => { 
@@ -408,13 +401,11 @@ function desconectarDatosDeFirebase() {
     autoCompletedOrderIds.clear();
 }
 
-// Fusión de Datos (Excel + Firebase)
+// Fusión de Datos
 function mergeYActualizar() {
     if (!isExcelLoaded) return;
     recalculateChildPieces(); 
     autoCompleteBatchWrites = []; 
-    
-    // FIX #2: Invalidar caché porque los datos cambiaron
     filteredCache.key = null;
 
     for (let i = 0; i < allOrders.length; i++) {
@@ -431,7 +422,7 @@ function mergeYActualizar() {
             o.designer = ''; o.customStatus = ''; o.receivedDate = ''; o.notes = ''; o.completedDate = null;
         }
 
-        // FIX #4: Lógica de Auto-Completado corregida (Evita duplicados)
+        // Lógica de Auto-Completado
         if (fb && o.departamento !== CONFIG.DEPARTMENTS.ART && o.departamento !== CONFIG.DEPARTMENTS.NONE) {
             if (fb.customStatus !== CONFIG.STATUS.COMPLETED && !autoCompletedOrderIds.has(o.orderId)) {
                 autoCompleteBatchWrites.push({
@@ -440,14 +431,13 @@ function mergeYActualizar() {
                     data: { customStatus: CONFIG.STATUS.COMPLETED, completedDate: new Date().toISOString(), lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION },
                     history: [`Salio de Arte (en ${o.departamento}) → Completada`]
                 });
-                autoCompletedOrderIds.add(o.orderId); // <--- CRÍTICO: Registramos para no volver a agregar
+                autoCompletedOrderIds.add(o.orderId);
             }
         }
     }
     
     if (document.getElementById('dashboard').style.display === 'block') updateDashboard();
     
-    // Solicitar confirmación al usuario (Sprint 3)
     if (autoCompleteBatchWrites.length > 0) confirmAutoCompleteBatch();
 }
 
@@ -460,7 +450,7 @@ function recalculateChildPieces() {
 }
 
 // ======================================================
-// ===== 6. PARSER EXCEL (CORE) =====
+// ===== 6. PARSER EXCEL (CORE) - CORREGIDO =====
 // ======================================================
 
 function handleFiles(files){ if(files.length){ document.getElementById('fileName').textContent = files[0].name; processFile(files[0]); } }
@@ -475,7 +465,6 @@ async function processFile(file) {
         
         const arr = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
         let hIdx = -1;
-        // Búsqueda inteligente de encabezados
         for (let i = 0; i < Math.min(arr.length, 15); i++) {
             const r = arr[i].map(c => String(c).toLowerCase());
             if (r.some(c => c.includes('fecha')) && r.some(c => c.includes('cliente'))) { hIdx = i; break; }
@@ -485,7 +474,6 @@ async function processFile(file) {
         const headers = arr[hIdx].map(h => String(h).trim().toLowerCase());
         const rows = arr.slice(hIdx + 1);
         
-        // Mapeo dinámico de columnas
         const cols = {
             fecha: headers.findIndex(h => h.includes('fecha')),
             cliente: headers.findIndex(h => h.includes('cliente')),
@@ -511,7 +499,6 @@ async function processFile(file) {
         for (const r of rows) {
             if (!r || r.every(c => !c)) continue;
             
-            // Extracción segura de datos
             let currDate = null;
             if (cols.fecha >= 0 && r[cols.fecha]) { const v = r[cols.fecha]; currDate = typeof v === 'number' ? new Date((v - 25569) * 86400000) : new Date(v); }
             
@@ -522,7 +509,6 @@ async function processFile(file) {
             const cSty = cols.estilo >= 0 ? String(r[cols.estilo]).trim() : "";
             const cTeam = cols.team >= 0 ? String(r[cols.team]).trim() : "";
 
-            // Determinar departamento y cantidad
             let qty = 0, dept = CONFIG.DEPARTMENTS.NONE;
             for (let i = deptCols.length - 1; i >= 0; i--) {
                 const val = r[deptCols[i].idx];
@@ -533,8 +519,12 @@ async function processFile(file) {
             }
 
             const fd = currDate ? new Date(currDate.getFullYear(), currDate.getMonth(), currDate.getDate()) : null;
-            const oid = `${cCli}_${cCod}_${fd ? fd.getTime() : 'nodate'}_${cSty}`;
-            const fb = firebaseAssignmentsMap.get(oid); // Datos previos de Firebase si existen
+            
+            // --- FIX IMPORTANTE: Sanitización de ID ---
+            const rawId = `${cCli}_${cCod}_${fd ? fd.getTime() : 'nodate'}_${cSty}`;
+            const oid = rawId.replace(/\//g, '_').replace(/#/g, ''); 
+
+            const fb = firebaseAssignmentsMap.get(oid); 
 
             const today = new Date(); today.setHours(0,0,0,0);
             const dl = (fd && fd < today) ? Math.ceil((today - fd) / 86400000) : 0;
@@ -550,7 +540,7 @@ async function processFile(file) {
 
         allOrders = processed; isExcelLoaded = true; needsRecalculation = true;
         recalculateChildPieces();
-        mergeYActualizar(); // Aplicar lógica de fusión y auto-completado
+        mergeYActualizar(); 
 
         // UI Reset
         document.getElementById('uploadSection').style.display = 'none';
@@ -558,31 +548,28 @@ async function processFile(file) {
         document.getElementById('appMainContainer').classList.add('main-content-shifted');
         document.getElementById('mainNavigation').style.display = 'flex';
         document.getElementById('mainNavigation').style.transform = 'translateX(0)';
-        navigateTo('dashboard'); // Se definirá en Parte 3
+        navigateTo('dashboard'); 
 
     } catch (e) { showCustomAlert('Error: ' + e.message, 'error'); console.error(e); } 
     finally { hideLoading(); }
 }
 
 // ======================================================
-// ===== 7. FILTRADO OPTIMIZADO (SPRINT 1 - CACHÉ) =====
+// ===== 7. FILTRADO OPTIMIZADO =====
 // ======================================================
 
 function getFilteredOrders() {
-    // 1. Generar clave única de filtros
     const currentFilterKey = JSON.stringify({
         s: currentSearch.trim().toLowerCase(),
         c: currentClientFilter, d: currentDepartamentoFilter, des: currentDesignerFilter, st: currentCustomStatusFilter,
         f: currentFilter, df: currentDateFrom, dt: currentDateTo, sort: sortConfig
     });
 
-    // 2. Verificar Caché (TTL: 2 seg)
     const now = Date.now();
     if (filteredCache.key === currentFilterKey && (now - filteredCache.timestamp < 2000)) {
         return filteredCache.results;
     }
 
-    // 3. Filtrar
     let res = allOrders;
     const s = currentSearch.toLowerCase();
     
@@ -596,7 +583,7 @@ function getFilteredOrders() {
     if (currentClientFilter) res = res.filter(o => o.cliente === currentClientFilter);
     
     if (currentDepartamentoFilter) res = res.filter(o => o.departamento === currentDepartamentoFilter);
-    else res = res.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART); // Por defecto P_Art
+    else res = res.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART); 
     
     if (currentDesignerFilter) res = res.filter(o => o.designer === currentDesignerFilter);
     if (currentCustomStatusFilter) res = res.filter(o => o.customStatus === currentCustomStatusFilter);
@@ -608,7 +595,6 @@ function getFilteredOrders() {
     if(currentDateFrom) res = res.filter(o => o.fechaDespacho && o.fechaDespacho >= new Date(currentDateFrom));
     if(currentDateTo) res = res.filter(o => o.fechaDespacho && o.fechaDespacho <= new Date(currentDateTo));
 
-    // Ordenar
     res.sort((a, b) => {
         let va = a[sortConfig.key], vb = b[sortConfig.key];
         if (sortConfig.key === 'date') { va = a.fechaDespacho ? a.fechaDespacho.getTime() : 0; vb = b.fechaDespacho ? b.fechaDespacho.getTime() : 0; }
@@ -616,16 +602,14 @@ function getFilteredOrders() {
         return (va < vb ? -1 : 1) * (sortConfig.direction === 'asc' ? 1 : -1);
     });
     
-    // 4. Guardar Caché
     filteredCache = { key: currentFilterKey, results: res, timestamp: now };
     return res;
 }
 
 // ======================================================
-// ===== 8. OPERACIONES BATCH & PLAN (SPRINT 2 - BLINDADAS) =====
+// ===== 8. OPERACIONES BATCH & PLAN =====
 // ======================================================
 
-// Confirmar Auto-Completado
 function confirmAutoCompleteBatch() {
     if (document.body.classList.contains('processing-batch') || autoCompleteBatchWrites.length === 0) return;
     const count = autoCompleteBatchWrites.length;
@@ -648,20 +632,17 @@ async function ejecutarAutoCompleteBatch() {
             batch.set(ref, w.data, { merge: true });
             const hRef = db_firestore.collection('history').doc();
             batch.set(hRef, { orderId: w.orderId, change: w.history[0], user, timestamp: new Date().toISOString() });
-            
-            // Ya está en el Set, pero aseguramos
             autoCompletedOrderIds.add(w.orderId);
         });
 
         await batch.commit();
-        autoCompleteBatchWrites = []; // Limpiar cola
+        autoCompleteBatchWrites = []; 
         return true;
     }, 'Sincronizando estados...', 'Estados actualizados correctamente.');
     
     document.body.classList.remove('processing-batch');
 }
 
-// Carga Masiva al Plan (Blindada)
 window.loadUrgentOrdersToPlan = async () => {
     const wid = document.getElementById('view-workPlanWeekSelector').value;
     if (!wid) return showCustomAlert('Selecciona una semana primero', 'error');
@@ -686,13 +667,12 @@ window.loadUrgentOrdersToPlan = async () => {
                 count++;
             });
             await batch.commit();
-            generateWorkPlan(); // Definido en Parte 3
+            generateWorkPlan(); 
             return true;
         }, `Cargando urgentes...`, `¡Éxito! ${urgents.length} órdenes agregadas.`);
     });
 };
 
-// Agregar Selección al Plan (Blindada)
 window.addSelectedToWorkPlan = async () => {
     if (selectedOrders.size === 0) return showCustomAlert('Selecciona órdenes primero', 'info');
     const wid = getWeekIdentifierString(new Date());
@@ -717,20 +697,19 @@ window.addSelectedToWorkPlan = async () => {
         }
         if (count === 0) throw new Error("Ninguna orden válida (deben estar en P_Art).");
         await batch.commit();
-        clearSelection(); // Definido en Parte 3
+        clearSelection(); 
         if(document.getElementById('workPlanView').style.display === 'block') generateWorkPlan();
         return true;
     }, 'Agregando al plan...', `${selectedOrders.size} órdenes procesadas.`);
 };
 
 // ======================================================
-// ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER) =====
+// ===== 9. ROUTER UI =====
 // ======================================================
 
 function navigateTo(viewId) {
     if (!isExcelLoaded) return;
 
-    // Ocultar todas las vistas
     document.querySelectorAll('.main-view').forEach(el => el.style.display = 'none');
     const target = document.getElementById(viewId);
     if (target) {
@@ -738,7 +717,6 @@ function navigateTo(viewId) {
         window.scrollTo(0, 0);
     }
 
-    // Actualizar Sidebar
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.classList.remove('active-nav', 'bg-slate-800', 'text-white', 'shadow-md');
         btn.classList.add('text-slate-400');
@@ -759,12 +737,10 @@ function navigateTo(viewId) {
         }
     }
 
-    // Inicializar vista específica
     if (viewId === 'dashboard') updateDashboard();
     else if (viewId === 'workPlanView') generateWorkPlan();
     else if (viewId === 'designerMetricsView') {
         populateMetricsSidebar();
-        // Auto-seleccionar el primero si no hay nadie seleccionado (Lazy Load Fix)
         const detailText = document.getElementById('metricsDetail').innerText;
         if(detailText && detailText.includes('Selecciona')) {
             const firstBtn = document.querySelector('#metricsSidebarList .filter-btn');
@@ -772,23 +748,20 @@ function navigateTo(viewId) {
         }
     } else if (viewId === 'departmentMetricsView') generateDepartmentMetrics();
     
-    // Limpiar gráficos para ahorrar memoria
     if (viewId !== 'designerMetricsView' && viewId !== 'departmentMetricsView') destroyAllCharts();
 }
 
 // ======================================================
-// ===== 10. RENDERIZADO UI (DASHBOARD & TABLAS) =====
+// ===== 10. RENDERIZADO UI =====
 // ======================================================
 
 function updateDashboard() {
     if (!isExcelLoaded) return;
     if (needsRecalculation) recalculateChildPieces();
     
-    // Usamos CONFIG global (Sprint 3)
     const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     const stats = calculateStats(artOrders);
     
-    // Stats Cards
     document.getElementById('statTotal').textContent = artOrders.length;
     document.getElementById('statTotalPieces').textContent = artOrders.reduce((s, o) => s + o.cantidad + o.childPieces, 0).toLocaleString();
     document.getElementById('statLate').textContent = stats.late;
@@ -844,7 +817,6 @@ function updateAlerts(stats) {
 }
 
 function updateWidgets(artOrders) {
-    // Top Clientes
     const clientCounts = {};
     artOrders.forEach(o => clientCounts[o.cliente] = (clientCounts[o.cliente] || 0) + 1);
     const topClients = Object.entries(clientCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
@@ -854,7 +826,6 @@ function updateWidgets(artOrders) {
             <span class="font-bold text-blue-600 bg-blue-50 px-2 rounded-full">${n}</span>
         </div>`).join('');
 
-    // Carga de Trabajo
     const workload = {};
     let totalWorkload = 0;
     artOrders.forEach(o => {
@@ -879,7 +850,6 @@ function updateWidgets(artOrders) {
 }
 
 function updateTable() {
-    // Sprint 1: Usamos getFilteredOrders (con caché)
     const filtered = getFilteredOrders();
     const start = (currentPage - 1) * rowsPerPage;
     paginatedOrders = filtered.slice(start, start + rowsPerPage);
@@ -920,7 +890,6 @@ function updateTable() {
         }).join('');
     }
     
-    // UI Helpers
     const sa = document.getElementById('selectAll');
     if (sa) {
         const allChecked = paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrders.has(o.orderId));
@@ -1004,18 +973,17 @@ function updateAllDesignerDropdowns() {
     if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
 }
 
-// Window Exposed Functions for HTML Listeners
+// Window Exposed Functions
 window.changePage = (p) => { currentPage = p; updateTable(); };
 window.changeRowsPerPage = () => { rowsPerPage = parseInt(document.getElementById('rowsPerPage').value); currentPage = 1; updateTable(); };
 window.setFilter = (f) => { currentFilter = f; currentPage = 1; updateTable(); };
-// FIX #2: Invalidar caché al ordenar
 window.sortTable = (k) => { sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc'; sortConfig.key = k; filteredCache.key = null; updateTable(); };
 window.clearAllFilters = () => { 
     currentSearch = ''; currentClientFilter = ''; currentStyleFilter = ''; currentTeamFilter = ''; currentDepartamentoFilter = ''; 
     currentDesignerFilter = ''; currentCustomStatusFilter = ''; currentFilter = 'all'; currentDateFrom = ''; currentDateTo = '';
     document.querySelectorAll('.filter-select, .filter-input').forEach(el => el.value = '');
     document.getElementById('searchInput').value = '';
-    filteredCache.key = null; // Limpiar caché
+    filteredCache.key = null; 
     currentPage = 1; updateTable();
 };
 window.toggleOrderSelection = (id) => { if (selectedOrders.has(id)) selectedOrders.delete(id); else selectedOrders.add(id); updateTable(); };
@@ -1024,10 +992,9 @@ window.clearSelection = () => { selectedOrders.clear(); updateTable(); };
 window.toggleNotifications = () => { document.getElementById('notificationDropdown').classList.toggle('hidden'); };
 
 // ======================================================
-// ===== 11. MODALES Y ACCIONES (SPRINT 2 - BLINDADOS) =====
+// ===== 11. MODALES Y ACCIONES =====
 // ======================================================
 
-// 1. Asignación Individual
 window.openAssignModal = async (id) => {
     currentEditingOrderId = id;
     const o = allOrders.find(x => x.orderId === id);
@@ -1071,7 +1038,6 @@ window.saveAssignment = async () => {
     
     if(changes.length === 0) return showCustomAlert('No hubo cambios', 'info');
 
-    // SPRINT 2: Operación Segura
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
         batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), { ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION }, { merge: true });
@@ -1082,7 +1048,6 @@ window.saveAssignment = async () => {
     if(ok) closeTopModal();
 };
 
-// 2. Órdenes Hijas
 window.loadChildOrders = async () => {
     const list = document.getElementById('childOrdersList');
     const children = firebaseChildOrdersMap.get(currentEditingOrderId) || [];
@@ -1128,7 +1093,6 @@ window.deleteChildOrder = async (id, code) => {
     });
 };
 
-// 3. Asignación Múltiple
 window.openMultiAssignModal = () => { 
     if (selectedOrders.size === 0) return showCustomAlert('Selecciona órdenes', 'info');
     document.getElementById('multiModalCount').textContent = selectedOrders.size;
@@ -1156,7 +1120,6 @@ window.saveMultiAssignment = async () => {
     if(ok) { closeTopModal(); clearSelection(); }
 };
 
-// 4. Diseñadores
 window.openDesignerManager = () => { populateDesignerManagerModal(); openModalById('designerManagerModal'); };
 function populateDesignerManagerModal() {
     const l = document.getElementById('designerManagerList');
@@ -1177,7 +1140,298 @@ window.deleteDesigner = (id, name) => {
 };
 
 // ======================================================
-// ===== 12. GRÁFICOS Y PLAN SEMANAL =====
+// ===== 12. MÉTRICAS DE DISEÑADORES (CORREGIDO) =====
+// ======================================================
+
+function populateMetricsSidebar() {
+    const list = document.getElementById('metricsSidebarList');
+    if (!list) return;
+    
+    const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    const designers = {};
+    
+    artOrders.forEach(o => {
+        const d = o.designer || 'Sin asignar';
+        if (!designers[d]) designers[d] = { total: 0, pieces: 0 };
+        designers[d].total++;
+        designers[d].pieces += o.cantidad + o.childPieces;
+    });
+    
+    list.innerHTML = Object.entries(designers)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([name, data]) => `
+            <button class="filter-btn w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 transition-all" data-designer="${escapeHTML(name)}">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-slate-800 text-sm">${escapeHTML(name)}</span>
+                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold">${data.total}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1">${data.pieces.toLocaleString()} piezas</div>
+            </button>
+        `).join('');
+}
+
+function generateDesignerMetrics(designerName) {
+    const detail = document.getElementById('metricsDetail');
+    if (!detail) return;
+    
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        detail.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3"></i><p class="text-red-600 font-bold">Error: Chart.js no está cargado</p></div>';
+        return;
+    }
+    
+    const orders = allOrders.filter(o => 
+        o.departamento === CONFIG.DEPARTMENTS.ART && 
+        (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName)
+    );
+    
+    if (orders.length === 0) {
+        detail.innerHTML = `<div class="text-center py-12"><i class="fa-regular fa-folder-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-400">No hay órdenes para este diseñador</p></div>`;
+        return;
+    }
+    
+    const stats = calculateStats(orders);
+    const totalPieces = orders.reduce((s, o) => s + o.cantidad + o.childPieces, 0);
+    
+    // Destruir gráficos existentes
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+    
+    detail.innerHTML = `
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white mb-6 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold">${escapeHTML(designerName)}</h2>
+                <button onclick="openCompareModal('${escapeHTML(designerName)}')" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-medium transition">
+                    <i class="fa-solid fa-code-compare mr-1"></i> Comparar
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Órdenes</div>
+                    <div class="text-3xl font-bold">${orders.length}</div>
+                </div>
+                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Piezas</div>
+                    <div class="text-3xl font-bold">${totalPieces.toLocaleString()}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-blue-500"></i>
+                    Distribución de Estados
+                </h3>
+                <canvas id="designerDoughnutChart" height="200"></canvas>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-bar text-green-500"></i>
+                    Análisis de Entregas
+                </h3>
+                <canvas id="designerBarChart" height="200"></canvas>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800">Detalle de Órdenes</h3>
+                <button onclick="exportDesignerMetricsPDF('${escapeHTML(designerName)}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                    <i class="fa-solid fa-file-pdf mr-1"></i> Exportar PDF
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr class="text-left text-slate-600 uppercase font-bold">
+                            <th class="px-4 py-3">Estado</th>
+                            <th class="px-4 py-3">Cliente</th>
+                            <th class="px-4 py-3">Código</th>
+                            <th class="px-4 py-3">Estilo</th>
+                            <th class="px-4 py-3">Fecha</th>
+                            <th class="px-4 py-3 text-right">Piezas</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${orders.map(o => `
+                            <tr class="hover:bg-slate-50 cursor-pointer" onclick="openAssignModal('${o.orderId}')">
+                                <td class="px-4 py-3">${getStatusBadge(o)}</td>
+                                <td class="px-4 py-3 font-medium">${escapeHTML(o.cliente)}</td>
+                                <td class="px-4 py-3 font-mono text-slate-500">${escapeHTML(o.codigoContrato)}</td>
+                                <td class="px-4 py-3">${escapeHTML(o.estilo)}</td>
+                                <td class="px-4 py-3 text-slate-600">${formatDate(o.fechaDespacho)}</td>
+                                <td class="px-4 py-3 text-right font-bold">${(o.cantidad + o.childPieces).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    // Crear gráficos
+    setTimeout(() => {
+        const statusCounts = {
+            [CONFIG.STATUS.TRAY]: orders.filter(o => o.customStatus === CONFIG.STATUS.TRAY).length,
+            [CONFIG.STATUS.PROD]: orders.filter(o => o.customStatus === CONFIG.STATUS.PROD).length,
+            [CONFIG.STATUS.AUDIT]: orders.filter(o => o.customStatus === CONFIG.STATUS.AUDIT).length,
+            [CONFIG.STATUS.COMPLETED]: orders.filter(o => o.customStatus === CONFIG.STATUS.COMPLETED).length,
+            'Sin Estado': orders.filter(o => !o.customStatus).length
+        };
+        
+        const doughnutCanvas = document.getElementById('designerDoughnutChart');
+        if (doughnutCanvas) {
+            designerDoughnutChart = new Chart(doughnutCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#64748b', '#e2e8f0']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+        
+        const barCanvas = document.getElementById('designerBarChart');
+        if (barCanvas) {
+            designerBarChart = new Chart(barCanvas, {
+                type: 'bar',
+                data: {
+                    labels: ['A Tiempo', 'Atrasadas', 'Muy Atrasadas'],
+                    datasets: [{
+                        label: 'Órdenes',
+                        data: [stats.onTime, stats.late - stats.veryLate, stats.veryLate],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+    }, 100);
+}
+
+// ======================================================
+// ===== 13. MÉTRICAS DE DEPARTAMENTOS (CORREGIDO) =====
+// ======================================================
+
+function generateDepartmentMetrics() {
+    const content = document.getElementById('departmentMetricsContent');
+    if (!content) return;
+    
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        content.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3"></i><p class="text-red-600 font-bold">Error: Chart.js no está cargado</p></div>';
+        return;
+    }
+    
+    // Destruir gráficos existentes
+    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
+    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
+    
+    const deptCounts = {};
+    const deptPieces = {};
+    
+    Object.values(CONFIG.DEPARTMENTS).forEach(d => {
+        deptCounts[d] = 0;
+        deptPieces[d] = 0;
+    });
+    
+    allOrders.forEach(o => {
+        if (deptCounts.hasOwnProperty(o.departamento)) {
+            deptCounts[o.departamento]++;
+            deptPieces[o.departamento] += o.cantidad + o.childPieces;
+        }
+    });
+    
+    content.innerHTML = `
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-green-500"></i>
+                    Distribución por Departamento
+                </h3>
+                <canvas id="deptLoadPieChart" height="250"></canvas>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-column text-blue-500"></i>
+                    Carga de Trabajo (Piezas)
+                </h3>
+                <canvas id="deptLoadBarChart" height="250"></canvas>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${Object.entries(deptCounts).map(([dept, count]) => `
+                <div class="bg-white rounded-xl p-5 shadow border border-slate-200 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs uppercase font-bold text-slate-500">${dept}</span>
+                        <i class="fa-solid fa-industry text-slate-300 text-xl"></i>
+                    </div>
+                    <div class="text-3xl font-bold text-slate-800 mb-1">${count}</div>
+                    <div class="text-xs text-slate-500">${deptPieces[dept].toLocaleString()} piezas</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const pieCanvas = document.getElementById('deptLoadPieChart');
+        if (pieCanvas) {
+            deptLoadPieChart = new Chart(pieCanvas, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(deptCounts),
+                    datasets: [{
+                        data: Object.values(deptCounts),
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b', '#94a3b8']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+        
+        const barCanvas = document.getElementById('deptLoadBarChart');
+        if (barCanvas) {
+            deptLoadBarChart = new Chart(barCanvas, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(deptPieces),
+                    datasets: [{
+                        label: 'Piezas',
+                        data: Object.values(deptPieces),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+    }, 100);
+}
+
+// ======================================================
+// ===== 14. GRÁFICOS Y PLAN SEMANAL =====
 // ======================================================
 
 function destroyAllCharts() {
@@ -1240,103 +1494,8 @@ window.removeOrderFromPlan = (id, code) => {
     });
 };
 
-function populateMetricsSidebar() {
-    const list = document.getElementById('metricsSidebarList'); list.innerHTML = '';
-    const counts = {};
-    allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART).forEach(o => { const d = o.designer || 'Sin asignar'; counts[d] = (counts[d] || 0) + 1; });
-    Object.entries(counts).sort((a, b) => b[1] - a[1]).forEach(([name, count]) => {
-        list.innerHTML += `<button class="filter-btn w-full text-left px-4 py-3 text-xs font-medium text-slate-600 hover:bg-blue-50 rounded-lg flex justify-between items-center mb-1 group" data-designer="${escapeHTML(name)}"><span class="truncate">${escapeHTML(name)}</span><span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold group-hover:bg-blue-100 group-hover:text-blue-600 text-[10px]">${count}</span></button>`;
-    });
-}
-
-window.generateDesignerMetrics = (name) => {
-    const safeName = escapeHTML(name);
-    document.getElementById('metricsDetail').innerHTML = `<div class="flex justify-between items-start mb-6 border-b border-slate-100 pb-4"><div><h2 class="text-2xl font-bold text-slate-800">${safeName}</h2><p class="text-xs text-slate-500 mt-1">Reporte individual</p></div><div class="flex gap-2"><button class="px-3 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50 flex items-center gap-2" onclick="exportDesignerMetricsPDF('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-file-pdf text-red-500"></i> PDF</button><button class="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 flex items-center gap-2" onclick="openCompareModal('${safeName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-scale-balanced"></i> Comparar</button></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"><div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-64 relative"><canvas id="designerDoughnutChartCanvas"></canvas></div><div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-64 relative"><canvas id="designerBarChartCanvas"></canvas></div></div><div id="designerOrdersTableContainer"></div>`;
-
-    const orders = allOrders.filter(x => x.departamento === CONFIG.DEPARTMENTS.ART && (name === 'Sin asignar' ? !x.designer : x.designer === name));
-    const statusMap = { [CONFIG.STATUS.TRAY]:0, [CONFIG.STATUS.PROD]:0, [CONFIG.STATUS.AUDIT]:0, [CONFIG.STATUS.COMPLETED]:0, 'Sin estado':0 };
-    orders.forEach(x => { const s = x.customStatus || 'Sin estado'; if(statusMap[s]!==undefined) statusMap[s]++; else statusMap['Sin estado']++; });
-    
-    if (designerDoughnutChart) designerDoughnutChart.destroy();
-    designerDoughnutChart = new Chart(document.getElementById('designerDoughnutChartCanvas').getContext('2d'), {
-        type: 'doughnut', data: { labels: Object.keys(statusMap), datasets: [{ data: Object.values(statusMap), backgroundColor: ['#fbbf24', '#a78bfa', '#60a5fa', '#10b981', '#9ca3af'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } } }
-    });
-
-    const clients = {}; orders.forEach(o => clients[o.cliente] = (clients[o.cliente] || 0) + 1);
-    const topC = Object.entries(clients).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    
-    if (designerBarChart) designerBarChart.destroy();
-    designerBarChart = new Chart(document.getElementById('designerBarChartCanvas').getContext('2d'), {
-        type: 'bar', data: { labels: topC.map(x=>x[0]), datasets: [{ label: 'Órdenes', data: topC.map(x=>x[1]), backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
-    });
-    
-    document.getElementById('designerOrdersTableContainer').innerHTML = `<h3 class="font-bold text-sm text-slate-700 mb-3">Detalle</h3><div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm"><table class="min-w-full divide-y divide-slate-200 text-xs"><thead class="bg-slate-50 text-slate-500 font-bold uppercase"><tr><th class="px-4 py-3 text-left">Cliente</th><th class="px-4 py-3 text-left">Estilo</th><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-right">Piezas</th></tr></thead><tbody class="divide-y divide-slate-100 bg-white">${orders.length ? orders.map(x => `<tr><td class="px-4 py-2.5 font-medium">${escapeHTML(x.cliente)}</td><td class="px-4 py-2.5 text-slate-500">${escapeHTML(x.estilo)}</td><td class="px-4 py-2.5">${getCustomStatusBadge(x.customStatus)}</td><td class="px-4 py-2.5 text-right font-bold text-blue-600">${x.cantidad.toLocaleString()}</td></tr>`).join('') : '<tr><td colspan="4" class="p-4 text-center text-slate-400">Sin datos</td></tr>'}</tbody></table></div>`;
-};
-
-// FIX #6: Gráficos de Métricas Globales (Restaurados)
-window.generateDepartmentMetrics = () => {
-    // 1. Calcular Datos Globales
-    const activeOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
-    const totalLoad = activeOrders.reduce((s,o) => s + o.cantidad + o.childPieces, 0);
-    const activeDesigners = [...new Set(activeOrders.map(o => o.designer).filter(Boolean))].length;
-
-    // 2. Renderizar HTML Base
-    document.getElementById('departmentMetricsContent').innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-blue-500 mb-1">Total Activas</p>
-                <p class="text-3xl font-bold text-slate-900">${activeOrders.length}</p>
-            </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-purple-500 mb-1">Carga Total (Pzs)</p>
-                <p class="text-3xl font-bold text-slate-900">${totalLoad.toLocaleString()}</p>
-            </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-green-500 mb-1">Diseñadores Activos</p>
-                <p class="text-3xl font-bold text-slate-900">${activeDesigners}</p>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 h-80 relative">
-                <h4 class="font-bold text-sm text-slate-700 mb-4">Estado Global</h4>
-                <div class="h-60"><canvas id="deptLoadPieChartCanvas"></canvas></div>
-            </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 h-80 relative">
-                <h4 class="font-bold text-sm text-slate-700 mb-4">Carga por Diseñador (Top 10)</h4>
-                <div class="h-60"><canvas id="deptLoadBarChartCanvas"></canvas></div>
-            </div>
-        </div>`;
-
-    // 3. Generar Gráfico de Pastel (Estados)
-    const statusMap = { [CONFIG.STATUS.TRAY]:0, [CONFIG.STATUS.PROD]:0, [CONFIG.STATUS.AUDIT]:0, [CONFIG.STATUS.COMPLETED]:0, 'Sin estado':0 };
-    activeOrders.forEach(x => { const s = x.customStatus || 'Sin estado'; if(statusMap[s]!==undefined) statusMap[s]++; else statusMap['Sin estado']++; });
-
-    if (deptLoadPieChart) deptLoadPieChart.destroy();
-    deptLoadPieChart = new Chart(document.getElementById('deptLoadPieChartCanvas').getContext('2d'), {
-        type: 'pie',
-        data: { labels: Object.keys(statusMap), datasets: [{ data: Object.values(statusMap), backgroundColor: ['#fbbf24', '#a78bfa', '#60a5fa', '#10b981', '#9ca3af'], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
-    });
-
-    // 4. Generar Gráfico de Barras (Carga Top 10)
-    const loadMap = {};
-    activeOrders.forEach(o => { if(o.designer && o.designer !== CONFIG.EXCLUDED_DESIGNER) loadMap[o.designer] = (loadMap[o.designer] || 0) + o.cantidad; });
-    const sortedLoad = Object.entries(loadMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    
-    if (deptLoadBarChart) deptLoadBarChart.destroy();
-    deptLoadBarChart = new Chart(document.getElementById('deptLoadBarChartCanvas').getContext('2d'), {
-        type: 'bar',
-        data: { labels: sortedLoad.map(x => x[0]), datasets: [{ label: 'Piezas', data: sortedLoad.map(x => x[1]), backgroundColor: '#3b82f6', borderRadius: 4 }] },
-        options: { 
-            responsive: true, maintainAspectRatio: false, 
-            plugins: { legend: { display: false } }, 
-            scales: { x: { grid: { display: false }, ticks: { autoSkip: false, maxRotation: 45, minRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { borderDash: [2, 4] } } }
-        }
-    });
-};
-
 // ======================================================
-// ===== 13. EXPORTACIÓN Y UTILS UI =====
+// ===== 15. EXPORTACIÓN Y COMPARACIÓN =====
 // ======================================================
 
 window.openCompareModal = (name) => {
@@ -1349,25 +1508,49 @@ window.openCompareModal = (name) => {
 
 window.startComparison = () => {
     const n2 = document.getElementById('compareDesignerSelect').value;
-    if (!n2) return;
+    if (!n2) return showCustomAlert('Selecciona un diseñador para comparar', 'error');
+    
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        showCustomAlert('Error: Chart.js no está cargado', 'error');
+        return;
+    }
+    
     const art = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     const s1 = calculateStats(art.filter(o => o.designer === currentCompareDesigner1));
     const s2 = calculateStats(art.filter(o => o.designer === n2));
     
     if (compareChart) compareChart.destroy();
-    compareChart = new Chart(document.getElementById('compareChartCanvas').getContext('2d'), {
-        type: 'bar',
-        data: { labels: ['Total', 'A Tiempo', 'Atrasadas'], datasets: [{ label: currentCompareDesigner1, data: [s1.total, s1.onTime, s1.late], backgroundColor: '#3b82f6' }, { label: n2, data: [s2.total, s2.onTime, s2.late], backgroundColor: '#f59e0b' }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-    });
+    
+    const canvas = document.getElementById('compareChartCanvas');
+    if (canvas) {
+        compareChart = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: { 
+                labels: ['Total', 'A Tiempo', 'Atrasadas'], 
+                datasets: [
+                    { label: currentCompareDesigner1, data: [s1.total, s1.onTime, s1.late], backgroundColor: '#3b82f6' }, 
+                    { label: n2, data: [s2.total, s2.onTime, s2.late], backgroundColor: '#f59e0b' }
+                ] 
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+        });
+    }
     
     document.getElementById('selectCompareModal').classList.remove('active');
     openModalById('compareModal');
 };
 
-// FIX #9: Exportación a PDF para Diseñadores
 window.exportDesignerMetricsPDF = (name) => {
-    if (typeof window.jspdf === 'undefined') return showCustomAlert('Error: Librería PDF no cargada', 'error');
+    if (typeof window.jspdf === 'undefined') {
+        showCustomAlert('Error: Librería jsPDF no está cargada', 'error');
+        return;
+    }
+    
+    if (typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
+        showCustomAlert('Error: Plugin AutoTable no está cargado', 'error');
+        return;
+    }
     
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -1395,20 +1578,39 @@ window.exportDesignerMetricsPDF = (name) => {
 };
 
 window.exportTableToExcel = () => {
-    if (allOrders.length === 0) return showCustomAlert('No hay datos', 'error');
+    if (allOrders.length === 0) return showCustomAlert('No hay datos para exportar', 'error');
+    
+    if (typeof XLSX === 'undefined') {
+        showCustomAlert('Error: Librería XLSX no está cargada', 'error');
+        return;
+    }
+    
     const data = getFilteredOrders().map(o => ({
-        "Cliente": o.cliente, "Código": o.codigoContrato, "Estilo": o.estilo, "Departamento": o.departamento,
+        "Cliente": o.cliente, 
+        "Código": o.codigoContrato, 
+        "Estilo": o.estilo, 
+        "Departamento": o.departamento,
         "Fecha Despacho": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
-        "Diseñador": o.designer, "Estado Interno": o.customStatus, "Piezas": o.cantidad, "Notas": o.notes
+        "Diseñador": o.designer, 
+        "Estado Interno": o.customStatus, 
+        "Piezas": o.cantidad, 
+        "Piezas Hijas": o.childPieces,
+        "Total Piezas": o.cantidad + o.childPieces,
+        "Notas": o.notes
     }));
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Reporte");
     XLSX.writeFile(wb, `Reporte_Panel_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
 
 window.generateWeeklyReport = () => {
-    const w = document.getElementById('weekSelector').value;
-    if(!w) return;
+    const w = document.getElementById('weeklyReportWeekSelector').value;
+    if(!w) {
+        showCustomAlert('Selecciona una semana primero', 'error');
+        return;
+    }
+    
     const [y, wk] = w.split('-W').map(Number);
     const d = new Date(y, 0, 1 + (wk - 1) * 7);
     const day = d.getDay();
@@ -1422,10 +1624,37 @@ window.generateWeeklyReport = () => {
         return rd >= start && rd <= end;
     });
     
-    document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `<h3 class="font-bold mb-2">Resultados: ${filtered.length} órdenes</h3><table id="weeklyReportTable" class="w-full text-xs border-collapse"><thead><tr class="bg-gray-100 text-left"><th class="p-2 border">Fecha</th><th class="p-2 border">Cliente</th><th class="p-2 border">Estilo</th><th class="p-2 border text-right">Pzs</th></tr></thead><tbody>${filtered.map(o => `<tr><td class="p-2 border">${o.receivedDate}</td><td class="p-2 border">${o.cliente}</td><td class="p-2 border">${o.estilo}</td><td class="p-2 border text-right">${o.cantidad}</td></tr>`).join('')}</tbody></table>` : '<p class="text-center text-gray-400 py-8">No hay órdenes recibidas en este periodo.</p>';
+    document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `
+        <h3 class="font-bold mb-2">Resultados: ${filtered.length} órdenes</h3>
+        <table id="weeklyReportTable" class="w-full text-xs border-collapse">
+            <thead>
+                <tr class="bg-gray-100 text-left">
+                    <th class="p-2 border">Fecha</th>
+                    <th class="p-2 border">Cliente</th>
+                    <th class="p-2 border">Estilo</th>
+                    <th class="p-2 border text-right">Pzs</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(o => `
+                    <tr>
+                        <td class="p-2 border">${o.receivedDate}</td>
+                        <td class="p-2 border">${escapeHTML(o.cliente)}</td>
+                        <td class="p-2 border">${escapeHTML(o.estilo)}</td>
+                        <td class="p-2 border text-right">${o.cantidad}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    ` : '<p class="text-center text-gray-400 py-8">No hay órdenes recibidas en este periodo.</p>';
 };
 
 window.exportWeeklyReportAsPDF = () => {
+    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
+        showCustomAlert('Error: Librería PDF no está cargada', 'error');
+        return;
+    }
+    
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.text("Reporte Semanal de Entradas", 14, 15);
@@ -1443,7 +1672,14 @@ window.showConfirmModal = (msg, cb) => {
 };
 
 window.openLegendModal = () => openModalById('legendModal');
-window.openWeeklyReportModal = () => openModalById('weeklyReportModal');
+window.openWeeklyReportModal = () => {
+    // Inicializar el selector de semana con la semana actual
+    const weekSelector = document.getElementById('weeklyReportWeekSelector');
+    if (weekSelector) {
+        weekSelector.value = getWeekIdentifierString(new Date());
+    }
+    openModalById('weeklyReportModal');
+};
 
 window.resetApp = () => {
     showConfirmModal("¿Subir nuevo archivo? Se perderán los datos no guardados.", () => {
@@ -1451,7 +1687,21 @@ window.resetApp = () => {
         document.getElementById('mainNavigation').style.display = 'none';
         document.getElementById('uploadSection').style.display = 'block';
         allOrders = []; isExcelLoaded = false;
-        document.getElementById('fileInput').value = ''; document.getElementById('fileName').textContent = '';
+        document.getElementById('fileInput').value = ''; 
+        document.getElementById('fileName').textContent = '';
         desconectarDatosDeFirebase();
+        destroyAllCharts();
     });
 };
+
+// ======================================================
+// ===== 16. INICIALIZACIÓN FINAL =====
+// ======================================================
+
+console.log('✅ Panel Arte v6.7 - Código Completo Cargado');
+console.log('📋 Funciones Corregidas:');
+console.log('   - populateMetricsSidebar()');
+console.log('   - generateDesignerMetrics()');
+console.log('   - generateDepartmentMetrics()');
+console.log('   - Verificaciones de librerías externas');
+console.log('   - Gestión de gráficos mejorada');
