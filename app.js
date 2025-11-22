@@ -106,9 +106,11 @@ function openModalById(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
 
+    // Z-Index Dinámico para soportar modales apilados
     const baseZIndex = 2000;
     modal.style.zIndex = baseZIndex + (modalStack.length * 10);
 
+    // Confirmaciones siempre encima de todo
     if (modalId === 'confirmModal') {
         modal.style.zIndex = parseInt(modal.style.zIndex) + 1000;
     }
@@ -117,6 +119,7 @@ function openModalById(modalId) {
     modalStack.push(modalId);
     document.body.classList.add('modal-open');
 
+    // Accesibilidad: Focus Trap
     const firstInput = modal.querySelector('input, select, textarea');
     if (firstInput) {
         setTimeout(() => firstInput.focus(), 100); 
@@ -140,10 +143,12 @@ function closeAllModals() {
     document.body.classList.remove('modal-open');
 }
 
+// Listeners Globales UI
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modalStack.length > 0) closeTopModal();
 });
 
+// Alias para compatibilidad con HTML
 window.closeModal = () => closeTopModal();
 window.closeConfirmModal = () => closeTopModal();
 window.closeMultiModal = () => closeTopModal();
@@ -151,7 +156,6 @@ window.closeAddChildModal = () => closeTopModal();
 window.closeDesignerManager = () => closeTopModal();
 window.closeCompareModals = () => closeAllModals();
 window.closeWeeklyReportModal = () => closeTopModal();
-window.closeLegendModal = () => closeTopModal();
 
 // ======================================================
 // ===== 3. UTILIDADES Y MANEJO DE ERRORES =====
@@ -221,7 +225,7 @@ function getWeekIdentifierString(d) {
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v6.7 Loaded (Fixed & Complete)');
+    console.log('App v6.7 Loaded (Complete Fix)');
     
     // Listeners de Auth
     const btnLogin = document.getElementById('loginButton');
@@ -316,7 +320,6 @@ function iniciarLogout() {
         document.getElementById('appMainContainer').classList.remove('main-content-shifted');
     }); 
 }
-
 // ======================================================
 // ===== 5. LÓGICA DE DATOS (FIREBASE LISTENERS) =====
 // ======================================================
@@ -335,7 +338,7 @@ function conectarDatosDeFirebase() {
 
     setStatus(false);
     
-    // Asignaciones
+    // 1. Asignaciones
     unsubscribeAssignments = db_firestore.collection('assignments').onSnapshot(s => {
         firebaseAssignmentsMap.clear();
         s.forEach(d => firebaseAssignmentsMap.set(d.id, d.data()));
@@ -343,7 +346,7 @@ function conectarDatosDeFirebase() {
         setStatus(true);
     });
 
-    // Historial
+    // 2. Historial
     unsubscribeHistory = db_firestore.collection('history').onSnapshot(s => {
         firebaseHistoryMap.clear();
         s.forEach(d => { 
@@ -353,7 +356,7 @@ function conectarDatosDeFirebase() {
         });
     });
 
-    // Órdenes Hijas
+    // 3. Órdenes Hijas
     unsubscribeChildOrders = db_firestore.collection('childOrders').onSnapshot(s => {
         firebaseChildOrdersMap.clear();
         s.forEach(d => { 
@@ -365,7 +368,7 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded) mergeYActualizar();
     });
     
-    // Diseñadores
+    // 4. Diseñadores
     unsubscribeDesigners = db_firestore.collection('designers').orderBy('name').onSnapshot(s => {
         firebaseDesignersMap.clear(); 
         let newDesignerList = [];
@@ -375,12 +378,12 @@ function conectarDatosDeFirebase() {
             newDesignerList.push(v.name); 
         });
         designerList = newDesignerList;
-        updateAllDesignerDropdowns();
-        populateDesignerManagerModal();
+        updateAllDesignerDropdowns(); // Se define en Parte 3
+        populateDesignerManagerModal(); // Se define en Parte 3
         if(isExcelLoaded && document.getElementById('dashboard').style.display === 'block') updateDashboard();
     });
 
-    // Plan Semanal
+    // 5. Plan Semanal
     unsubscribeWeeklyPlan = db_firestore.collection('weeklyPlan').onSnapshot(s => {
         firebaseWeeklyPlanMap.clear();
         s.forEach(d => { 
@@ -401,11 +404,13 @@ function desconectarDatosDeFirebase() {
     autoCompletedOrderIds.clear();
 }
 
-// Fusión de Datos
+// Fusión de Datos (Excel + Firebase)
 function mergeYActualizar() {
     if (!isExcelLoaded) return;
     recalculateChildPieces(); 
     autoCompleteBatchWrites = []; 
+    
+    // FIX: Invalidar caché porque los datos cambiaron
     filteredCache.key = null;
 
     for (let i = 0; i < allOrders.length; i++) {
@@ -431,12 +436,12 @@ function mergeYActualizar() {
                     data: { customStatus: CONFIG.STATUS.COMPLETED, completedDate: new Date().toISOString(), lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION },
                     history: [`Salio de Arte (en ${o.departamento}) → Completada`]
                 });
-                autoCompletedOrderIds.add(o.orderId);
+                autoCompletedOrderIds.add(o.orderId); // Evitar duplicados
             }
         }
     }
     
-    if (document.getElementById('dashboard').style.display === 'block') updateDashboard();
+    if (document.getElementById('dashboard').style.display === 'block') updateDashboard(); // Se define en Parte 3
     
     if (autoCompleteBatchWrites.length > 0) confirmAutoCompleteBatch();
 }
@@ -450,7 +455,7 @@ function recalculateChildPieces() {
 }
 
 // ======================================================
-// ===== 6. PARSER EXCEL (CORE) - CORREGIDO =====
+// ===== 6. PARSER EXCEL (CORE - CON FIX DE IDs) =====
 // ======================================================
 
 function handleFiles(files){ if(files.length){ document.getElementById('fileName').textContent = files[0].name; processFile(files[0]); } }
@@ -520,9 +525,11 @@ async function processFile(file) {
 
             const fd = currDate ? new Date(currDate.getFullYear(), currDate.getMonth(), currDate.getDate()) : null;
             
-            // --- FIX IMPORTANTE: Sanitización de ID ---
+            // --- CORRECCIÓN CRÍTICA DE ID ---
+            // Sanitizamos el ID igual que el importador para que coincidan (reemplazar / por _)
             const rawId = `${cCli}_${cCod}_${fd ? fd.getTime() : 'nodate'}_${cSty}`;
             const oid = rawId.replace(/\//g, '_').replace(/#/g, ''); 
+            // --------------------------------
 
             const fb = firebaseAssignmentsMap.get(oid); 
 
@@ -548,14 +555,14 @@ async function processFile(file) {
         document.getElementById('appMainContainer').classList.add('main-content-shifted');
         document.getElementById('mainNavigation').style.display = 'flex';
         document.getElementById('mainNavigation').style.transform = 'translateX(0)';
-        navigateTo('dashboard'); 
+        navigateTo('dashboard'); // Se define en Parte 3
 
     } catch (e) { showCustomAlert('Error: ' + e.message, 'error'); console.error(e); } 
     finally { hideLoading(); }
 }
 
 // ======================================================
-// ===== 7. FILTRADO OPTIMIZADO =====
+// ===== 7. FILTRADO OPTIMIZADO (SPRINT 1 - CACHÉ) =====
 // ======================================================
 
 function getFilteredOrders() {
@@ -607,7 +614,7 @@ function getFilteredOrders() {
 }
 
 // ======================================================
-// ===== 8. OPERACIONES BATCH & PLAN =====
+// ===== 8. OPERACIONES BATCH & PLAN (BLINDADAS) =====
 // ======================================================
 
 function confirmAutoCompleteBatch() {
@@ -702,14 +709,14 @@ window.addSelectedToWorkPlan = async () => {
         return true;
     }, 'Agregando al plan...', `${selectedOrders.size} órdenes procesadas.`);
 };
-
 // ======================================================
-// ===== 9. ROUTER UI =====
+// ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER) =====
 // ======================================================
 
 function navigateTo(viewId) {
     if (!isExcelLoaded) return;
 
+    // Ocultar todas las vistas
     document.querySelectorAll('.main-view').forEach(el => el.style.display = 'none');
     const target = document.getElementById(viewId);
     if (target) {
@@ -717,6 +724,7 @@ function navigateTo(viewId) {
         window.scrollTo(0, 0);
     }
 
+    // Actualizar Sidebar
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.classList.remove('active-nav', 'bg-slate-800', 'text-white', 'shadow-md');
         btn.classList.add('text-slate-400');
@@ -737,10 +745,13 @@ function navigateTo(viewId) {
         }
     }
 
+    // Inicializar vista específica
     if (viewId === 'dashboard') updateDashboard();
     else if (viewId === 'workPlanView') generateWorkPlan();
     else if (viewId === 'designerMetricsView') {
         populateMetricsSidebar();
+        
+        // Auto-seleccionar el primero si no hay nadie seleccionado (Lazy Load)
         const detailText = document.getElementById('metricsDetail').innerText;
         if(detailText && detailText.includes('Selecciona')) {
             const firstBtn = document.querySelector('#metricsSidebarList .filter-btn');
@@ -748,11 +759,12 @@ function navigateTo(viewId) {
         }
     } else if (viewId === 'departmentMetricsView') generateDepartmentMetrics();
     
+    // Limpiar gráficos para ahorrar memoria al salir de las vistas de métricas
     if (viewId !== 'designerMetricsView' && viewId !== 'departmentMetricsView') destroyAllCharts();
 }
 
 // ======================================================
-// ===== 10. RENDERIZADO UI =====
+// ===== 10. RENDERIZADO UI (DASHBOARD & TABLAS) =====
 // ======================================================
 
 function updateDashboard() {
@@ -1140,298 +1152,7 @@ window.deleteDesigner = (id, name) => {
 };
 
 // ======================================================
-// ===== 12. MÉTRICAS DE DISEÑADORES (CORREGIDO) =====
-// ======================================================
-
-function populateMetricsSidebar() {
-    const list = document.getElementById('metricsSidebarList');
-    if (!list) return;
-    
-    const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
-    const designers = {};
-    
-    artOrders.forEach(o => {
-        const d = o.designer || 'Sin asignar';
-        if (!designers[d]) designers[d] = { total: 0, pieces: 0 };
-        designers[d].total++;
-        designers[d].pieces += o.cantidad + o.childPieces;
-    });
-    
-    list.innerHTML = Object.entries(designers)
-        .sort((a, b) => b[1].total - a[1].total)
-        .map(([name, data]) => `
-            <button class="filter-btn w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 transition-all" data-designer="${escapeHTML(name)}">
-                <div class="flex justify-between items-center">
-                    <span class="font-bold text-slate-800 text-sm">${escapeHTML(name)}</span>
-                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold">${data.total}</span>
-                </div>
-                <div class="text-[10px] text-slate-500 mt-1">${data.pieces.toLocaleString()} piezas</div>
-            </button>
-        `).join('');
-}
-
-function generateDesignerMetrics(designerName) {
-    const detail = document.getElementById('metricsDetail');
-    if (!detail) return;
-    
-    // Verificar Chart.js
-    if (typeof Chart === 'undefined') {
-        detail.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3"></i><p class="text-red-600 font-bold">Error: Chart.js no está cargado</p></div>';
-        return;
-    }
-    
-    const orders = allOrders.filter(o => 
-        o.departamento === CONFIG.DEPARTMENTS.ART && 
-        (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName)
-    );
-    
-    if (orders.length === 0) {
-        detail.innerHTML = `<div class="text-center py-12"><i class="fa-regular fa-folder-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-400">No hay órdenes para este diseñador</p></div>`;
-        return;
-    }
-    
-    const stats = calculateStats(orders);
-    const totalPieces = orders.reduce((s, o) => s + o.cantidad + o.childPieces, 0);
-    
-    // Destruir gráficos existentes
-    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
-    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
-    
-    detail.innerHTML = `
-        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white mb-6 shadow-lg">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-2xl font-bold">${escapeHTML(designerName)}</h2>
-                <button onclick="openCompareModal('${escapeHTML(designerName)}')" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-medium transition">
-                    <i class="fa-solid fa-code-compare mr-1"></i> Comparar
-                </button>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Órdenes</div>
-                    <div class="text-3xl font-bold">${orders.length}</div>
-                </div>
-                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Piezas</div>
-                    <div class="text-3xl font-bold">${totalPieces.toLocaleString()}</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
-                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-pie text-blue-500"></i>
-                    Distribución de Estados
-                </h3>
-                <canvas id="designerDoughnutChart" height="200"></canvas>
-            </div>
-            
-            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
-                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-bar text-green-500"></i>
-                    Análisis de Entregas
-                </h3>
-                <canvas id="designerBarChart" height="200"></canvas>
-            </div>
-        </div>
-        
-        <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
-            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-                <h3 class="font-bold text-slate-800">Detalle de Órdenes</h3>
-                <button onclick="exportDesignerMetricsPDF('${escapeHTML(designerName)}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
-                    <i class="fa-solid fa-file-pdf mr-1"></i> Exportar PDF
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs">
-                    <thead class="bg-slate-50 border-b border-slate-200">
-                        <tr class="text-left text-slate-600 uppercase font-bold">
-                            <th class="px-4 py-3">Estado</th>
-                            <th class="px-4 py-3">Cliente</th>
-                            <th class="px-4 py-3">Código</th>
-                            <th class="px-4 py-3">Estilo</th>
-                            <th class="px-4 py-3">Fecha</th>
-                            <th class="px-4 py-3 text-right">Piezas</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        ${orders.map(o => `
-                            <tr class="hover:bg-slate-50 cursor-pointer" onclick="openAssignModal('${o.orderId}')">
-                                <td class="px-4 py-3">${getStatusBadge(o)}</td>
-                                <td class="px-4 py-3 font-medium">${escapeHTML(o.cliente)}</td>
-                                <td class="px-4 py-3 font-mono text-slate-500">${escapeHTML(o.codigoContrato)}</td>
-                                <td class="px-4 py-3">${escapeHTML(o.estilo)}</td>
-                                <td class="px-4 py-3 text-slate-600">${formatDate(o.fechaDespacho)}</td>
-                                <td class="px-4 py-3 text-right font-bold">${(o.cantidad + o.childPieces).toLocaleString()}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-    
-    // Crear gráficos
-    setTimeout(() => {
-        const statusCounts = {
-            [CONFIG.STATUS.TRAY]: orders.filter(o => o.customStatus === CONFIG.STATUS.TRAY).length,
-            [CONFIG.STATUS.PROD]: orders.filter(o => o.customStatus === CONFIG.STATUS.PROD).length,
-            [CONFIG.STATUS.AUDIT]: orders.filter(o => o.customStatus === CONFIG.STATUS.AUDIT).length,
-            [CONFIG.STATUS.COMPLETED]: orders.filter(o => o.customStatus === CONFIG.STATUS.COMPLETED).length,
-            'Sin Estado': orders.filter(o => !o.customStatus).length
-        };
-        
-        const doughnutCanvas = document.getElementById('designerDoughnutChart');
-        if (doughnutCanvas) {
-            designerDoughnutChart = new Chart(doughnutCanvas, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(statusCounts),
-                    datasets: [{
-                        data: Object.values(statusCounts),
-                        backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#64748b', '#e2e8f0']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
-        }
-        
-        const barCanvas = document.getElementById('designerBarChart');
-        if (barCanvas) {
-            designerBarChart = new Chart(barCanvas, {
-                type: 'bar',
-                data: {
-                    labels: ['A Tiempo', 'Atrasadas', 'Muy Atrasadas'],
-                    datasets: [{
-                        label: 'Órdenes',
-                        data: [stats.onTime, stats.late - stats.veryLate, stats.veryLate],
-                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-        }
-    }, 100);
-}
-
-// ======================================================
-// ===== 13. MÉTRICAS DE DEPARTAMENTOS (CORREGIDO) =====
-// ======================================================
-
-function generateDepartmentMetrics() {
-    const content = document.getElementById('departmentMetricsContent');
-    if (!content) return;
-    
-    // Verificar Chart.js
-    if (typeof Chart === 'undefined') {
-        content.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3"></i><p class="text-red-600 font-bold">Error: Chart.js no está cargado</p></div>';
-        return;
-    }
-    
-    // Destruir gráficos existentes
-    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
-    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
-    
-    const deptCounts = {};
-    const deptPieces = {};
-    
-    Object.values(CONFIG.DEPARTMENTS).forEach(d => {
-        deptCounts[d] = 0;
-        deptPieces[d] = 0;
-    });
-    
-    allOrders.forEach(o => {
-        if (deptCounts.hasOwnProperty(o.departamento)) {
-            deptCounts[o.departamento]++;
-            deptPieces[o.departamento] += o.cantidad + o.childPieces;
-        }
-    });
-    
-    content.innerHTML = `
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
-                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-pie text-green-500"></i>
-                    Distribución por Departamento
-                </h3>
-                <canvas id="deptLoadPieChart" height="250"></canvas>
-            </div>
-            
-            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
-                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-column text-blue-500"></i>
-                    Carga de Trabajo (Piezas)
-                </h3>
-                <canvas id="deptLoadBarChart" height="250"></canvas>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            ${Object.entries(deptCounts).map(([dept, count]) => `
-                <div class="bg-white rounded-xl p-5 shadow border border-slate-200 hover:shadow-lg transition">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs uppercase font-bold text-slate-500">${dept}</span>
-                        <i class="fa-solid fa-industry text-slate-300 text-xl"></i>
-                    </div>
-                    <div class="text-3xl font-bold text-slate-800 mb-1">${count}</div>
-                    <div class="text-xs text-slate-500">${deptPieces[dept].toLocaleString()} piezas</div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-    
-    setTimeout(() => {
-        const pieCanvas = document.getElementById('deptLoadPieChart');
-        if (pieCanvas) {
-            deptLoadPieChart = new Chart(pieCanvas, {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(deptCounts),
-                    datasets: [{
-                        data: Object.values(deptCounts),
-                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b', '#94a3b8']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
-        }
-        
-        const barCanvas = document.getElementById('deptLoadBarChart');
-        if (barCanvas) {
-            deptLoadBarChart = new Chart(barCanvas, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(deptPieces),
-                    datasets: [{
-                        label: 'Piezas',
-                        data: Object.values(deptPieces),
-                        backgroundColor: '#3b82f6'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-        }
-    }, 100);
-}
-
-// ======================================================
-// ===== 14. GRÁFICOS Y PLAN SEMANAL =====
+// ===== 12. GRÁFICOS Y PLAN SEMANAL =====
 // ======================================================
 
 function destroyAllCharts() {
@@ -1494,8 +1215,248 @@ window.removeOrderFromPlan = (id, code) => {
     });
 };
 
+function populateMetricsSidebar() {
+    const list = document.getElementById('metricsSidebarList');
+    if (!list) return;
+    
+    const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    const designers = {};
+    
+    artOrders.forEach(o => {
+        const d = o.designer || 'Sin asignar';
+        if (!designers[d]) designers[d] = { total: 0, pieces: 0 };
+        designers[d].total++;
+        designers[d].pieces += o.cantidad + o.childPieces;
+    });
+    
+    list.innerHTML = Object.entries(designers)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([name, data]) => `
+            <button class="filter-btn w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 transition-all" data-designer="${escapeHTML(name)}">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-slate-800 text-sm">${escapeHTML(name)}</span>
+                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold">${data.total}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1">${data.pieces.toLocaleString()} piezas</div>
+            </button>
+        `).join('');
+}
+
+function generateDesignerMetrics(designerName) {
+    const detail = document.getElementById('metricsDetail');
+    if (!detail) return;
+    
+    const orders = allOrders.filter(o => 
+        o.departamento === CONFIG.DEPARTMENTS.ART && 
+        (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName)
+    );
+    
+    if (orders.length === 0) {
+        detail.innerHTML = `<div class="text-center py-12"><i class="fa-regular fa-folder-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-400">No hay órdenes para este diseñador</p></div>`;
+        return;
+    }
+    
+    const stats = calculateStats(orders);
+    const totalPieces = orders.reduce((s, o) => s + o.cantidad + o.childPieces, 0);
+    
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+    
+    detail.innerHTML = `
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white mb-6 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold">${escapeHTML(designerName)}</h2>
+                <button onclick="openCompareModal('${escapeHTML(designerName)}')" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-medium transition">
+                    <i class="fa-solid fa-code-compare mr-1"></i> Comparar
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Órdenes</div>
+                    <div class="text-3xl font-bold">${orders.length}</div>
+                </div>
+                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Piezas</div>
+                    <div class="text-3xl font-bold">${totalPieces.toLocaleString()}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-blue-500"></i> Distribución de Estados
+                </h3>
+                <canvas id="designerDoughnutChart" height="200"></canvas>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-bar text-green-500"></i> Análisis de Entregas
+                </h3>
+                <canvas id="designerBarChart" height="200"></canvas>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800">Detalle de Órdenes</h3>
+                <button onclick="exportDesignerMetricsPDF('${escapeHTML(designerName)}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                    <i class="fa-solid fa-file-pdf mr-1"></i> Exportar PDF
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr class="text-left text-slate-600 uppercase font-bold">
+                            <th class="px-4 py-3">Estado</th>
+                            <th class="px-4 py-3">Cliente</th>
+                            <th class="px-4 py-3">Código</th>
+                            <th class="px-4 py-3">Estilo</th>
+                            <th class="px-4 py-3">Fecha</th>
+                            <th class="px-4 py-3 text-right">Piezas</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${orders.map(o => `
+                            <tr class="hover:bg-slate-50 cursor-pointer" onclick="openAssignModal('${o.orderId}')">
+                                <td class="px-4 py-3">${getStatusBadge(o)}</td>
+                                <td class="px-4 py-3 font-medium">${escapeHTML(o.cliente)}</td>
+                                <td class="px-4 py-3 font-mono text-slate-500">${escapeHTML(o.codigoContrato)}</td>
+                                <td class="px-4 py-3">${escapeHTML(o.estilo)}</td>
+                                <td class="px-4 py-3 text-slate-600">${formatDate(o.fechaDespacho)}</td>
+                                <td class="px-4 py-3 text-right font-bold">${(o.cantidad + o.childPieces).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        if (typeof Chart === 'undefined') { showCustomAlert('Error: Chart.js no cargado', 'error'); return; }
+
+        const statusCounts = {
+            [CONFIG.STATUS.TRAY]: orders.filter(o => o.customStatus === CONFIG.STATUS.TRAY).length,
+            [CONFIG.STATUS.PROD]: orders.filter(o => o.customStatus === CONFIG.STATUS.PROD).length,
+            [CONFIG.STATUS.AUDIT]: orders.filter(o => o.customStatus === CONFIG.STATUS.AUDIT).length,
+            [CONFIG.STATUS.COMPLETED]: orders.filter(o => o.customStatus === CONFIG.STATUS.COMPLETED).length,
+            'Sin Estado': orders.filter(o => !o.customStatus).length
+        };
+        
+        designerDoughnutChart = new Chart(document.getElementById('designerDoughnutChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{
+                    data: Object.values(statusCounts),
+                    backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#64748b', '#e2e8f0']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+        
+        designerBarChart = new Chart(document.getElementById('designerBarChart'), {
+            type: 'bar',
+            data: {
+                labels: ['A Tiempo', 'Atrasadas', 'Muy Atrasadas'],
+                datasets: [{
+                    label: 'Órdenes',
+                    data: [stats.onTime, stats.late - stats.veryLate, stats.veryLate],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+        });
+    }, 100);
+}
+
+function generateDepartmentMetrics() {
+    const content = document.getElementById('departmentMetricsContent');
+    if (!content) return;
+    
+    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
+    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
+    
+    const deptCounts = {};
+    const deptPieces = {};
+    
+    Object.values(CONFIG.DEPARTMENTS).forEach(d => {
+        deptCounts[d] = 0;
+        deptPieces[d] = 0;
+    });
+    
+    allOrders.forEach(o => {
+        if (deptCounts.hasOwnProperty(o.departamento)) {
+            deptCounts[o.departamento]++;
+            deptPieces[o.departamento] += o.cantidad + o.childPieces;
+        }
+    });
+    
+    content.innerHTML = `
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-green-500"></i> Distribución por Departamento
+                </h3>
+                <canvas id="deptLoadPieChart" height="250"></canvas>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-column text-blue-500"></i> Carga de Trabajo (Piezas)
+                </h3>
+                <canvas id="deptLoadBarChart" height="250"></canvas>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${Object.entries(deptCounts).map(([dept, count]) => `
+                <div class="bg-white rounded-xl p-5 shadow border border-slate-200 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs uppercase font-bold text-slate-500">${dept}</span>
+                        <i class="fa-solid fa-industry text-slate-300 text-xl"></i>
+                    </div>
+                    <div class="text-3xl font-bold text-slate-800 mb-1">${count}</div>
+                    <div class="text-xs text-slate-500">${deptPieces[dept].toLocaleString()} piezas</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    setTimeout(() => {
+        if (typeof Chart === 'undefined') { showCustomAlert('Error: Chart.js no cargado', 'error'); return; }
+
+        deptLoadPieChart = new Chart(document.getElementById('deptLoadPieChart'), {
+            type: 'pie',
+            data: {
+                labels: Object.keys(deptCounts),
+                datasets: [{
+                    data: Object.values(deptCounts),
+                    backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b', '#94a3b8']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+        
+        deptLoadBarChart = new Chart(document.getElementById('deptLoadBarChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(deptPieces),
+                datasets: [{
+                    label: 'Piezas',
+                    data: Object.values(deptPieces),
+                    backgroundColor: '#3b82f6'
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+        });
+    }, 100);
+}
+
 // ======================================================
-// ===== 15. EXPORTACIÓN Y COMPARACIÓN =====
+// ===== 13. EXPORTACIÓN Y UTILS UI =====
 // ======================================================
 
 window.openCompareModal = (name) => {
@@ -1508,48 +1469,25 @@ window.openCompareModal = (name) => {
 
 window.startComparison = () => {
     const n2 = document.getElementById('compareDesignerSelect').value;
-    if (!n2) return showCustomAlert('Selecciona un diseñador para comparar', 'error');
-    
-    // Verificar Chart.js
-    if (typeof Chart === 'undefined') {
-        showCustomAlert('Error: Chart.js no está cargado', 'error');
-        return;
-    }
-    
+    if (!n2) return;
     const art = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     const s1 = calculateStats(art.filter(o => o.designer === currentCompareDesigner1));
     const s2 = calculateStats(art.filter(o => o.designer === n2));
     
     if (compareChart) compareChart.destroy();
-    
-    const canvas = document.getElementById('compareChartCanvas');
-    if (canvas) {
-        compareChart = new Chart(canvas.getContext('2d'), {
-            type: 'bar',
-            data: { 
-                labels: ['Total', 'A Tiempo', 'Atrasadas'], 
-                datasets: [
-                    { label: currentCompareDesigner1, data: [s1.total, s1.onTime, s1.late], backgroundColor: '#3b82f6' }, 
-                    { label: n2, data: [s2.total, s2.onTime, s2.late], backgroundColor: '#f59e0b' }
-                ] 
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-        });
-    }
+    compareChart = new Chart(document.getElementById('compareChartCanvas').getContext('2d'), {
+        type: 'bar',
+        data: { labels: ['Total', 'A Tiempo', 'Atrasadas'], datasets: [{ label: currentCompareDesigner1, data: [s1.total, s1.onTime, s1.late], backgroundColor: '#3b82f6' }, { label: n2, data: [s2.total, s2.onTime, s2.late], backgroundColor: '#f59e0b' }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+    });
     
     document.getElementById('selectCompareModal').classList.remove('active');
     openModalById('compareModal');
 };
 
 window.exportDesignerMetricsPDF = (name) => {
-    if (typeof window.jspdf === 'undefined') {
-        showCustomAlert('Error: Librería jsPDF no está cargada', 'error');
-        return;
-    }
-    
-    if (typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
-        showCustomAlert('Error: Plugin AutoTable no está cargado', 'error');
-        return;
+    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
+        return showCustomAlert('Error: Librería PDF o AutoTable no cargada', 'error');
     }
     
     const { jsPDF } = window.jspdf;
@@ -1578,39 +1516,21 @@ window.exportDesignerMetricsPDF = (name) => {
 };
 
 window.exportTableToExcel = () => {
-    if (allOrders.length === 0) return showCustomAlert('No hay datos para exportar', 'error');
-    
-    if (typeof XLSX === 'undefined') {
-        showCustomAlert('Error: Librería XLSX no está cargada', 'error');
-        return;
-    }
-    
+    if (allOrders.length === 0) return showCustomAlert('No hay datos', 'error');
     const data = getFilteredOrders().map(o => ({
-        "Cliente": o.cliente, 
-        "Código": o.codigoContrato, 
-        "Estilo": o.estilo, 
-        "Departamento": o.departamento,
+        "Cliente": o.cliente, "Código": o.codigoContrato, "Estilo": o.estilo, "Departamento": o.departamento,
         "Fecha Despacho": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
-        "Diseñador": o.designer, 
-        "Estado Interno": o.customStatus, 
-        "Piezas": o.cantidad, 
-        "Piezas Hijas": o.childPieces,
-        "Total Piezas": o.cantidad + o.childPieces,
-        "Notas": o.notes
+        "Diseñador": o.designer, "Estado Interno": o.customStatus, "Piezas": o.cantidad, "Notas": o.notes
     }));
-    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Reporte");
     XLSX.writeFile(wb, `Reporte_Panel_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
 
 window.generateWeeklyReport = () => {
-    const w = document.getElementById('weeklyReportWeekSelector').value;
-    if(!w) {
-        showCustomAlert('Selecciona una semana primero', 'error');
-        return;
-    }
-    
+    const w = document.getElementById('weekSelector').value; 
+    if(!w) return showCustomAlert('Por favor selecciona una semana.', 'error');
+
     const [y, wk] = w.split('-W').map(Number);
     const d = new Date(y, 0, 1 + (wk - 1) * 7);
     const day = d.getDay();
@@ -1624,40 +1544,20 @@ window.generateWeeklyReport = () => {
         return rd >= start && rd <= end;
     });
     
-    document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `
-        <h3 class="font-bold mb-2">Resultados: ${filtered.length} órdenes</h3>
-        <table id="weeklyReportTable" class="w-full text-xs border-collapse">
-            <thead>
-                <tr class="bg-gray-100 text-left">
-                    <th class="p-2 border">Fecha</th>
-                    <th class="p-2 border">Cliente</th>
-                    <th class="p-2 border">Estilo</th>
-                    <th class="p-2 border text-right">Pzs</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${filtered.map(o => `
-                    <tr>
-                        <td class="p-2 border">${o.receivedDate}</td>
-                        <td class="p-2 border">${escapeHTML(o.cliente)}</td>
-                        <td class="p-2 border">${escapeHTML(o.estilo)}</td>
-                        <td class="p-2 border text-right">${o.cantidad}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    ` : '<p class="text-center text-gray-400 py-8">No hay órdenes recibidas en este periodo.</p>';
+    document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `<h3 class="font-bold mb-2">Resultados: ${filtered.length} órdenes</h3><table id="weeklyReportTable" class="w-full text-xs border-collapse"><thead><tr class="bg-gray-100 text-left"><th class="p-2 border">Fecha</th><th class="p-2 border">Cliente</th><th class="p-2 border">Estilo</th><th class="p-2 border text-right">Pzs</th></tr></thead><tbody>${filtered.map(o => `<tr><td class="p-2 border">${o.receivedDate}</td><td class="p-2 border">${o.cliente}</td><td class="p-2 border">${o.estilo}</td><td class="p-2 border text-right">${o.cantidad}</td></tr>`).join('')}</tbody></table>` : '<p class="text-center text-gray-400 py-8">No hay órdenes recibidas en este periodo.</p>';
 };
 
 window.exportWeeklyReportAsPDF = () => {
     if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
-        showCustomAlert('Error: Librería PDF no está cargada', 'error');
-        return;
+        return showCustomAlert('Error: Librería PDF o AutoTable no cargada', 'error');
     }
-    
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.text("Reporte Semanal de Entradas", 14, 15);
+    
+    const table = document.getElementById('weeklyReportTable');
+    if (!table) return showCustomAlert('Genera el reporte primero', 'error');
+
     doc.autoTable({ html: '#weeklyReportTable', startY: 20, theme: 'grid', styles: { fontSize: 8 } });
     doc.save("reporte_semanal.pdf");
 };
@@ -1672,14 +1572,7 @@ window.showConfirmModal = (msg, cb) => {
 };
 
 window.openLegendModal = () => openModalById('legendModal');
-window.openWeeklyReportModal = () => {
-    // Inicializar el selector de semana con la semana actual
-    const weekSelector = document.getElementById('weeklyReportWeekSelector');
-    if (weekSelector) {
-        weekSelector.value = getWeekIdentifierString(new Date());
-    }
-    openModalById('weeklyReportModal');
-};
+window.openWeeklyReportModal = () => openModalById('weeklyReportModal');
 
 window.resetApp = () => {
     showConfirmModal("¿Subir nuevo archivo? Se perderán los datos no guardados.", () => {
@@ -1687,21 +1580,7 @@ window.resetApp = () => {
         document.getElementById('mainNavigation').style.display = 'none';
         document.getElementById('uploadSection').style.display = 'block';
         allOrders = []; isExcelLoaded = false;
-        document.getElementById('fileInput').value = ''; 
-        document.getElementById('fileName').textContent = '';
+        document.getElementById('fileInput').value = ''; document.getElementById('fileName').textContent = '';
         desconectarDatosDeFirebase();
-        destroyAllCharts();
     });
 };
-
-// ======================================================
-// ===== 16. INICIALIZACIÓN FINAL =====
-// ======================================================
-
-console.log('✅ Panel Arte v6.7 - Código Completo Cargado');
-console.log('📋 Funciones Corregidas:');
-console.log('   - populateMetricsSidebar()');
-console.log('   - generateDesignerMetrics()');
-console.log('   - generateDepartmentMetrics()');
-console.log('   - Verificaciones de librerías externas');
-console.log('   - Gestión de gráficos mejorada');
