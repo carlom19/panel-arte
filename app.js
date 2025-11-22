@@ -711,7 +711,7 @@ window.addSelectedToWorkPlan = async () => {
     }, 'Agregando al plan...', `${selectedOrders.size} órdenes procesadas.`);
 };
 // ======================================================
-// ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER) =====
+// ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER UI) =====
 // ======================================================
 
 function navigateTo(viewId) {
@@ -751,7 +751,6 @@ function navigateTo(viewId) {
     else if (viewId === 'workPlanView') generateWorkPlan();
     else if (viewId === 'designerMetricsView') {
         populateMetricsSidebar();
-        
         // Auto-seleccionar el primero si no hay nadie seleccionado
         const detailText = document.getElementById('metricsDetail').innerText;
         if(detailText && detailText.includes('Selecciona')) {
@@ -1153,7 +1152,7 @@ window.deleteDesigner = (id, name) => {
 };
 
 // ======================================================
-// ===== 12. MÉTRICAS DE DISEÑADORES =====
+// ===== 12. MÉTRICAS DE DISEÑADORES (CORREGIDO) =====
 // ======================================================
 
 function populateMetricsSidebar() {
@@ -1187,6 +1186,12 @@ function generateDesignerMetrics(designerName) {
     const detail = document.getElementById('metricsDetail');
     if (!detail) return;
     
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        detail.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3"></i><p class="text-red-600 font-bold">Error: Chart.js no está cargado</p></div>';
+        return;
+    }
+    
     const orders = allOrders.filter(o => 
         o.departamento === CONFIG.DEPARTMENTS.ART && 
         (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName)
@@ -1200,6 +1205,7 @@ function generateDesignerMetrics(designerName) {
     const stats = calculateStats(orders);
     const totalPieces = orders.reduce((s, o) => s + o.cantidad + o.childPieces, 0);
     
+    // Destruir gráficos existentes
     if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
     if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
     
@@ -1286,37 +1292,62 @@ function generateDesignerMetrics(designerName) {
             'Sin Estado': orders.filter(o => !o.customStatus).length
         };
         
-        designerDoughnutChart = new Chart(document.getElementById('designerDoughnutChart'), {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(statusCounts),
-                datasets: [{
-                    data: Object.values(statusCounts),
-                    backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#64748b', '#e2e8f0']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-        });
+        const doughnutCanvas = document.getElementById('designerDoughnutChart');
+        if (doughnutCanvas) {
+            designerDoughnutChart = new Chart(doughnutCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#64748b', '#e2e8f0']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
         
-        designerBarChart = new Chart(document.getElementById('designerBarChart'), {
-            type: 'bar',
-            data: {
-                labels: ['A Tiempo', 'Atrasadas', 'Muy Atrasadas'],
-                datasets: [{
-                    label: 'Órdenes',
-                    data: [stats.onTime, stats.late - stats.veryLate, stats.veryLate],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-        });
+        const barCanvas = document.getElementById('designerBarChart');
+        if (barCanvas) {
+            designerBarChart = new Chart(barCanvas, {
+                type: 'bar',
+                data: {
+                    labels: ['A Tiempo', 'Atrasadas', 'Muy Atrasadas'],
+                    datasets: [{
+                        label: 'Órdenes',
+                        data: [stats.onTime, stats.late - stats.veryLate, stats.veryLate],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
     }, 100);
 }
+
+// ======================================================
+// ===== 13. MÉTRICAS DE DEPARTAMENTOS (CORREGIDO) =====
+// ======================================================
 
 function generateDepartmentMetrics() {
     const content = document.getElementById('departmentMetricsContent');
     if (!content) return;
     
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        content.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3"></i><p class="text-red-600 font-bold">Error: Chart.js no está cargado</p></div>';
+        return;
+    }
+    
+    // Destruir gráficos existentes
     if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
     if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
     
@@ -1339,14 +1370,16 @@ function generateDepartmentMetrics() {
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
                 <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-pie text-green-500"></i> Distribución por Departamento
+                    <i class="fa-solid fa-chart-pie text-green-500"></i>
+                    Distribución por Departamento
                 </h3>
                 <canvas id="deptLoadPieChart" height="250"></canvas>
             </div>
             
             <div class="bg-white rounded-xl p-6 shadow border border-slate-200">
                 <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-column text-blue-500"></i> Carga de Trabajo (Piezas)
+                    <i class="fa-solid fa-chart-column text-blue-500"></i>
+                    Carga de Trabajo (Piezas)
                 </h3>
                 <canvas id="deptLoadBarChart" height="250"></canvas>
             </div>
@@ -1367,37 +1400,113 @@ function generateDepartmentMetrics() {
     `;
     
     setTimeout(() => {
-        if (typeof Chart === 'undefined') { showCustomAlert('Error: Chart.js no cargado', 'error'); return; }
-
-        deptLoadPieChart = new Chart(document.getElementById('deptLoadPieChart'), {
-            type: 'pie',
-            data: {
-                labels: Object.keys(deptCounts),
-                datasets: [{
-                    data: Object.values(deptCounts),
-                    backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b', '#94a3b8']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-        });
+        const pieCanvas = document.getElementById('deptLoadPieChart');
+        if (pieCanvas) {
+            deptLoadPieChart = new Chart(pieCanvas, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(deptCounts),
+                    datasets: [{
+                        data: Object.values(deptCounts),
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b', '#94a3b8']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
         
-        deptLoadBarChart = new Chart(document.getElementById('deptLoadBarChart'), {
-            type: 'bar',
-            data: {
-                labels: Object.keys(deptPieces),
-                datasets: [{
-                    label: 'Piezas',
-                    data: Object.values(deptPieces),
-                    backgroundColor: '#3b82f6'
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-        });
+        const barCanvas = document.getElementById('deptLoadBarChart');
+        if (barCanvas) {
+            deptLoadBarChart = new Chart(barCanvas, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(deptPieces),
+                    datasets: [{
+                        label: 'Piezas',
+                        data: Object.values(deptPieces),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
     }, 100);
 }
 
 // ======================================================
-// ===== 13. EXPORTACIÓN Y UTILS UI =====
+// ===== 14. GRÁFICOS Y PLAN SEMANAL =====
+// ======================================================
+
+function destroyAllCharts() {
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
+    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
+    if (compareChart) { compareChart.destroy(); compareChart = null; }
+}
+
+function generateWorkPlan() {
+    const container = document.getElementById('view-workPlanContent');
+    const weekInput = document.getElementById('view-workPlanWeekSelector');
+    if (!weekInput.value) weekInput.value = getWeekIdentifierString(new Date());
+    const weekIdentifier = weekInput.value;
+    
+    container.innerHTML = '<div class="spinner"></div>';
+    setTimeout(() => {
+        const planData = firebaseWeeklyPlanMap.get(weekIdentifier) || [];
+        if (planData.length === 0) {
+            container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50"><i class="fa-regular fa-calendar-xmark text-3xl text-slate-300 mb-2"></i><p class="text-slate-400 font-medium">Plan vacío.</p></div>`;
+            document.getElementById('view-workPlanSummary').textContent = "0 órdenes";
+            return;
+        }
+
+        let totalPzs = 0, doneCount = 0;
+        planData.sort((a, b) => {
+            const oa = allOrders.find(x => x.orderId === a.orderId);
+            const da = oa && oa.customStatus === CONFIG.STATUS.COMPLETED;
+            const db = allOrders.find(x => x.orderId === b.orderId) && allOrders.find(x => x.orderId === b.orderId).customStatus === CONFIG.STATUS.COMPLETED;
+            if (da && !db) return 1; if (!da && db) return -1;
+            return (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1;
+        });
+
+        let html = `<div class="bg-white rounded-lg shadow border border-slate-200 overflow-hidden"><table class="min-w-full divide-y divide-slate-200 text-xs"><thead class="bg-slate-50 font-bold text-slate-500 uppercase"><tr><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-left">Orden</th><th class="px-4 py-3 text-left">Diseñador</th><th class="px-4 py-3 text-left">Entrega</th><th class="px-4 py-3 text-right">Piezas</th><th class="px-4 py-3"></th></tr></thead><tbody class="divide-y divide-slate-100">`;
+
+        planData.forEach(item => {
+            const liveOrder = allOrders.find(o => o.orderId === item.orderId);
+            const isCompleted = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
+            const pzs = (item.cantidad || 0) + (item.childPieces || 0);
+            totalPzs += pzs; if (isCompleted) doneCount++;
+
+            let badge = isCompleted ? `<span class="bg-slate-600 text-white px-2 py-1 rounded font-bold flex items-center gap-1 w-fit shadow-sm"><i class="fa-solid fa-check"></i> LISTO</span>` : item.isLate ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold border border-red-200">ATRASADA</span>` : `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded font-bold border border-blue-100">En Proceso</span>`;
+            let rowClasses = isCompleted ? 'bg-slate-50 opacity-60 grayscale' : 'hover:bg-slate-50';
+
+            html += `<tr class="${rowClasses}"><td class="px-4 py-3">${badge}</td><td class="px-4 py-3"><div class="font-bold text-slate-800 text-sm">${escapeHTML(item.cliente)}</div><div class="text-slate-500 text-[11px]">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td><td class="px-4 py-3 font-medium text-slate-700">${escapeHTML(item.designer || 'Sin asignar')}</td><td class="px-4 py-3 text-slate-600">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td><td class="px-4 py-3 text-right font-bold text-slate-800">${pzs.toLocaleString()}</td><td class="px-4 py-3 text-right"><button class="btn-remove-from-plan text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+        const progress = planData.length > 0 ? Math.round((doneCount / planData.length) * 100) : 0;
+        
+        container.innerHTML = `<div class="mb-6 bg-white border border-blue-100 p-4 rounded-xl shadow-sm flex items-center justify-between gap-6"><div class="flex-1"><div class="flex justify-between mb-2"><span class="font-bold text-slate-700 text-xs uppercase">Progreso</span><span class="font-bold text-blue-600 text-xs">${progress}%</span></div><div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden"><div class="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-700" style="width: ${progress}%"></div></div></div><div class="text-right"><div class="text-2xl font-bold text-slate-800">${doneCount}/${planData.length}</div><div class="text-[10px] text-slate-400 font-bold uppercase mt-1">Completadas</div></div></div>` + html;
+        document.getElementById('view-workPlanSummary').textContent = `${planData.length} órdenes | ${totalPzs.toLocaleString()} pzs`;
+    }, 50);
+}
+
+window.removeOrderFromPlan = (id, code) => {
+    showConfirmModal(`¿Quitar ${code} del plan?`, async () => {
+        await safeFirestoreOperation(() => db_firestore.collection('weeklyPlan').doc(id).delete(), 'Quitando...', 'Orden removida');
+        generateWorkPlan();
+    });
+};
+
+// ======================================================
+// ===== 15. EXPORTACIÓN Y COMPARACIÓN =====
 // ======================================================
 
 window.openCompareModal = (name) => {
@@ -1410,25 +1519,48 @@ window.openCompareModal = (name) => {
 
 window.startComparison = () => {
     const n2 = document.getElementById('compareDesignerSelect').value;
-    if (!n2) return;
+    if (!n2) return showCustomAlert('Selecciona un diseñador para comparar', 'error');
+    
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        showCustomAlert('Error: Chart.js no está cargado', 'error');
+        return;
+    }
+    
     const art = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     const s1 = calculateStats(art.filter(o => o.designer === currentCompareDesigner1));
     const s2 = calculateStats(art.filter(o => o.designer === n2));
     
     if (compareChart) compareChart.destroy();
-    compareChart = new Chart(document.getElementById('compareChartCanvas').getContext('2d'), {
-        type: 'bar',
-        data: { labels: ['Total', 'A Tiempo', 'Atrasadas'], datasets: [{ label: currentCompareDesigner1, data: [s1.total, s1.onTime, s1.late], backgroundColor: '#3b82f6' }, { label: n2, data: [s2.total, s2.onTime, s2.late], backgroundColor: '#f59e0b' }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-    });
+    
+    const canvas = document.getElementById('compareChartCanvas');
+    if (canvas) {
+        compareChart = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: { 
+                labels: ['Total', 'A Tiempo', 'Atrasadas'], 
+                datasets: [
+                    { label: currentCompareDesigner1, data: [s1.total, s1.onTime, s1.late], backgroundColor: '#3b82f6' }, 
+                    { label: n2, data: [s2.total, s2.onTime, s2.late], backgroundColor: '#f59e0b' }
+                ] 
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+        });
+    }
     
     document.getElementById('selectCompareModal').classList.remove('active');
     openModalById('compareModal');
 };
 
 window.exportDesignerMetricsPDF = (name) => {
-    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
-        return showCustomAlert('Error: Librería PDF o AutoTable no cargada', 'error');
+    if (typeof window.jspdf === 'undefined') {
+        showCustomAlert('Error: Librería jsPDF no está cargada', 'error');
+        return;
+    }
+    
+    if (typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
+        showCustomAlert('Error: Plugin AutoTable no está cargado', 'error');
+        return;
     }
     
     const { jsPDF } = window.jspdf;
@@ -1457,21 +1589,39 @@ window.exportDesignerMetricsPDF = (name) => {
 };
 
 window.exportTableToExcel = () => {
-    if (allOrders.length === 0) return showCustomAlert('No hay datos', 'error');
+    if (allOrders.length === 0) return showCustomAlert('No hay datos para exportar', 'error');
+    
+    if (typeof XLSX === 'undefined') {
+        showCustomAlert('Error: Librería XLSX no está cargada', 'error');
+        return;
+    }
+    
     const data = getFilteredOrders().map(o => ({
-        "Cliente": o.cliente, "Código": o.codigoContrato, "Estilo": o.estilo, "Departamento": o.departamento,
+        "Cliente": o.cliente, 
+        "Código": o.codigoContrato, 
+        "Estilo": o.estilo, 
+        "Departamento": o.departamento,
         "Fecha Despacho": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
-        "Diseñador": o.designer, "Estado Interno": o.customStatus, "Piezas": o.cantidad, "Notas": o.notes
+        "Diseñador": o.designer, 
+        "Estado Interno": o.customStatus, 
+        "Piezas": o.cantidad, 
+        "Piezas Hijas": o.childPieces,
+        "Total Piezas": o.cantidad + o.childPieces,
+        "Notas": o.notes
     }));
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Reporte");
     XLSX.writeFile(wb, `Reporte_Panel_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
 
 window.generateWeeklyReport = () => {
-    const w = document.getElementById('weekSelector').value; // ID CORREGIDO
-    if(!w) return showCustomAlert('Por favor selecciona una semana.', 'error');
-
+    const w = document.getElementById('weekSelector').value;
+    if(!w) {
+        showCustomAlert('Selecciona una semana primero', 'error');
+        return;
+    }
+    
     const [y, wk] = w.split('-W').map(Number);
     const d = new Date(y, 0, 1 + (wk - 1) * 7);
     const day = d.getDay();
@@ -1485,20 +1635,40 @@ window.generateWeeklyReport = () => {
         return rd >= start && rd <= end;
     });
     
-    document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `<h3 class="font-bold mb-2">Resultados: ${filtered.length} órdenes</h3><table id="weeklyReportTable" class="w-full text-xs border-collapse"><thead><tr class="bg-gray-100 text-left"><th class="p-2 border">Fecha</th><th class="p-2 border">Cliente</th><th class="p-2 border">Estilo</th><th class="p-2 border text-right">Pzs</th></tr></thead><tbody>${filtered.map(o => `<tr><td class="p-2 border">${o.receivedDate}</td><td class="p-2 border">${o.cliente}</td><td class="p-2 border">${o.estilo}</td><td class="p-2 border text-right">${o.cantidad}</td></tr>`).join('')}</tbody></table>` : '<p class="text-center text-gray-400 py-8">No hay órdenes recibidas en este periodo.</p>';
+    document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `
+        <h3 class="font-bold mb-2">Resultados: ${filtered.length} órdenes</h3>
+        <table id="weeklyReportTable" class="w-full text-xs border-collapse">
+            <thead>
+                <tr class="bg-gray-100 text-left">
+                    <th class="p-2 border">Fecha</th>
+                    <th class="p-2 border">Cliente</th>
+                    <th class="p-2 border">Estilo</th>
+                    <th class="p-2 border text-right">Pzs</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(o => `
+                    <tr>
+                        <td class="p-2 border">${o.receivedDate}</td>
+                        <td class="p-2 border">${escapeHTML(o.cliente)}</td>
+                        <td class="p-2 border">${escapeHTML(o.estilo)}</td>
+                        <td class="p-2 border text-right">${o.cantidad}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    ` : '<p class="text-center text-gray-400 py-8">No hay órdenes recibidas en este periodo.</p>';
 };
 
 window.exportWeeklyReportAsPDF = () => {
     if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
-        return showCustomAlert('Error: Librería PDF o AutoTable no cargada', 'error');
+        showCustomAlert('Error: Librería PDF no está cargada', 'error');
+        return;
     }
+    
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.text("Reporte Semanal de Entradas", 14, 15);
-    
-    const table = document.getElementById('weeklyReportTable');
-    if (!table) return showCustomAlert('Genera el reporte primero', 'error');
-
     doc.autoTable({ html: '#weeklyReportTable', startY: 20, theme: 'grid', styles: { fontSize: 8 } });
     doc.save("reporte_semanal.pdf");
 };
@@ -1513,9 +1683,9 @@ window.showConfirmModal = (msg, cb) => {
 };
 
 window.openLegendModal = () => openModalById('legendModal');
-
 window.openWeeklyReportModal = () => {
-    const weekSelector = document.getElementById('weekSelector'); // ID CORREGIDO
+    // Inicializar el selector de semana con la semana actual
+    const weekSelector = document.getElementById('weekSelector');
     if (weekSelector) {
         weekSelector.value = getWeekIdentifierString(new Date());
     }
@@ -1528,8 +1698,10 @@ window.resetApp = () => {
         document.getElementById('mainNavigation').style.display = 'none';
         document.getElementById('uploadSection').style.display = 'block';
         allOrders = []; isExcelLoaded = false;
-        document.getElementById('fileInput').value = ''; document.getElementById('fileName').textContent = '';
+        document.getElementById('fileInput').value = ''; 
+        document.getElementById('fileName').textContent = '';
         desconectarDatosDeFirebase();
+        destroyAllCharts();
     });
 };
 
