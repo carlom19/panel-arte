@@ -1187,7 +1187,7 @@ window.clearSelection = () => { selectedOrders.clear(); updateTable(); };
 window.toggleNotifications = () => { document.getElementById('notificationDropdown').classList.toggle('hidden'); };
 
 // ======================================================
-// ===== 11. MODALES Y ACCIONES (ACTUALIZADO v7.2 Notif) =====
+// ===== 11. MODALES Y ACCIONES (CORREGIDO) =====
 // ======================================================
 
 window.openAssignModal = async (id) => {
@@ -1235,11 +1235,9 @@ window.saveAssignment = async () => {
         changes.push(`Diseñador: ${o.designer || 'N/A'} -> ${des}`); 
         data.designer = des; 
         
-        // --- NOTIFICACIÓN DE ASIGNACIÓN (NUEVO) ---
+        // --- NOTIFICACIÓN DE ASIGNACIÓN ---
         if (des && des !== 'Sin asignar') {
-            // Buscar email del diseñador
             let targetEmail = null;
-            // Buscamos en el mapa de diseñadores de Firebase
             firebaseDesignersMap.forEach(dData => {
                 if (dData.name === des) targetEmail = dData.email;
             });
@@ -1345,6 +1343,7 @@ window.saveMultiAssignment = async () => {
 };
 
 window.openDesignerManager = () => { populateDesignerManagerModal(); openModalById('designerManagerModal'); };
+
 function populateDesignerManagerModal() {
     const l = document.getElementById('designerManagerList');
     l.innerHTML = firebaseDesignersMap.size === 0 ? '<p class="text-center text-slate-400 text-xs py-4">Sin datos.</p>' : '';
@@ -1352,6 +1351,7 @@ function populateDesignerManagerModal() {
         l.innerHTML += `<div class="flex justify-between items-center p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 rounded transition"><div><div class="font-bold text-slate-800 text-xs">${escapeHTML(d.name)}</div><div class="text-[10px] text-slate-400">${escapeHTML(d.email)}</div></div><button class="btn-delete-designer text-red-500 hover:text-red-700 text-[10px] font-bold px-2 py-1" data-name="${escapeHTML(d.name)}" data-id="${id}">Eliminar</button></div>`;
     });
 }
+
 window.addDesigner = async () => {
     const name = document.getElementById('newDesignerName').value.trim();
     const email = document.getElementById('newDesignerEmail').value.trim().toLowerCase();
@@ -1359,8 +1359,13 @@ window.addDesigner = async () => {
     const ok = await safeFirestoreOperation(() => db_firestore.collection('designers').add({ name, email, createdAt: new Date().toISOString() }), 'Agregando...', 'Diseñador agregado');
     if(ok) { document.getElementById('newDesignerName').value = ''; document.getElementById('newDesignerEmail').value = ''; populateDesignerManagerModal(); }
 };
+
+// --- AQUÍ ESTABA EL ERROR, ESTE ES EL CÓDIGO CORRECTO ---
 window.deleteDesigner = (id, name) => {
-    showConfirmModal(`¿
+    showConfirmModal(`¿Eliminar a ${name}?`, async () => {
+        await safeFirestoreOperation(() => db_firestore.collection('designers').doc(id).delete(), 'Eliminando...', 'Eliminado');
+    });
+};
 
 // ======================================================
 // ===== 12. MÉTRICAS DE DISEÑADORES (CORREGIDO) =====
