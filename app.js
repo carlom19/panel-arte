@@ -1159,6 +1159,33 @@ window.deleteDesigner = (id, name) => {
 // ===== 12. MÉTRICAS DE DISEÑADORES (CORREGIDO) =====
 // ======================================================
 
+function populateMetricsSidebar() {
+    const list = document.getElementById('metricsSidebarList');
+    if (!list) return;
+    
+    const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    const designers = {};
+    
+    artOrders.forEach(o => {
+        const d = o.designer || 'Sin asignar';
+        if (!designers[d]) designers[d] = { total: 0, pieces: 0 };
+        designers[d].total++;
+        designers[d].pieces += o.cantidad + o.childPieces;
+    });
+    
+    list.innerHTML = Object.entries(designers)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([name, data]) => `
+            <button class="filter-btn w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 transition-all" data-designer="${escapeHTML(name)}">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-slate-800 text-sm">${escapeHTML(name)}</span>
+                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold">${data.total}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1">${data.pieces.toLocaleString()} piezas</div>
+            </button>
+        `).join('');
+}
+
 function generateDesignerMetrics(designerName) {
     const detail = document.getElementById('metricsDetail');
     if (!detail) return;
