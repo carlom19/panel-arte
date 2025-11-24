@@ -1081,8 +1081,8 @@ window.toggleSelectAll = () => { const c = document.getElementById('selectAll').
 window.clearSelection = () => { selectedOrders.clear(); updateTable(); };
 window.toggleNotifications = () => { document.getElementById('notificationDropdown').classList.toggle('hidden'); };
 
-// ======================================================
-// ===== 11. MODALES Y ACCIONES =====
+/// ======================================================
+// ===== 11. MODALES Y ACCIONES (ACTUALIZADO v7.1) =====
 // ======================================================
 
 window.openAssignModal = async (id) => {
@@ -1090,17 +1090,21 @@ window.openAssignModal = async (id) => {
     const o = allOrders.find(x => x.orderId === id);
     if (!o) return;
 
+    // 1. Cargar Datos Informativos
     document.getElementById('detailCliente').textContent = o.cliente;
     document.getElementById('detailCodigo').textContent = o.codigoContrato;
     document.getElementById('detailEstilo').textContent = o.estilo;
     document.getElementById('detailFecha').textContent = formatDate(o.fechaDespacho);
     document.getElementById('detailPiezas').textContent = `${o.cantidad.toLocaleString()} (+${o.childPieces}) = ${(o.cantidad + o.childPieces).toLocaleString()}`;
     
+    // 2. Cargar Valores Editables
     document.getElementById('modalDesigner').value = o.designer || '';
     document.getElementById('modalStatus').value = o.customStatus || '';
     document.getElementById('modalReceivedDate').value = o.receivedDate || '';
-    document.getElementById('modalNotes').value = o.notes || '';
     
+    // NOTA: Ya no cargamos 'modalNotes' aquí porque fue reemplazado por el Chat.
+    
+    // 3. Cargar Historial del Sistema
     const h = firebaseHistoryMap.get(id) || [];
     document.getElementById('modalHistory').innerHTML = h.length ? h.reverse().map(x => `
         <div class="border-b border-slate-100 pb-2 last:border-0 mb-2">
@@ -1108,6 +1112,12 @@ window.openAssignModal = async (id) => {
             <div class="text-xs text-slate-600">${escapeHTML(x.change)}</div>
         </div>`).join('') : '<p class="text-slate-400 italic text-xs text-center py-4">Sin historial.</p>';
 
+    // 4. Cargar el Chat de Comentarios (Nueva función)
+    if (typeof loadOrderComments === 'function') {
+        loadOrderComments(id);
+    }
+
+    // 5. Cargar Hijas y abrir
     await loadChildOrders();
     openModalById('assignModal');
 };
@@ -1115,23 +1125,27 @@ window.openAssignModal = async (id) => {
 window.saveAssignment = async () => {
     if (!currentEditingOrderId) return;
     const o = allOrders.find(x => x.orderId === currentEditingOrderId);
+    
     const des = document.getElementById('modalDesigner').value;
     const stat = document.getElementById('modalStatus').value;
     const rd = document.getElementById('modalReceivedDate').value;
-    const not = document.getElementById('modalNotes').value;
     
+    // NOTA: No leemos 'modalNotes' aquí. Los comentarios se guardan con su propio botón.
+
     const changes = []; const data = {};
+    
     if(o.designer !== des) { changes.push(`Diseñador: ${o.designer || 'N/A'} -> ${des}`); data.designer = des; }
     if(o.customStatus !== stat) { changes.push(`Estado: ${o.customStatus || 'N/A'} -> ${stat}`); data.customStatus = stat; if(stat === CONFIG.STATUS.COMPLETED) data.completedDate = new Date().toISOString(); }
     if(o.receivedDate !== rd) { changes.push(`Fecha Rx: ${rd}`); data.receivedDate = rd; }
-    if(o.notes !== not) { changes.push('Notas actualizadas'); data.notes = not; }
     
-    if(changes.length === 0) return showCustomAlert('No hubo cambios', 'info');
+    if(changes.length === 0) return showCustomAlert('No hubo cambios en los campos principales', 'info');
 
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
         batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), { ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION }, { merge: true });
+        
         changes.forEach(c => batch.set(db_firestore.collection('history').doc(), { orderId: currentEditingOrderId, change: c, user: usuarioActual.displayName, timestamp: new Date().toISOString() }));
+        
         await batch.commit();
     }, 'Guardando cambios...', 'Cambios guardados');
 
@@ -1201,7 +1215,11 @@ window.saveMultiAssignment = async () => {
         let c = 0;
         selectedOrders.forEach(id => {
             const data = { schemaVersion: CONFIG.DB_VERSION };
-            if (d) data.designer = d; if (s) data.customStatus = s; if (r) data.receivedDate = r; if (n) data.notes = n;
+            if (d) data.designer = d; if (s) data.customStatus = s; if (r) data.receivedDate = r; 
+            
+            // Mantenemos notas legacy para edición masiva por ahora
+            if (n) data.notes = n; 
+            
             if (Object.keys(data).length > 1) { batch.set(db_firestore.collection('assignments').doc(id), data, { merge: true }); c++; }
         });
         if(c>0) await batch.commit();
@@ -2018,3 +2036,192 @@ function updateKanbanDropdown() {
         designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
     }
 }
+
+// ======================================================
+// ===== 18. SISTEMA DE CHAT Y MENCIONES (COLLAB) =====
+// ======================================================
+
+let unsubscribeChat = null; // Para detener la escucha al cerrar el modal
+
+// 1. Cargar comentarios al abrir el modal
+function loadOrderComments(orderId) {
+    const chatContainer = document.getElementById('chatHistory');
+    chatContainer.innerHTML = '<div class="spinner mt-4"></div>';
+    
+    // Desuscribir listener anterior si existe
+    if (unsubscribeChat) unsubscribeChat();
+
+    // Referencia a la sub-colección
+    const commentsRef = db_firestore.collection('assignments').doc(orderId).collection('comments').orderBy('timestamp', 'asc');
+
+    unsubscribeChat = commentsRef.onSnapshot(snapshot => {
+        chatContainer.innerHTML = '';
+        
+        if (snapshot.empty) {
+            // Si no hay chats, mostramos la nota antigua si existe
+            const order = allOrders.find(o => o.orderId === orderId);
+            if(order && order.notes) {
+                renderSystemMessage(`Nota original: "${order.notes}"`);
+            } else {
+                chatContainer.innerHTML = '<p class="text-center text-slate-300 text-xs mt-4">Inicia la conversación...</p>';
+            }
+            return;
+        }
+
+        let lastUser = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const isMe = usuarioActual && (data.userEmail === usuarioActual.email);
+            renderMessage(data, isMe, chatContainer);
+        });
+
+        // Auto-scroll al fondo
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+}
+
+// 2. Renderizar un mensaje individual
+function renderMessage(data, isMe, container) {
+    const div = document.createElement('div');
+    div.className = `chat-bubble ${isMe ? 'me' : 'other'}`;
+    
+    // Procesar texto para resaltar menciones (@Nombre)
+    let formattedText = escapeHTML(data.text).replace(/@(\w+)/g, '<span class="mention-tag">@$1</span>');
+    
+    // Convertir saltos de línea
+    formattedText = formattedText.replace(/\n/g, '<br>');
+
+    div.innerHTML = `
+        ${!isMe ? `<div class="font-bold text-[10px] text-blue-600 mb-0.5">${escapeHTML(data.userName)}</div>` : ''}
+        <div>${formattedText}</div>
+        <div class="chat-meta">
+            <span>${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            <span>${new Date(data.timestamp).toLocaleDateString()}</span>
+        </div>
+    `;
+    container.appendChild(div);
+}
+
+function renderSystemMessage(text) {
+    const div = document.createElement('div');
+    div.className = "text-center text-[10px] text-slate-400 bg-slate-100 rounded py-1 px-2 mx-auto w-fit mb-2";
+    div.textContent = text;
+    document.getElementById('chatHistory').appendChild(div);
+}
+
+// 3. Enviar Comentario
+async function sendComment() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text || !currentEditingOrderId || !usuarioActual) return;
+
+    input.value = ''; // Limpiar input inmediato (Optimista)
+    input.style.height = 'auto'; // Reset altura
+    document.getElementById('mentionDropdown').classList.add('hidden');
+
+    try {
+        await db_firestore.collection('assignments').doc(currentEditingOrderId).collection('comments').add({
+            text: text,
+            userId: usuarioActual.uid,
+            userName: usuarioActual.displayName || 'Usuario',
+            userEmail: usuarioActual.email,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Actualizar lastModified en la orden padre para que sepa que hubo actividad
+        db_firestore.collection('assignments').doc(currentEditingOrderId).update({
+            lastModified: new Date().toISOString()
+        });
+
+    } catch (e) {
+        console.error(e);
+        showCustomAlert('Error enviando mensaje', 'error');
+    }
+}
+
+// 4. Lógica de Menciones (@)
+function handleChatInput(textarea) {
+    // Auto-resize del textarea
+    textarea.style.height = 'auto';
+    textarea.style.height = (textarea.scrollHeight) + 'px';
+
+    const val = textarea.value;
+    const cursorPos = textarea.selectionStart;
+    
+    // Detectar si estamos escribiendo una mención
+    // Buscamos hacia atrás desde el cursor hasta encontrar un @ o un espacio
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const lastAt = textBeforeCursor.lastIndexOf('@');
+    
+    const dropdown = document.getElementById('mentionDropdown');
+
+    if (lastAt !== -1) {
+        // Verificar que el @ sea el inicio o tenga un espacio antes
+        const charBeforeAt = lastAt > 0 ? textBeforeCursor[lastAt - 1] : ' ';
+        
+        if (charBeforeAt === ' ' || charBeforeAt === '\n') {
+            const query = textBeforeCursor.substring(lastAt + 1).toLowerCase();
+            // Si hay un espacio después del @, cancelamos la mención (asumimos que ya terminó el nombre)
+            if (query.includes(' ')) {
+                dropdown.classList.add('hidden');
+                return;
+            }
+
+            // Filtrar diseñadores
+            const matches = designerList.filter(d => d.toLowerCase().includes(query));
+
+            if (matches.length > 0) {
+                showMentionDropdown(matches, lastAt);
+            } else {
+                dropdown.classList.add('hidden');
+            }
+            return;
+        }
+    }
+    dropdown.classList.add('hidden');
+}
+
+function showMentionDropdown(matches, atIndex) {
+    const dropdown = document.getElementById('mentionDropdown');
+    dropdown.innerHTML = '';
+    
+    matches.forEach(name => {
+        const item = document.createElement('div');
+        item.className = 'mention-item';
+        item.textContent = name;
+        item.onclick = () => selectMention(name, atIndex);
+        dropdown.appendChild(item);
+    });
+
+    dropdown.classList.remove('hidden');
+}
+
+function selectMention(name, atIndex) {
+    const textarea = document.getElementById('chatInput');
+    const val = textarea.value;
+    const before = val.substring(0, atIndex);
+    // Buscamos el final de la palabra actual
+    const remaining = val.substring(atIndex); 
+    const nextSpace = remaining.indexOf(' ');
+    const after = nextSpace === -1 ? '' : remaining.substring(nextSpace);
+
+    // Reemplazamos lo que estaba escribiendo por el nombre completo + espacio
+    textarea.value = `${before}@${name} ${after}`;
+    
+    document.getElementById('mentionDropdown').classList.add('hidden');
+    textarea.focus();
+}
+
+function insertEmoji(emoji) {
+    const input = document.getElementById('chatInput');
+    input.value += emoji;
+    input.focus();
+}
+
+// Enviar con Enter (Shift+Enter para salto de línea)
+document.getElementById('chatInput')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendComment();
+    }
+});
