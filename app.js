@@ -1547,6 +1547,7 @@ function generateWorkPlan() {
         
         const progress = planData.length > 0 ? Math.round((doneCount / planData.length) * 100) : 0;
         
+        // AQUÍ ESTABA EL ERROR: Se completó el HTML faltante y se cerraron las llaves
         container.innerHTML = `
         <div class="mb-6 bg-white border border-blue-100 p-4 rounded-xl shadow-sm flex items-center justify-between gap-6">
             <div class="flex-1">
@@ -1555,7 +1556,22 @@ function generateWorkPlan() {
                     <span class="font-bold text-blue-600 text-xs">${progress}%</span>
                 </div>
                 <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-60
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+                </div>
+            </div>
+            <div class="text-right border-l border-slate-100 pl-6">
+                 <div class="text-2xl font-bold text-slate-800">${doneCount} <span class="text-slate-400 text-sm font-normal">/ ${planData.length}</span></div>
+                 <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Órdenes Listas</div>
+            </div>
+        </div>
+        ${html}
+        `;
+        
+        const summary = document.getElementById('view-workPlanSummary');
+        if(summary) summary.textContent = `${planData.length} órdenes`;
+
+    }, 100);
+}
 
 // ======================================================
 // ===== 15. EXPORTACIÓN Y COMPARACIÓN =====
