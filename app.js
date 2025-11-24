@@ -806,6 +806,7 @@ function navigateTo(viewId) {
         const icon = activeBtn.querySelector('i');
         if (icon) {
             if (viewId === 'dashboard') icon.classList.add('text-blue-400');
+            if (viewId === 'kanbanView') icon.classList.add('text-pink-400'); // <--- NUEVO
             if (viewId === 'workPlanView') icon.classList.add('text-orange-400');
             if (viewId === 'designerMetricsView') icon.classList.add('text-purple-400');
             if (viewId === 'departmentMetricsView') icon.classList.add('text-green-400');
@@ -813,8 +814,16 @@ function navigateTo(viewId) {
     }
 
     // Inicializar vista específica
-    if (viewId === 'dashboard') updateDashboard();
-    else if (viewId === 'workPlanView') generateWorkPlan();
+    if (viewId === 'dashboard') {
+        updateDashboard();
+    } 
+    else if (viewId === 'kanbanView') { // <--- NUEVO
+        updateKanbanDropdown();
+        updateKanban();
+    }
+    else if (viewId === 'workPlanView') {
+        generateWorkPlan();
+    }
     else if (viewId === 'designerMetricsView') {
         populateMetricsSidebar();
         // Auto-seleccionar el primero si no hay nadie seleccionado
@@ -823,9 +832,12 @@ function navigateTo(viewId) {
             const firstBtn = document.querySelector('#metricsSidebarList .filter-btn');
             if(firstBtn) firstBtn.click();
         }
-    } else if (viewId === 'departmentMetricsView') generateDepartmentMetrics();
+    } 
+    else if (viewId === 'departmentMetricsView') {
+        generateDepartmentMetrics();
+    }
     
-    // Limpiar gráficos para ahorrar memoria al salir
+    // Limpiar gráficos para ahorrar memoria al salir de vistas de métricas
     if (viewId !== 'designerMetricsView' && viewId !== 'departmentMetricsView') destroyAllCharts();
 }
 
@@ -1854,3 +1866,155 @@ console.log('   - generateDesignerMetrics()');
 console.log('   - generateDepartmentMetrics()');
 console.log('   - Verificaciones de librerías externas');
 console.log('   - Gestión de gráficos mejorada');
+
+// ======================================================
+// ===== 17. LÓGICA KANBAN (NEXT LEVEL) =====
+// ======================================================
+
+function updateKanban() {
+    // 1. Obtener datos filtrados
+    const designerFilter = document.getElementById('kanbanDesignerFilter').value;
+    let orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    
+    if(designerFilter) {
+        orders = orders.filter(o => o.designer === designerFilter);
+    }
+
+    // 2. Limpiar columnas
+    const columns = {
+        'Bandeja': document.querySelector('.kanban-dropzone[data-status="Bandeja"]'),
+        'Producción': document.querySelector('.kanban-dropzone[data-status="Producción"]'),
+        'Auditoría': document.querySelector('.kanban-dropzone[data-status="Auditoría"]'),
+        'Completada': document.querySelector('.kanban-dropzone[data-status="Completada"]')
+    };
+
+    // Limpiar HTML y Contadores
+    Object.keys(columns).forEach(k => {
+        columns[k].innerHTML = '';
+        document.getElementById(`count-${k}`).textContent = '0';
+    });
+    
+    const counts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0 };
+
+    // 3. Generar tarjetas
+    orders.forEach(o => {
+        // Si no tiene estado o estado raro, va a Bandeja por defecto, a menos que sea completada
+        let status = o.customStatus || 'Bandeja';
+        if (!columns[status]) status = 'Bandeja'; 
+        
+        counts[status]++;
+
+        // Crear Tarjeta
+        const card = document.createElement('div');
+        card.className = 'bg-white p-3 rounded-lg shadow-sm border border-slate-200 cursor-move hover:shadow-md transition group relative border-l-4';
+        
+        // Color del borde según urgencia
+        if(o.isVeryLate) card.classList.add('border-l-red-500');
+        else if(o.isLate) card.classList.add('border-l-orange-400');
+        else if(o.isAboutToExpire) card.classList.add('border-l-yellow-400');
+        else card.classList.add('border-l-slate-300'); // Normal
+
+        card.draggable = true;
+        card.dataset.id = o.orderId;
+        card.ondragstart = drag;
+        card.onclick = () => openAssignModal(o.orderId); // Reutilizamos tu modal existente
+
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 rounded">${o.cliente}</span>
+                ${o.childPieces > 0 ? '<span class="text-[9px] bg-blue-100 text-blue-600 px-1 rounded-full font-bold">+'+o.childPieces+'</span>' : ''}
+            </div>
+            <div class="font-bold text-xs text-slate-800 mb-0.5 truncate">${o.estilo}</div>
+            <div class="text-[10px] text-slate-500 font-mono mb-2">${o.codigoContrato}</div>
+            
+            <div class="flex justify-between items-end border-t border-slate-50 pt-2">
+                <div class="flex items-center gap-1">
+                    <div class="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[9px] font-bold" title="${o.designer}">
+                        ${o.designer ? o.designer.substring(0,2).toUpperCase() : '?'}
+                    </div>
+                    <span class="text-[10px] text-slate-400">${formatDate(o.fechaDespacho).slice(0,5)}</span>
+                </div>
+                <div class="font-bold text-xs text-slate-700">${o.cantidad} pzs</div>
+            </div>
+        `;
+
+        columns[status].appendChild(card);
+    });
+
+    // Actualizar contadores visuales
+    Object.keys(counts).forEach(k => {
+        document.getElementById(`count-${k}`).textContent = counts[k];
+    });
+}
+
+// --- Drag & Drop Functions ---
+
+function allowDrop(ev) {
+    ev.preventDefault();
+    ev.currentTarget.classList.add('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
+}
+
+// Remover estilo al salir (opcional, para pulir UX)
+function dragLeave(ev) {
+    ev.currentTarget.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
+}
+
+function drag(ev) {
+    ev.dataTransfer.setData("text", ev.target.dataset.id);
+    ev.dataTransfer.effectAllowed = "move";
+}
+
+async function drop(ev) {
+    ev.preventDefault();
+    const zone = ev.currentTarget;
+    zone.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset'); // Limpiar estilo hover
+
+    const orderId = ev.dataTransfer.getData("text");
+    const newStatus = zone.dataset.status;
+
+    // Actualización Optimista en UI (para que se sienta instantáneo)
+    const card = document.querySelector(`div[data-id="${orderId}"]`);
+    if(card) {
+        zone.appendChild(card); // Mover visualmente
+        // Aquí podrías recalcular contadores inmediatamente
+    }
+
+    // Guardar en Firebase
+    await safeFirestoreOperation(async () => {
+        const batch = db_firestore.batch();
+        const ref = db_firestore.collection('assignments').doc(orderId);
+        
+        const updateData = { 
+            customStatus: newStatus, 
+            lastModified: new Date().toISOString(),
+            schemaVersion: CONFIG.DB_VERSION 
+        };
+
+        if (newStatus === 'Completada') {
+            updateData.completedDate = new Date().toISOString();
+        }
+
+        batch.set(ref, updateData, { merge: true });
+
+        // Historial
+        const hRef = db_firestore.collection('history').doc();
+        batch.set(hRef, {
+            orderId: orderId,
+            change: `Movido a ${newStatus} (Kanban)`,
+            user: usuarioActual.displayName,
+            timestamp: new Date().toISOString()
+        });
+
+        await batch.commit();
+    }, 'Moviendo...', null); // Null para no mostrar alerta invasiva en cada movimiento
+}
+
+// --- Actualizar Dropdown del Kanban ---
+// Llama a esto cuando se actualicen los diseñadores
+function updateKanbanDropdown() {
+    const sel = document.getElementById('kanbanDesignerFilter');
+    if(sel) {
+        sel.innerHTML = '<option value="">Todos los Diseñadores</option>' + 
+        designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    }
+}

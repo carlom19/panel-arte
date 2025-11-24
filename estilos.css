@@ -1,5 +1,5 @@
 /* ====================================================== */
-/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) v6.5 ===== */
+/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) v7.0 ===== */
 /* ====================================================== */
 
 /* --- 1. Escala Global (Compacto) --- */
@@ -364,4 +364,57 @@ body.processing-batch::after {
     .data-table td:first-child:before { 
         display: none; 
     }
+}
+
+/* ====================================================== */
+/* ===== 9. ESTILOS KANBAN (NUEVO v7) ===== */
+/* ====================================================== */
+
+/* Asegura que el contenedor del Kanban ocupe la altura exacta */
+#kanbanView {
+    height: 100vh;
+    overflow: hidden; /* Evita scroll en la página principal */
+}
+
+/* Estilo para las columnas */
+.kanban-column {
+    /* Altura máxima calculada para que no se salga de la pantalla */
+    max-height: calc(100vh - 100px); 
+    display: flex;
+    flex-direction: column;
+    min-width: 320px; /* Ancho fijo mínimo para que no se aplasten */
+}
+
+/* ZONA DE DROP (CRÍTICO) */
+/* Esto asegura que una columna vacía tenga espacio para soltar */
+.kanban-dropzone {
+    min-height: 150px; 
+    height: 100%;
+    flex-grow: 1;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+/* Efecto visual cuando arrastras algo sobre una columna */
+.kanban-dropzone.drag-over {
+    background-color: rgba(59, 130, 246, 0.1) !important; /* Azul muy suave */
+    border: 2px dashed #3B82F6;
+    border-radius: 0.75rem;
+}
+
+/* Estilo de la tarjeta mientras se arrastra (opcional) */
+.kanban-card.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+/* Scrollbars específicos para las columnas del Kanban */
+.kanban-column .overflow-y-auto::-webkit-scrollbar {
+    width: 4px;
+}
+.kanban-column .overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+}
+.kanban-column .overflow-y-auto::-webkit-scrollbar-thumb {
+    background-color: #CBD5E1;
+    border-radius: 10px;
 }
