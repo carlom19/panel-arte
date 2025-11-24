@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v6.2 (SPA Completa)</title>
+    <title>Panel de Control - Arte v6.3 (UI Mejorada)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -237,7 +237,7 @@
                         <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
                             <div class="flex items-center gap-2 text-slate-500">
                                 <i class="fa-solid fa-filter text-xs"></i>
-                                <h3 class="font-semibold text-slate-700 text-xs uppercase tracking-wide">Filtros</h3>
+                                <h3 class="font-semibold text-slate-700 text-xs uppercase tracking-wide">Filtros de Búsqueda</h3>
                             </div>
                             <div class="relative w-full md:w-72">
                                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -247,25 +247,57 @@
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                            <select id="clientFilter" class="filter-select"></select>
-                            <select id="styleFilter" class="filter-select"></select>
-                            <select id="teamFilter" class="filter-select"></select>
-                            <select id="departamentoFilter" class="filter-select"></select>
-                            <select id="designerFilter" class="filter-select"></select>
-                            <select id="customStatusFilter" class="filter-select">
-                                <option value="">Estado: Todos</option>
-                                <option value="Bandeja">Bandeja</option>
-                                <option value="Producción">Producción</option>
-                                <option value="Auditoría">Auditoría</option>
-                                <option value="Completada">Completada</option>
-                            </select>
+                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 items-end">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Cliente</label>
+                                <select id="clientFilter" class="filter-select"></select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Estilo</label>
+                                <select id="styleFilter" class="filter-select"></select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Team</label>
+                                <select id="teamFilter" class="filter-select"></select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Departamento</label>
+                                <select id="departamentoFilter" class="filter-select"></select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Diseñador</label>
+                                <select id="designerFilter" class="filter-select"></select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Estado</label>
+                                <select id="customStatusFilter" class="filter-select">
+                                    <option value="">Todos</option>
+                                    <option value="Bandeja">Bandeja</option>
+                                    <option value="Producción">Producción</option>
+                                    <option value="Auditoría">Auditoría</option>
+                                    <option value="Completada">Completada</option>
+                                </select>
+                            </div>
                             
-                            <input type="date" id="dateFrom" class="filter-input">
-                            <input type="date" id="dateTo" class="filter-input">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Desde Fecha</label>
+                                <input type="date" id="dateFrom" class="filter-input">
+                            </div>
                             
-                            <div class="col-span-2 lg:col-span-2 flex justify-end">
-                                 <button class="w-full rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition" onclick="clearAllFilters()">Limpiar Filtros</button>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Hasta Fecha</label>
+                                <input type="date" id="dateTo" class="filter-input">
+                            </div>
+                            
+                            <div class="col-span-2 lg:col-span-2">
+                                 <button class="w-full rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition border border-slate-200" onclick="clearAllFilters()">
+                                    <i class="fa-solid fa-eraser mr-1"></i> Limpiar Filtros
+                                 </button>
                             </div>
                         </div>
                     </div>
