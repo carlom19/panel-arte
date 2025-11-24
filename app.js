@@ -456,9 +456,22 @@ function recalculateChildPieces() {
 }
 
 // ======================================================
-// ===== 6. PARSER EXCEL (CORREGIDO PARA SINCRONIZAR) =====
+// ===== 6. PARSER EXCEL (CORE) - SOLUCIÓN COMPLETA =====
 // ======================================================
 
+// 1. ESTA ES LA FUNCIÓN QUE FALTABA (handleFiles)
+function handleFiles(files) {
+    if (files.length > 0) {
+        // Actualizar nombre del archivo en la UI
+        const fileNameElement = document.getElementById('fileName');
+        if (fileNameElement) fileNameElement.textContent = files[0].name;
+        
+        // Llamar al procesador principal
+        processFile(files[0]);
+    }
+}
+
+// 2. ESTA ES LA FUNCIÓN DE PROCESAMIENTO (CORREGIDA PARA SINCRONIZAR CON APP2)
 async function processFile(file) {
     showLoading('Procesando Excel...');
     try {
@@ -507,7 +520,7 @@ async function processFile(file) {
         });
 
         let processed = [];
-        // Variables para mantener contexto de filas vacías (merge cells en Excel)
+        // Variables para mantener contexto (Logic App2)
         let currentClient = ""; 
         let currentContrato = ""; 
         let currentStyle = ""; 
@@ -521,7 +534,7 @@ async function processFile(file) {
             const rStr = r.slice(0, 4).map(c => String(c).toLowerCase());
             if (rStr.some(c => c.includes('total') || c.includes('subtotal'))) continue;
 
-            // 1. CORRECCIÓN DE FECHA: Usar Date.UTC igual que app2.js
+            // --- CORRECCIÓN FECHA (UTC como app2.js) ---
             if (cols.fecha >= 0 && r[cols.fecha]) { 
                 const v = r[cols.fecha]; 
                 let dObj = null;
@@ -531,14 +544,12 @@ async function processFile(file) {
                     const parsed = new Date(v);
                     if (!isNaN(parsed)) dObj = parsed;
                 }
-
                 if (dObj) {
-                    // AQUÍ ESTÁ LA CLAVE: Forzar UTC para que el timestamp coincida con Firebase
                     currentDate = new Date(Date.UTC(dObj.getFullYear(), dObj.getMonth(), dObj.getDate()));
                 }
             }
             
-            // Persistencia de datos (rellenar hacia abajo como en Excel)
+            // Persistencia de datos
             if (cols.cliente >= 0 && r[cols.cliente]) currentClient = String(r[cols.cliente]).trim();
             if (cols.codigo >= 0 && r[cols.codigo]) currentContrato = String(r[cols.codigo]).trim();
             if (cols.estilo >= 0 && r[cols.estilo]) currentStyle = String(r[cols.estilo]).trim();
@@ -556,16 +567,14 @@ async function processFile(file) {
                 }
             }
 
-            // 2. CORRECCIÓN DE ID: Eliminar .replace() para coincidir con app2.js
-            // Usamos currentDate directamente que ya está en UTC
+            // --- CORRECCIÓN ID (Sin regex replace, como app2.js) ---
             const timePart = currentDate ? currentDate.getTime() : 'nodate';
             const oid = `${currentClient}_${currentContrato}_${timePart}_${currentStyle}`;
-            // NOTA: Se eliminó .replace(/\//g, '_') para que coincida con la DB de app2.js
 
             // Recuperar datos de Firebase
             const fb = firebaseAssignmentsMap.get(oid); 
 
-            // Cálculos de fechas para alertas
+            // Cálculos de alertas usando fecha local para visualización
             const today = new Date(); today.setHours(0,0,0,0);
             const fdLocal = currentDate ? new Date(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()) : null;
             
@@ -573,7 +582,7 @@ async function processFile(file) {
 
             processed.push({
                 orderId: oid, 
-                fechaDespacho: fdLocal, // Para mostrar en tabla usamos la fecha local
+                fechaDespacho: fdLocal, 
                 cliente: currentClient, 
                 codigoContrato: currentContrato, 
                 estilo: currentStyle, 
@@ -585,7 +594,7 @@ async function processFile(file) {
                 isVeryLate: dl > 7, 
                 isAboutToExpire: fdLocal && !dl && ((fdLocal - today) / 86400000) <= 2,
                 
-                // Mapeo de datos fusionados
+                // Mapeo
                 designer: fb ? fb.designer : '', 
                 customStatus: fb ? fb.customStatus : '', 
                 receivedDate: fb ? fb.receivedDate : '', 
@@ -599,7 +608,7 @@ async function processFile(file) {
         needsRecalculation = true;
         
         recalculateChildPieces();
-        mergeYActualizar(); // Aplicar lógica de fusión y auto-completado
+        mergeYActualizar(); 
 
         // UI Reset
         document.getElementById('uploadSection').style.display = 'none';
@@ -608,7 +617,6 @@ async function processFile(file) {
         document.getElementById('mainNavigation').style.display = 'flex';
         document.getElementById('mainNavigation').style.transform = 'translateX(0)';
         
-        // Ir al Dashboard y actualizar vista
         navigateTo('dashboard');
         updateDashboard();
 
