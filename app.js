@@ -221,6 +221,23 @@ function getWeekIdentifierString(d) {
     return `${date.getFullYear()}-W${String(1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)).padStart(2, '0')}`;
 }
 
+// --- NUEVO: HELPER DE NOTIFICACIONES ---
+async function createNotification(recipientEmail, type, title, message, orderId) {
+    try {
+        await db_firestore.collection('notifications').add({
+            recipientEmail: recipientEmail.toLowerCase().trim(),
+            type: type, // 'mention', 'assign', 'alert'
+            title: title,
+            message: message,
+            orderId: orderId,
+            read: false,
+            timestamp: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error("Error creando notificación interna:", e);
+    }
+}
+
 // ======================================================
 // ===== 4. INICIALIZACIÓN Y AUTH =====
 // ======================================================
@@ -325,6 +342,9 @@ function iniciarLogout() {
 // ===== 5. LÓGICA DE DATOS (FIREBASE LISTENERS) =====
 // ======================================================
 
+// Variable global para notificaciones
+let unsubscribeNotifications = null;
+
 function conectarDatosDeFirebase() {
     if (!usuarioActual) return;
     const navDbStatus = document.getElementById('navDbStatus'); 
@@ -379,8 +399,8 @@ function conectarDatosDeFirebase() {
             newDesignerList.push(v.name); 
         });
         designerList = newDesignerList;
-        updateAllDesignerDropdowns(); // Se define en Parte 3
-        populateDesignerManagerModal(); // Se define en Parte 3
+        updateAllDesignerDropdowns(); 
+        populateDesignerManagerModal(); 
         if(isExcelLoaded && document.getElementById('dashboard').style.display === 'block') updateDashboard();
     });
 
@@ -394,6 +414,9 @@ function conectarDatosDeFirebase() {
         });
         if(document.getElementById('workPlanView').style.display === 'block') generateWorkPlan();
     });
+
+    // 6. Notificaciones (NUEVO)
+    listenToMyNotifications();
 }
 
 function desconectarDatosDeFirebase() {
@@ -402,7 +425,93 @@ function desconectarDatosDeFirebase() {
     if(unsubscribeChildOrders) unsubscribeChildOrders();
     if(unsubscribeDesigners) unsubscribeDesigners();
     if(unsubscribeWeeklyPlan) unsubscribeWeeklyPlan();
+    if(unsubscribeNotifications) unsubscribeNotifications(); // NUEVO
     autoCompletedOrderIds.clear();
+}
+
+// --- NUEVO: Lógica de Notificaciones ---
+function listenToMyNotifications() {
+    if (!usuarioActual) return;
+    const myEmail = usuarioActual.email.toLowerCase();
+
+    // Escuchar notificaciones no leídas dirigidas a mi email
+    unsubscribeNotifications = db_firestore.collection('notifications')
+        .where('recipientEmail', '==', myEmail)
+        .where('read', '==', false)
+        .orderBy('timestamp', 'desc')
+        .limit(20)
+        .onSnapshot(snapshot => {
+            updateNotificationUI(snapshot.docs);
+        }, error => {
+            console.log("Info: No se pudieron cargar notificaciones (posiblemente falta permiso o colección vacía).", error.code);
+        });
+}
+
+function updateNotificationUI(docs) {
+    const badge = document.getElementById('notificationBadge');
+    const list = document.getElementById('notificationList');
+    const count = docs.length;
+
+    // 1. Badge (Globito Rojo)
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count > 9 ? '9+' : count;
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+        } else {
+            badge.classList.add('hidden');
+            badge.classList.remove('flex');
+        }
+    }
+
+    // 2. Lista Desplegable
+    if (list) {
+        if (count === 0) {
+            // Mantenemos las alertas de sistema calculadas si no hay notificaciones personales
+            // (Esta lógica se mezcla con updateAlerts en updateDashboard, aquí solo manejamos las personales)
+            const currentHTML = list.innerHTML;
+            if(!currentHTML.includes('Muy Atrasadas') && !currentHTML.includes('Por Vencer')) {
+                 list.innerHTML = '<div class="p-4 text-center text-[10px] text-slate-400 italic">Sin notificaciones nuevas.</div>';
+            }
+            return;
+        }
+
+        let html = '';
+        docs.forEach(doc => {
+            const data = doc.data();
+            let iconClass = 'fa-bell text-slate-500';
+            if (data.type === 'mention') iconClass = 'fa-at text-purple-500';
+            if (data.type === 'assign') iconClass = 'fa-user-tag text-blue-500';
+            
+            // Al hacer clic: Abrir modal de la orden y marcar como leída
+            html += `
+            <div onclick="handleNotificationClick('${doc.id}', '${data.orderId}')" class="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 transition relative group bg-white">
+                <div class="flex gap-3">
+                    <div class="mt-1"><i class="fa-solid ${iconClass}"></i></div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-800">${escapeHTML(data.title)}</p>
+                        <p class="text-[10px] text-slate-500 line-clamp-2">${escapeHTML(data.message)}</p>
+                        <p class="text-[9px] text-slate-300 mt-1">${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                    </div>
+                </div>
+                <div class="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full" title="No leído"></div>
+            </div>`;
+        });
+        
+        // Prependemos las notificaciones personales a las alertas de sistema
+        const systemAlerts = list.innerHTML.includes('Muy Atrasadas') ? list.innerHTML : ''; 
+        list.innerHTML = html + systemAlerts;
+    }
+}
+
+async function handleNotificationClick(notificationId, orderId) {
+    // 1. Marcar como leída
+    db_firestore.collection('notifications').doc(notificationId).update({ read: true });
+    
+    // 2. Abrir modal si existe ID
+    if (orderId) {
+        await openAssignModal(orderId);
+    }
 }
 
 // Fusión de Datos (Excel + Firebase)
@@ -411,7 +520,6 @@ function mergeYActualizar() {
     recalculateChildPieces(); 
     autoCompleteBatchWrites = []; 
     
-    // FIX: Invalidar caché porque los datos cambiaron
     filteredCache.key = null;
 
     for (let i = 0; i < allOrders.length; i++) {
@@ -422,13 +530,12 @@ function mergeYActualizar() {
             o.designer = fb.designer || '';
             o.customStatus = fb.customStatus || '';
             o.receivedDate = fb.receivedDate || '';
-            o.notes = fb.notes || '';
+            o.notes = fb.notes || ''; // (Legacy notes)
             o.completedDate = fb.completedDate || null;
         } else {
             o.designer = ''; o.customStatus = ''; o.receivedDate = ''; o.notes = ''; o.completedDate = null;
         }
 
-        // Lógica de Auto-Completado
         if (fb && o.departamento !== CONFIG.DEPARTMENTS.ART && o.departamento !== CONFIG.DEPARTMENTS.NONE) {
             if (fb.customStatus !== CONFIG.STATUS.COMPLETED && !autoCompletedOrderIds.has(o.orderId)) {
                 autoCompleteBatchWrites.push({
@@ -437,13 +544,12 @@ function mergeYActualizar() {
                     data: { customStatus: CONFIG.STATUS.COMPLETED, completedDate: new Date().toISOString(), lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION },
                     history: [`Salio de Arte (en ${o.departamento}) → Completada`]
                 });
-                autoCompletedOrderIds.add(o.orderId); // Evitar duplicados
+                autoCompletedOrderIds.add(o.orderId);
             }
         }
     }
     
-    if (document.getElementById('dashboard').style.display === 'block') updateDashboard(); // Se define en Parte 3
-    
+    if (document.getElementById('dashboard').style.display === 'block') updateDashboard(); 
     if (autoCompleteBatchWrites.length > 0) confirmAutoCompleteBatch();
 }
 
@@ -454,7 +560,6 @@ function recalculateChildPieces() {
     allOrders.forEach(o => o.childPieces = cache.get(o.orderId) || 0);
     needsRecalculation = false;
 }
-
 // ======================================================
 // ===== 6. PARSER EXCEL (CORE) - SOLUCIÓN COMPLETA =====
 // ======================================================
@@ -1081,8 +1186,8 @@ window.toggleSelectAll = () => { const c = document.getElementById('selectAll').
 window.clearSelection = () => { selectedOrders.clear(); updateTable(); };
 window.toggleNotifications = () => { document.getElementById('notificationDropdown').classList.toggle('hidden'); };
 
-/// ======================================================
-// ===== 11. MODALES Y ACCIONES (ACTUALIZADO v7.1) =====
+// ======================================================
+// ===== 11. MODALES Y ACCIONES (ACTUALIZADO v7.2 Notif) =====
 // ======================================================
 
 window.openAssignModal = async (id) => {
@@ -1090,21 +1195,16 @@ window.openAssignModal = async (id) => {
     const o = allOrders.find(x => x.orderId === id);
     if (!o) return;
 
-    // 1. Cargar Datos Informativos
     document.getElementById('detailCliente').textContent = o.cliente;
     document.getElementById('detailCodigo').textContent = o.codigoContrato;
     document.getElementById('detailEstilo').textContent = o.estilo;
     document.getElementById('detailFecha').textContent = formatDate(o.fechaDespacho);
     document.getElementById('detailPiezas').textContent = `${o.cantidad.toLocaleString()} (+${o.childPieces}) = ${(o.cantidad + o.childPieces).toLocaleString()}`;
     
-    // 2. Cargar Valores Editables
     document.getElementById('modalDesigner').value = o.designer || '';
     document.getElementById('modalStatus').value = o.customStatus || '';
     document.getElementById('modalReceivedDate').value = o.receivedDate || '';
     
-    // NOTA: Ya no cargamos 'modalNotes' aquí porque fue reemplazado por el Chat.
-    
-    // 3. Cargar Historial del Sistema
     const h = firebaseHistoryMap.get(id) || [];
     document.getElementById('modalHistory').innerHTML = h.length ? h.reverse().map(x => `
         <div class="border-b border-slate-100 pb-2 last:border-0 mb-2">
@@ -1112,12 +1212,10 @@ window.openAssignModal = async (id) => {
             <div class="text-xs text-slate-600">${escapeHTML(x.change)}</div>
         </div>`).join('') : '<p class="text-slate-400 italic text-xs text-center py-4">Sin historial.</p>';
 
-    // 4. Cargar el Chat de Comentarios (Nueva función)
     if (typeof loadOrderComments === 'function') {
         loadOrderComments(id);
     }
 
-    // 5. Cargar Hijas y abrir
     await loadChildOrders();
     openModalById('assignModal');
 };
@@ -1130,11 +1228,34 @@ window.saveAssignment = async () => {
     const stat = document.getElementById('modalStatus').value;
     const rd = document.getElementById('modalReceivedDate').value;
     
-    // NOTA: No leemos 'modalNotes' aquí. Los comentarios se guardan con su propio botón.
-
     const changes = []; const data = {};
     
-    if(o.designer !== des) { changes.push(`Diseñador: ${o.designer || 'N/A'} -> ${des}`); data.designer = des; }
+    // Detección de cambios
+    if(o.designer !== des) { 
+        changes.push(`Diseñador: ${o.designer || 'N/A'} -> ${des}`); 
+        data.designer = des; 
+        
+        // --- NOTIFICACIÓN DE ASIGNACIÓN (NUEVO) ---
+        if (des && des !== 'Sin asignar') {
+            // Buscar email del diseñador
+            let targetEmail = null;
+            // Buscamos en el mapa de diseñadores de Firebase
+            firebaseDesignersMap.forEach(dData => {
+                if (dData.name === des) targetEmail = dData.email;
+            });
+
+            if (targetEmail && usuarioActual.email !== targetEmail) {
+                createNotification(
+                    targetEmail, 
+                    'assign', 
+                    'Nueva Asignación', 
+                    `${usuarioActual.displayName} te asignó la orden ${o.codigoContrato} (${o.estilo})`, 
+                    currentEditingOrderId
+                );
+            }
+        }
+    }
+
     if(o.customStatus !== stat) { changes.push(`Estado: ${o.customStatus || 'N/A'} -> ${stat}`); data.customStatus = stat; if(stat === CONFIG.STATUS.COMPLETED) data.completedDate = new Date().toISOString(); }
     if(o.receivedDate !== rd) { changes.push(`Fecha Rx: ${rd}`); data.receivedDate = rd; }
     
@@ -1143,9 +1264,7 @@ window.saveAssignment = async () => {
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
         batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), { ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION }, { merge: true });
-        
         changes.forEach(c => batch.set(db_firestore.collection('history').doc(), { orderId: currentEditingOrderId, change: c, user: usuarioActual.displayName, timestamp: new Date().toISOString() }));
-        
         await batch.commit();
     }, 'Guardando cambios...', 'Cambios guardados');
 
@@ -1216,10 +1335,7 @@ window.saveMultiAssignment = async () => {
         selectedOrders.forEach(id => {
             const data = { schemaVersion: CONFIG.DB_VERSION };
             if (d) data.designer = d; if (s) data.customStatus = s; if (r) data.receivedDate = r; 
-            
-            // Mantenemos notas legacy para edición masiva por ahora
             if (n) data.notes = n; 
-            
             if (Object.keys(data).length > 1) { batch.set(db_firestore.collection('assignments').doc(id), data, { merge: true }); c++; }
         });
         if(c>0) await batch.commit();
@@ -1244,8 +1360,7 @@ window.addDesigner = async () => {
     if(ok) { document.getElementById('newDesignerName').value = ''; document.getElementById('newDesignerEmail').value = ''; populateDesignerManagerModal(); }
 };
 window.deleteDesigner = (id, name) => {
-    showConfirmModal(`¿Eliminar a ${name}?`, async () => await safeFirestoreOperation(() => db_firestore.collection('designers').doc(id).delete(), 'Eliminando...', 'Eliminado'));
-};
+    showConfirmModal(`¿
 
 // ======================================================
 // ===== 12. MÉTRICAS DE DISEÑADORES (CORREGIDO) =====
@@ -2041,24 +2156,21 @@ function updateKanbanDropdown() {
 // ===== 18. SISTEMA DE CHAT Y MENCIONES (COLLAB) =====
 // ======================================================
 
-let unsubscribeChat = null; // Para detener la escucha al cerrar el modal
+let unsubscribeChat = null; 
 
-// 1. Cargar comentarios al abrir el modal
+// 1. Cargar comentarios
 function loadOrderComments(orderId) {
     const chatContainer = document.getElementById('chatHistory');
     chatContainer.innerHTML = '<div class="spinner mt-4"></div>';
     
-    // Desuscribir listener anterior si existe
     if (unsubscribeChat) unsubscribeChat();
 
-    // Referencia a la sub-colección
     const commentsRef = db_firestore.collection('assignments').doc(orderId).collection('comments').orderBy('timestamp', 'asc');
 
     unsubscribeChat = commentsRef.onSnapshot(snapshot => {
         chatContainer.innerHTML = '';
         
         if (snapshot.empty) {
-            // Si no hay chats, mostramos la nota antigua si existe
             const order = allOrders.find(o => o.orderId === orderId);
             if(order && order.notes) {
                 renderSystemMessage(`Nota original: "${order.notes}"`);
@@ -2068,27 +2180,22 @@ function loadOrderComments(orderId) {
             return;
         }
 
-        let lastUser = '';
         snapshot.forEach(doc => {
             const data = doc.data();
             const isMe = usuarioActual && (data.userEmail === usuarioActual.email);
             renderMessage(data, isMe, chatContainer);
         });
 
-        // Auto-scroll al fondo
         chatContainer.scrollTop = chatContainer.scrollHeight;
     });
 }
 
-// 2. Renderizar un mensaje individual
+// 2. Renderizar mensaje
 function renderMessage(data, isMe, container) {
     const div = document.createElement('div');
     div.className = `chat-bubble ${isMe ? 'me' : 'other'}`;
     
-    // Procesar texto para resaltar menciones (@Nombre)
     let formattedText = escapeHTML(data.text).replace(/@(\w+)/g, '<span class="mention-tag">@$1</span>');
-    
-    // Convertir saltos de línea
     formattedText = formattedText.replace(/\n/g, '<br>');
 
     div.innerHTML = `
@@ -2109,14 +2216,14 @@ function renderSystemMessage(text) {
     document.getElementById('chatHistory').appendChild(div);
 }
 
-// 3. Enviar Comentario
+// 3. Enviar Comentario + Notificar Mención
 async function sendComment() {
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
     if (!text || !currentEditingOrderId || !usuarioActual) return;
 
-    input.value = ''; // Limpiar input inmediato (Optimista)
-    input.style.height = 'auto'; // Reset altura
+    input.value = ''; 
+    input.style.height = 'auto'; 
     document.getElementById('mentionDropdown').classList.add('hidden');
 
     try {
@@ -2128,10 +2235,36 @@ async function sendComment() {
             timestamp: new Date().toISOString()
         });
         
-        // Actualizar lastModified en la orden padre para que sepa que hubo actividad
         db_firestore.collection('assignments').doc(currentEditingOrderId).update({
             lastModified: new Date().toISOString()
         });
+
+        // --- NOTIFICACIÓN DE MENCIÓN (NUEVO) ---
+        // Expresión regular para capturar @Nombre
+        const mentionRegex = /@([a-zA-Z0-9\s]+?)(?=\s|$)/g;
+        const mentions = text.match(mentionRegex);
+
+        if (mentions) {
+            mentions.forEach(m => {
+                const name = m.substring(1); // Quitar el @
+                // Buscar email
+                let targetEmail = null;
+                firebaseDesignersMap.forEach(dData => {
+                    // Comparación flexible (contiene o es igual)
+                    if (dData.name.toLowerCase().includes(name.toLowerCase())) targetEmail = dData.email;
+                });
+
+                if (targetEmail && targetEmail !== usuarioActual.email) {
+                    createNotification(
+                        targetEmail,
+                        'mention',
+                        'Nueva Mención',
+                        `${usuarioActual.displayName} te mencionó: "${text.substring(0, 40)}..."`,
+                        currentEditingOrderId
+                    );
+                }
+            });
+        }
 
     } catch (e) {
         console.error(e);
@@ -2141,33 +2274,27 @@ async function sendComment() {
 
 // 4. Lógica de Menciones (@)
 function handleChatInput(textarea) {
-    // Auto-resize del textarea
     textarea.style.height = 'auto';
     textarea.style.height = (textarea.scrollHeight) + 'px';
 
     const val = textarea.value;
     const cursorPos = textarea.selectionStart;
     
-    // Detectar si estamos escribiendo una mención
-    // Buscamos hacia atrás desde el cursor hasta encontrar un @ o un espacio
     const textBeforeCursor = val.substring(0, cursorPos);
     const lastAt = textBeforeCursor.lastIndexOf('@');
     
     const dropdown = document.getElementById('mentionDropdown');
 
     if (lastAt !== -1) {
-        // Verificar que el @ sea el inicio o tenga un espacio antes
         const charBeforeAt = lastAt > 0 ? textBeforeCursor[lastAt - 1] : ' ';
         
         if (charBeforeAt === ' ' || charBeforeAt === '\n') {
             const query = textBeforeCursor.substring(lastAt + 1).toLowerCase();
-            // Si hay un espacio después del @, cancelamos la mención (asumimos que ya terminó el nombre)
             if (query.includes(' ')) {
                 dropdown.classList.add('hidden');
                 return;
             }
 
-            // Filtrar diseñadores
             const matches = designerList.filter(d => d.toLowerCase().includes(query));
 
             if (matches.length > 0) {
@@ -2200,12 +2327,10 @@ function selectMention(name, atIndex) {
     const textarea = document.getElementById('chatInput');
     const val = textarea.value;
     const before = val.substring(0, atIndex);
-    // Buscamos el final de la palabra actual
     const remaining = val.substring(atIndex); 
     const nextSpace = remaining.indexOf(' ');
     const after = nextSpace === -1 ? '' : remaining.substring(nextSpace);
 
-    // Reemplazamos lo que estaba escribiendo por el nombre completo + espacio
     textarea.value = `${before}@${name} ${after}`;
     
     document.getElementById('mentionDropdown').classList.add('hidden');
@@ -2218,7 +2343,6 @@ function insertEmoji(emoji) {
     input.focus();
 }
 
-// Enviar con Enter (Shift+Enter para salto de línea)
 document.getElementById('chatInput')?.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();

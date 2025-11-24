@@ -484,3 +484,30 @@ body.processing-batch::after {
     font-weight: 600;
 }
 .mention-item:last-child { border-bottom: none; }
+
+/* ====================================================== */
+/* ===== 11. ANIMACIONES DE NOTIFICACIONES (v7.2) ===== */
+/* ====================================================== */
+
+/* Animación de latido para el badge rojo */
+@keyframes pulse-notification {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+#notificationBadge {
+    /* Aplicar animación solo cuando es visible */
+    animation: pulse-notification 2s infinite;
+}
+
+/* Estilo para las menciones en el chat cuando pasas el mouse */
+.mention-tag:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Scroll suave para el chat */
+#chatHistory {
+    scroll-behavior: smooth;
+}
