@@ -456,10 +456,8 @@ function recalculateChildPieces() {
 }
 
 // ======================================================
-// ===== 6. PARSER EXCEL (CORE) - CORREGIDO =====
+// ===== 6. PARSER EXCEL (CORREGIDO PARA SINCRONIZAR) =====
 // ======================================================
-
-function handleFiles(files){ if(files.length){ document.getElementById('fileName').textContent = files[0].name; processFile(files[0]); } }
 
 async function processFile(file) {
     showLoading('Procesando Excel...');
@@ -467,10 +465,12 @@ async function processFile(file) {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const sheetName = workbook.SheetNames.find(n => /working\s*pro[c]{1,2}ess/i.test(n));
+        
         if (!sheetName) throw new Error('No se encontró "Working Process"');
         
         const arr = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
         let hIdx = -1;
+
         // Búsqueda inteligente de encabezados
         for (let i = 0; i < Math.min(arr.length, 15); i++) {
             const r = arr[i].map(c => String(c).toLowerCase());
@@ -478,7 +478,8 @@ async function processFile(file) {
         }
         if (hIdx === -1) throw new Error('Encabezados no encontrados');
         
-        const headers = arr[hIdx].map(h => String(h).trim().toLowerCase());
+        // Limpieza de encabezados igual que app2.js
+        const headers = arr[hIdx].map(h => String(h).trim().replace(/,/g, '').toLowerCase());
         const rows = arr.slice(hIdx + 1);
         
         // Mapeo dinámico de columnas
@@ -500,23 +501,50 @@ async function processFile(file) {
         ];
         
         const deptCols = [];
-        headers.forEach((h, i) => { const m = depts.find(d => d.p.test(h)); if (m) deptCols.push({ idx: i, name: m.n }); });
+        headers.forEach((h, i) => { 
+            const m = depts.find(d => d.p.test(h)); 
+            if (m) deptCols.push({ idx: i, name: m.n }); 
+        });
 
         let processed = [];
-        
+        // Variables para mantener contexto de filas vacías (merge cells en Excel)
+        let currentClient = ""; 
+        let currentContrato = ""; 
+        let currentStyle = ""; 
+        let currentTeam = "";
+        let currentDate = null;
+
         for (const r of rows) {
             if (!r || r.every(c => !c)) continue;
             
-            // Extracción segura de datos
-            let currDate = null;
-            if (cols.fecha >= 0 && r[cols.fecha]) { const v = r[cols.fecha]; currDate = typeof v === 'number' ? new Date((v - 25569) * 86400000) : new Date(v); }
-            
-            const cCli = cols.cliente >= 0 ? String(r[cols.cliente]).trim() : "";
-            const cCod = cols.codigo >= 0 ? String(r[cols.codigo]).trim() : "";
-            if (!cCli || !cCod) continue;
+            // Ignorar filas de totales
+            const rStr = r.slice(0, 4).map(c => String(c).toLowerCase());
+            if (rStr.some(c => c.includes('total') || c.includes('subtotal'))) continue;
 
-            const cSty = cols.estilo >= 0 ? String(r[cols.estilo]).trim() : "";
-            const cTeam = cols.team >= 0 ? String(r[cols.team]).trim() : "";
+            // 1. CORRECCIÓN DE FECHA: Usar Date.UTC igual que app2.js
+            if (cols.fecha >= 0 && r[cols.fecha]) { 
+                const v = r[cols.fecha]; 
+                let dObj = null;
+                if (typeof v === 'number') {
+                    dObj = new Date((v - 25569) * 86400 * 1000);
+                } else {
+                    const parsed = new Date(v);
+                    if (!isNaN(parsed)) dObj = parsed;
+                }
+
+                if (dObj) {
+                    // AQUÍ ESTÁ LA CLAVE: Forzar UTC para que el timestamp coincida con Firebase
+                    currentDate = new Date(Date.UTC(dObj.getFullYear(), dObj.getMonth(), dObj.getDate()));
+                }
+            }
+            
+            // Persistencia de datos (rellenar hacia abajo como en Excel)
+            if (cols.cliente >= 0 && r[cols.cliente]) currentClient = String(r[cols.cliente]).trim();
+            if (cols.codigo >= 0 && r[cols.codigo]) currentContrato = String(r[cols.codigo]).trim();
+            if (cols.estilo >= 0 && r[cols.estilo]) currentStyle = String(r[cols.estilo]).trim();
+            if (cols.team >= 0 && r[cols.team]) currentTeam = String(r[cols.team]).trim();
+
+            if (!currentClient || !currentContrato) continue;
 
             // Determinar departamento y cantidad
             let qty = 0, dept = CONFIG.DEPARTMENTS.NONE;
@@ -528,29 +556,48 @@ async function processFile(file) {
                 }
             }
 
-            const fd = currDate ? new Date(currDate.getFullYear(), currDate.getMonth(), currDate.getDate()) : null;
-            
-            // --- FIX IMPORTANTE: Sanitización de ID ---
-            // Generamos el ID crudo y luego reemplazamos / y # igual que hizo el importador
-            const rawId = `${cCli}_${cCod}_${fd ? fd.getTime() : 'nodate'}_${cSty}`;
-            const oid = rawId.replace(/\//g, '_').replace(/#/g, ''); 
-            // ------------------------------------------
+            // 2. CORRECCIÓN DE ID: Eliminar .replace() para coincidir con app2.js
+            // Usamos currentDate directamente que ya está en UTC
+            const timePart = currentDate ? currentDate.getTime() : 'nodate';
+            const oid = `${currentClient}_${currentContrato}_${timePart}_${currentStyle}`;
+            // NOTA: Se eliminó .replace(/\//g, '_') para que coincida con la DB de app2.js
 
-            const fb = firebaseAssignmentsMap.get(oid); // Datos previos de Firebase si existen
+            // Recuperar datos de Firebase
+            const fb = firebaseAssignmentsMap.get(oid); 
 
+            // Cálculos de fechas para alertas
             const today = new Date(); today.setHours(0,0,0,0);
-            const dl = (fd && fd < today) ? Math.ceil((today - fd) / 86400000) : 0;
+            const fdLocal = currentDate ? new Date(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()) : null;
+            
+            const dl = (fdLocal && fdLocal < today) ? Math.ceil((today - fdLocal) / 86400000) : 0;
 
             processed.push({
-                orderId: oid, fechaDespacho: fd, cliente: cCli, codigoContrato: cCod, estilo: cSty, teamName: cTeam,
-                departamento: dept, cantidad: qty, childPieces: 0,
-                isLate: fd && fd < today, isVeryLate: dl > 7, isAboutToExpire: fd && !dl && ((fd - today) / 86400000) <= 2,
-                designer: fb ? fb.designer : '', customStatus: fb ? fb.customStatus : '', 
-                receivedDate: fb ? fb.receivedDate : '', notes: fb ? fb.notes : '', completedDate: fb ? fb.completedDate : null
+                orderId: oid, 
+                fechaDespacho: fdLocal, // Para mostrar en tabla usamos la fecha local
+                cliente: currentClient, 
+                codigoContrato: currentContrato, 
+                estilo: currentStyle, 
+                teamName: currentTeam,
+                departamento: dept, 
+                cantidad: qty, 
+                childPieces: 0,
+                isLate: fdLocal && fdLocal < today, 
+                isVeryLate: dl > 7, 
+                isAboutToExpire: fdLocal && !dl && ((fdLocal - today) / 86400000) <= 2,
+                
+                // Mapeo de datos fusionados
+                designer: fb ? fb.designer : '', 
+                customStatus: fb ? fb.customStatus : '', 
+                receivedDate: fb ? fb.receivedDate : '', 
+                notes: fb ? fb.notes : '', 
+                completedDate: fb ? fb.completedDate : null
             });
         }
 
-        allOrders = processed; isExcelLoaded = true; needsRecalculation = true;
+        allOrders = processed; 
+        isExcelLoaded = true; 
+        needsRecalculation = true;
+        
         recalculateChildPieces();
         mergeYActualizar(); // Aplicar lógica de fusión y auto-completado
 
@@ -560,10 +607,17 @@ async function processFile(file) {
         document.getElementById('appMainContainer').classList.add('main-content-shifted');
         document.getElementById('mainNavigation').style.display = 'flex';
         document.getElementById('mainNavigation').style.transform = 'translateX(0)';
-        navigateTo('dashboard'); // Se definirá en Parte 3
+        
+        // Ir al Dashboard y actualizar vista
+        navigateTo('dashboard');
+        updateDashboard();
 
-    } catch (e) { showCustomAlert('Error: ' + e.message, 'error'); console.error(e); } 
-    finally { hideLoading(); }
+    } catch (e) { 
+        showCustomAlert('Error: ' + e.message, 'error'); 
+        console.error(e); 
+    } finally { 
+        hideLoading(); 
+    }
 }
 
 // ======================================================
