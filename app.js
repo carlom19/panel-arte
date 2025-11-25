@@ -3,16 +3,13 @@
 // ======================================================
 
 // --- Firebase Config ---
-// ⚠️ ATENCIÓN: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU PROYECTO "fitwell-arte"
-// Ve a Firebase Console -> Configuración del Proyecto -> General -> Tus apps (abajo)
 const firebaseConfig = {
-    apiKey: "TU_API_KEY_REAL_AQUI",
-    authDomain: "fitwell-arte.firebaseapp.com", // Probablemente sea este
-    projectId: "fitwell-arte",                // ESTE ES EL IMPORTANTE QUE DEBE COINCIDIR
-    storageBucket: "fitwell-arte.firebasestorage.app",
-    messagingSenderId: "TU_SENDER_ID",
-    appId: "TU_APP_ID"
-};
+    apiKey: "AIzaSyAX9jZYnVSGaXdM06I0LTBvbvDpNulMPpk",
+    authDomain: "panel-arte.firebaseapp.com",
+    projectId: "panel-arte",
+    storageBucket: "panel-arte.firebasestorage.app",
+    messagingSenderId: "236381043860",
+    appId: "1:236381043860:web:f6a9c2cb211dd9161d0881"
 
 // Inicialización segura de Firebase
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
