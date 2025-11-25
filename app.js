@@ -1918,4 +1918,110 @@ async function guardarReimpresion() {
         showAlert("No se pudo guardar el reporte", "error");
     }
 }
+// ======================================================
+// ========== PARTE 19 — INIT APP + LOGIN FIX ============
+// ======================================================
+
+/* ------------------------------------------------------
+   1. BOTÓN LOGIN (INDEX Y APP.JS UNIFICADOS)
+------------------------------------------------------ */
+
+function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+
+    auth.signInWithPopup(provider)
+        .then(async (result) => {
+            if (!result.user) return;
+
+            await ensureUserInFirestore(result.user);
+            showAlert("Inicio de sesión exitoso", "success");
+        })
+        .catch((err) => {
+            console.error("Error en login:", err);
+            showAlert("No se pudo iniciar sesión", "error");
+        });
+}
+
+/* ------------------------------------------------------
+   2. CONTROL GLOBAL DE AUTENTICACIÓN
+------------------------------------------------------ */
+
+auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+        currentUser = null;
+        currentUserRole = "viewer";
+        mostrarLogin();
+        return;
+    }
+
+    currentUser = user;
+
+    // Cargar rol
+    await cargarRolUsuario(user.email);
+
+    // Mostrar la app protegida
+    mostrarApp();
+
+    // Activar Live Sync
+    iniciarLiveSync();
+
+    // Activar notificaciones
+    listenToMyNotifications(user.email);
+});
+
+/* ------------------------------------------------------
+   3. PROTECCIÓN DE VISTAS
+------------------------------------------------------ */
+
+const _navigate = navigateTo;
+
+navigateTo = function(view) {
+    if (!protegerVista(view)) {
+        showAlert("No tienes permiso para acceder aquí", "error");
+        return;
+    }
+    _navigate(view);
+};
+
+/* ------------------------------------------------------
+   4. LOGOUT COMPLETO
+------------------------------------------------------ */
+
+document.getElementById("logoutBtn")?.addEventListener("click", async () => {
+    try {
+        await auth.signOut();
+        showAlert("Sesión cerrada", "info");
+
+        mostrarLogin();
+
+        // Detener watchers
+        if (unsubscribeOrdersListener) unsubscribeOrdersListener();
+        if (unsubscribeNotifications) unsubscribeNotifications();
+
+    } catch (err) {
+        console.error("Error cerrando sesión:", err);
+    }
+});
+
+/* ------------------------------------------------------
+   5. INICIALIZACIÓN COMPLETA DEL SISTEMA
+------------------------------------------------------ */
+
+async function cargarFirestore() {
+    try {
+        const snapshot = await db.collection("orders").get();
+        rawOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        filteredOrders = [...rawOrders];
+
+        actualizarListasGlobales();
+
+    } catch (err) {
+        console.error("Error inicializando Firestore:", err);
+    }
+}
+
+// Cuando el DOM esté listo
+window.addEventListener("DOMContentLoaded", () => {
+    mostrarLogin(); // Por defecto, entra al login
+});
 
