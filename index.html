@@ -162,9 +162,7 @@
                                 <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Alertas</h3>
                             </div>
                             <div id="notificationList" class="max-h-64 overflow-y-auto divide-y divide-slate-100">
-                                <div id="notif-personal"></div>
-                                <div id="notif-system"></div>
-                            </div>
+                                <div id="notif-personal"></div> <div id="notif-system"></div>   </div>
                         </div>
                     </div>
 
@@ -184,45 +182,27 @@
                     <div id="summaryBox" class="hidden"></div> 
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col justify-between h-24 group hover:border-blue-200 transition-all">
-                            <div class="flex justify-between items-start">
-                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total P_Art</p>
-                                <i class="fa-solid fa-box-open text-slate-300 group-hover:text-blue-500 transition-colors"></i>
-                            </div>
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total P_Art</p><i class="fa-solid fa-box-open text-slate-300 group-hover:text-blue-500 transition-colors"></i></div>
                             <div class="text-2xl font-bold text-slate-900" id="statTotal">0</div>
                         </div>
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col justify-between h-24 group hover:border-purple-200 transition-all">
-                            <div class="flex justify-between items-start">
-                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Piezas</p>
-                                <i class="fa-solid fa-layer-group text-slate-300 group-hover:text-purple-500 transition-colors"></i>
-                            </div>
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Piezas</p><i class="fa-solid fa-layer-group text-slate-300 group-hover:text-purple-500 transition-colors"></i></div>
                             <div class="text-2xl font-bold text-slate-900" id="statTotalPieces">0</div>
                         </div>
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col justify-between h-24 group hover:border-red-200 hover:bg-red-50/30 transition-all cursor-pointer" onclick="setFilter('veryLate')">
-                            <div class="flex justify-between items-start">
-                                <p class="text-[10px] font-bold text-red-600 uppercase tracking-wide">Atrasadas</p>
-                                <i class="fa-solid fa-triangle-exclamation text-red-200 group-hover:text-red-500 transition-colors"></i>
-                            </div>
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-red-600 uppercase tracking-wide">Atrasadas</p><i class="fa-solid fa-triangle-exclamation text-red-200 group-hover:text-red-500 transition-colors"></i></div>
                             <div class="text-2xl font-bold text-red-600" id="statLate">0</div>
                         </div>
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col justify-between h-24 group hover:border-yellow-200 hover:bg-yellow-50/30 transition-all cursor-pointer" onclick="setFilter('aboutToExpire')">
-                            <div class="flex justify-between items-start">
-                                <p class="text-[10px] font-bold text-yellow-600 uppercase tracking-wide">Por Vencer</p>
-                                <i class="fa-solid fa-hourglass-half text-yellow-200 group-hover:text-yellow-500 transition-colors"></i>
-                            </div>
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-yellow-600 uppercase tracking-wide">Por Vencer</p><i class="fa-solid fa-hourglass-half text-yellow-200 group-hover:text-yellow-500 transition-colors"></i></div>
                             <div class="text-2xl font-bold text-yellow-600" id="statExpiring">0</div>
                         </div>
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col justify-between h-24 group hover:border-green-200 transition-all">
-                            <div class="flex justify-between items-start">
-                                <p class="text-[10px] font-bold text-green-600 uppercase tracking-wide">A Tiempo</p>
-                                <i class="fa-solid fa-circle-check text-green-200 group-hover:text-green-500 transition-colors"></i>
-                            </div>
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-green-600 uppercase tracking-wide">A Tiempo</p><i class="fa-solid fa-circle-check text-green-200 group-hover:text-green-500 transition-colors"></i></div>
                             <div class="text-2xl font-bold text-green-600" id="statOnTime">0</div>
                         </div>
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col justify-between h-24 group hover:border-orange-200 transition-all">
-                            <div class="flex justify-between items-start">
-                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Esta Semana</p>
-                                <i class="fa-solid fa-calendar-week text-slate-300 group-hover:text-orange-500 transition-colors"></i>
-                            </div>
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Esta Semana</p><i class="fa-solid fa-calendar-week text-slate-300 group-hover:text-orange-500 transition-colors"></i></div>
                             <div class="text-2xl font-bold text-orange-600" id="statThisWeek">0</div>
                         </div>
                     </div>
@@ -260,27 +240,22 @@
                                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Cliente</label>
                                 <select id="clientFilter" class="filter-select"></select>
                             </div>
-
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Estilo</label>
                                 <select id="styleFilter" class="filter-select"></select>
                             </div>
-
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Team</label>
                                 <select id="teamFilter" class="filter-select"></select>
                             </div>
-
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Departamento</label>
                                 <select id="departamentoFilter" class="filter-select"></select>
                             </div>
-
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Diseñador</label>
                                 <select id="designerFilter" class="filter-select"></select>
                             </div>
-
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Estado</label>
                                 <select id="customStatusFilter" class="filter-select">
@@ -291,17 +266,14 @@
                                     <option value="Completada">Completada</option>
                                 </select>
                             </div>
-                            
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Desde Fecha</label>
                                 <input type="date" id="dateFrom" class="filter-input">
                             </div>
-                            
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Hasta Fecha</label>
                                 <input type="date" id="dateTo" class="filter-input">
                             </div>
-                            
                             <div class="col-span-2 lg:col-span-2">
                                  <button class="w-full rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition border border-slate-200" onclick="clearAllFilters()">
                                     <i class="fa-solid fa-eraser mr-1"></i> Limpiar Filtros
@@ -333,8 +305,6 @@
                                         <th onclick="sortTable('receivedDate')" class="cursor-pointer select-none hidden lg:table-cell text-left px-3 py-3">Recibida <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
                                         
                                         <th onclick="sortTable('cantidad')" class="cursor-pointer select-none text-right px-3 py-3">Cant. <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
-                                        
-                                        <th class="text-center px-3 py-3">Notas</th>
                                         
                                         <th class="text-right px-3 py-3"></th>
                                     </tr>
