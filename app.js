@@ -1127,7 +1127,7 @@ function updateTable() {
         tbody.innerHTML = `<tr><td colspan="14" class="text-center py-12 text-slate-400 italic">No se encontraron órdenes.</td></tr>`;
     } else {
         tbody.innerHTML = paginatedOrders.map(order => {
-            const rowClass = order.isVeryLate ? 'bg-red-50/40' : order.isLate ? 'bg-orange-50/40' : order.isAboutToExpire ? 'bg-yellow-50/40' : '';
+            const rowClass = order.isVeryLate ? 'very-late' : order.isLate ? 'late' : order.isAboutToExpire ? 'expiring' : '';
             const statusBadge = getStatusBadge(order);
             const internalBadge = getCustomStatusBadge(order.customStatus);
             const hasChild = order.childPieces > 0 ? `<span class="ml-1 text-[9px] bg-blue-100 text-blue-700 px-1.5 rounded-full font-bold">+${order.childPieces}</span>` : '';
@@ -1192,22 +1192,55 @@ function renderPagination() {
     c.innerHTML = h;
 }
 
-// Helpers de Estado
+// Helpers de Estado (ESTILO PILL / PASTEL REPLICADO)
 function getStatusBadge(order) {
-    if (order.isVeryLate) return `<span class="status-badge bg-red-100 text-red-700 ring-1 ring-red-600/10">MUY ATRASADA</span>`;
-    if (order.isLate) return `<span class="status-badge bg-orange-100 text-orange-700 ring-1 ring-orange-600/10">ATRASADA</span>`;
-    if (order.isAboutToExpire) return `<span class="status-badge bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20">URGENTE</span>`;
-    return `<span class="status-badge bg-green-100 text-green-700 ring-1 ring-green-600/20">A TIEMPO</span>`;
+    // Estilo base: "Pill" shape, fuente pequeña, negrita media
+    const base = "px-3 py-1 rounded-full text-xs font-medium inline-flex items-center justify-center shadow-sm whitespace-nowrap";
+    
+    if (order.isVeryLate) {
+        return `<div class="flex flex-col items-start gap-1">
+                    <span class="${base} bg-red-100 text-red-800 border border-red-200">
+                        MUY ATRASADA
+                    </span>
+                    <span class="text-[10px] font-bold text-red-600 flex items-center gap-1 ml-1">
+                        <i class="fa-solid fa-clock"></i> ${order.daysLate} días
+                    </span>
+                </div>`;
+    }
+    if (order.isLate) {
+        return `<div class="flex flex-col items-start gap-1">
+                    <span class="${base} bg-orange-100 text-orange-800 border border-orange-200">
+                        Atrasada
+                    </span>
+                    <span class="text-[10px] font-bold text-orange-600 flex items-center gap-1 ml-1">
+                        <i class="fa-regular fa-clock"></i> ${order.daysLate} días
+                    </span>
+                </div>`;
+    }
+    if (order.isAboutToExpire) {
+        return `<span class="${base} bg-yellow-100 text-yellow-800 border border-yellow-200">
+                    Por Vencer
+                </span>`;
+    }
+    // A Tiempo
+    return `<span class="${base} bg-green-100 text-green-800 border border-green-200">
+                A Tiempo
+            </span>`;
 }
 
 function getCustomStatusBadge(status) {
-    const map = {
-        [CONFIG.STATUS.TRAY]: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-        [CONFIG.STATUS.PROD]: 'bg-purple-50 text-purple-700 border-purple-200',
-        [CONFIG.STATUS.AUDIT]: 'bg-blue-50 text-blue-700 border-blue-200',
-        [CONFIG.STATUS.COMPLETED]: 'bg-slate-100 text-slate-600 border-slate-200'
-    };
-    return status ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold border ${map[status] || 'bg-gray-50 text-gray-600'}">${status}</span>` : '-';
+    const base = "px-3 py-1 rounded-full text-xs font-medium border inline-block min-w-[90px] text-center shadow-sm";
+    
+    if (!status) return `<span class="text-slate-400 text-xs italic pl-2">Sin estado</span>`;
+    
+    const safeStatus = escapeHTML(status);
+    
+    if (status === 'Completada') return `<span class="${base} bg-gray-100 text-gray-600 border-gray-200">${safeStatus}</span>`;
+    if (status === 'Bandeja') return `<span class="${base} bg-yellow-50 text-yellow-700 border-yellow-200">${safeStatus}</span>`;
+    if (status === 'Producción') return `<span class="${base} bg-purple-50 text-purple-700 border-purple-200">${safeStatus}</span>`;
+    if (status === 'Auditoría') return `<span class="${base} bg-blue-50 text-blue-700 border-blue-200">${safeStatus}</span>`;
+    
+    return `<span class="${base} bg-slate-50 text-slate-600 border-slate-200">${safeStatus}</span>`;
 }
 
 function populateFilterDropdowns() {
@@ -1255,6 +1288,7 @@ window.toggleOrderSelection = (id) => { if (selectedOrders.has(id)) selectedOrde
 window.toggleSelectAll = () => { const c = document.getElementById('selectAll').checked; paginatedOrders.forEach(o => c ? selectedOrders.add(o.orderId) : selectedOrders.delete(o.orderId)); updateTable(); };
 window.clearSelection = () => { selectedOrders.clear(); updateTable(); };
 window.toggleNotifications = () => { document.getElementById('notificationDropdown').classList.toggle('hidden'); };
+
 // ======================================================
 // ===== 11. MODALES Y ACCIONES (CORREGIDO + RBAC) =====
 // ======================================================
