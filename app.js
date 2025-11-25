@@ -1063,7 +1063,6 @@ function calculateStats(orders) {
 }
 
 function updateAlerts(stats) {
-    // Corrección: Apuntar al contenedor específico del sistema
     const container = document.getElementById('notif-system');
     if (!container) return;
 
@@ -1131,7 +1130,7 @@ function updateTable() {
             const hasChild = order.childPieces > 0 ? `<span class="ml-1 text-[9px] bg-blue-100 text-blue-700 px-1.5 rounded-full font-bold">+${order.childPieces}</span>` : '';
             const isArt = order.departamento === CONFIG.DEPARTMENTS.ART;
 
-            // --- Estilos Pill para Depto y Diseñador ---
+            // Pill Styles
             const pillBase = "px-3 py-1 rounded-full text-xs font-medium border inline-block shadow-sm text-center whitespace-nowrap";
             
             let deptBadge = '-';
@@ -1146,7 +1145,6 @@ function updateTable() {
                 designerBadge = `<span class="${pillBase} bg-indigo-50 text-indigo-700 border-indigo-200">${escapeHTML(order.designer)}</span>`;
             }
 
-            // --- RENDERIZADO DE FILA (SIN NOTAS) ---
             return `
             <tr class="${rowClass} hover:bg-blue-50 transition-colors cursor-pointer border-b border-slate-50 last:border-b-0" onclick="openAssignModal('${order.orderId}')">
                 <td class="px-3 py-2.5 text-center" onclick="event.stopPropagation()">
@@ -1154,20 +1152,24 @@ function updateTable() {
                 </td>
                 <td class="px-3 py-2.5" data-label="Estado">${statusBadge}</td>
                 <td class="px-3 py-2.5 font-medium text-slate-700 whitespace-nowrap" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
-                <td class="px-3 py-2.5 font-medium text-slate-900 truncate max-w-[160px]" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
+                <td class="px-3 py-2.5 font-medium text-slate-900 truncate max-w-[140px]" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
                 <td class="px-3 py-2.5 text-slate-500 font-mono text-xs whitespace-nowrap">${escapeHTML(order.codigoContrato)}</td>
-                <td class="px-3 py-2.5 text-slate-600 truncate max-w-[160px]" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                <td class="px-3 py-2.5 text-slate-600 truncate max-w-[140px]" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
                 
-                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 text-[11px] max-w-[160px] truncate" title="${escapeHTML(order.teamName)}">${escapeHTML(order.teamName)}</td>
+                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 text-[11px] max-w-[140px] truncate" title="${escapeHTML(order.teamName)}">${escapeHTML(order.teamName)}</td>
                 
                 <td class="px-3 py-2.5 hidden md:table-cell">${deptBadge}</td>
-                
                 <td class="px-3 py-2.5">${designerBadge}</td>
-                
                 <td class="px-3 py-2.5">${internalBadge}</td>
                 
                 <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 text-xs whitespace-nowrap">${order.receivedDate ? formatDate(new Date(order.receivedDate + 'T00:00:00')) : '-'}</td>
-                <td class="px-3 py-2.5 font-bold text-slate-700 flex items-center justify-end gap-1 whitespace-nowrap">${order.cantidad.toLocaleString()} ${hasChild}</td>
+                
+                <td class="px-3 py-2.5 text-right">
+                    <div class="flex items-center justify-end gap-1 font-bold text-slate-700">
+                        ${order.cantidad.toLocaleString()} 
+                        ${hasChild}
+                    </div>
+                </td>
                 
                 <td class="px-3 py-2.5 text-right"><i class="fa-solid fa-chevron-right text-slate-300 text-[10px]"></i></td>
             </tr>`;
@@ -1211,20 +1213,24 @@ function renderPagination() {
     c.innerHTML = h;
 }
 
-// Helpers de Estado (ESTILO PILL / PASTEL)
+// Helpers de Estado
 function getStatusBadge(order) {
     const base = "px-3 py-1 rounded-full text-xs font-medium inline-flex items-center justify-center shadow-sm whitespace-nowrap";
     
     if (order.isVeryLate) {
         return `<div class="flex flex-col items-start gap-1">
                     <span class="${base} bg-red-100 text-red-800 border border-red-200">MUY ATRASADA</span>
-                    <span class="text-[10px] font-bold text-red-600 flex items-center gap-1 ml-1"><i class="fa-solid fa-clock"></i> ${order.daysLate} días</span>
+                    <span class="text-[10px] font-bold text-red-600 flex items-center gap-1 ml-1">
+                        <i class="fa-solid fa-clock"></i> ${order.daysLate || 0} días
+                    </span>
                 </div>`;
     }
     if (order.isLate) {
         return `<div class="flex flex-col items-start gap-1">
                     <span class="${base} bg-orange-100 text-orange-800 border border-orange-200">Atrasada</span>
-                    <span class="text-[10px] font-bold text-orange-600 flex items-center gap-1 ml-1"><i class="fa-regular fa-clock"></i> ${order.daysLate} días</span>
+                    <span class="text-[10px] font-bold text-orange-600 flex items-center gap-1 ml-1">
+                        <i class="fa-regular fa-clock"></i> ${order.daysLate || 0} días
+                    </span>
                 </div>`;
     }
     if (order.isAboutToExpire) {
@@ -1274,7 +1280,6 @@ function updateAllDesignerDropdowns() {
     const compareHtml = '<option value="">Seleccionar...</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
     if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
 }
-
 // ======================================================
 // ===== 11. MODALES Y ACCIONES (CORREGIDO + RBAC) =====
 // ======================================================
