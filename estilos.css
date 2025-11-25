@@ -63,12 +63,13 @@ body:has(.main-content-shifted) .multi-select-bar { left: calc(50% + 8rem); }
 .multi-select-bar.active { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
 
 /* ====================================================== */
-/* ===== 6. ESTILO DE TABLA (AIREADO / CLEAN) ===== */
+/* ===== 6. ESTILO DE TABLA (AJUSTADO A PANTALLA) ===== */
 /* ====================================================== */
 
 .table-responsive, .table-container {
     width: 100%;
-    overflow-x: auto;
+    /* Mantiene el scroll solo si es absolutamente necesario (móviles) */
+    overflow-x: auto; 
     -webkit-overflow-scrolling: touch;
     margin-bottom: 1rem;
     border-radius: 0.5rem; 
@@ -77,52 +78,82 @@ body:has(.main-content-shifted) .multi-select-bar { left: calc(50% + 8rem); }
 }
 
 table.data-table {
-    border-collapse: collapse; /* Bordes continuos */
+    border-collapse: collapse; 
     width: 100%;
     font-family: 'Inter', sans-serif;
+    table-layout: auto; /* Permite al navegador ajustar anchos */
 }
 
-/* ENCABEZADO (Estilo Indigo Suave) */
+/* ENCABEZADO DE TABLA */
 table.data-table th {
-    background-color: #F9FAFB; /* gray-50 */
-    color: #6366F1; /* indigo-500 */
-    font-weight: 600; /* semibold */
+    background-color: #F9FAFB; 
+    color: #6366F1; 
+    font-weight: 600; 
     text-transform: uppercase;
-    font-size: 0.75rem; /* xs */
+    font-size: 0.7rem; /* Un poco más pequeño para ganar espacio */
     letter-spacing: 0.05em; 
     border-bottom: 1px solid #E5E7EB; 
-    white-space: nowrap;
-    padding: 1rem 1.5rem; /* Espaciado amplio */
-    position: sticky; top: 0; z-index: 10;
+    
+    /* CAMBIO: Permitir que el encabezado se ajuste */
+    white-space: nowrap; 
+    
+    /* CAMBIO: Reducción de padding para compactar */
+    padding: 0.75rem 0.75rem; 
+    
+    position: sticky; 
+    top: 0; 
+    z-index: 10;
     text-align: left;
 }
 
-/* CUERPO */
+/* CUERPO DE TABLA */
 table.data-table td {
     border-bottom: 1px solid #E5E7EB; 
     vertical-align: middle;
-    color: #111827; /* gray-900 */
-    font-size: 0.875rem; /* sm */
-    padding: 1rem 1.5rem; /* Espaciado amplio para airear */
+    color: #111827; 
+    font-size: 0.8rem; /* Letra ligeramente más compacta */
+    
+    /* CAMBIO CLAVE: Permitir que el texto baje de línea (Wrap) */
+    white-space: normal; 
+    word-wrap: break-word;
+    
+    /* CAMBIO: Reducción de padding */
+    padding: 0.6rem 0.75rem; 
+}
+
+/* Restricciones de ancho para columnas largas (Team, Cliente, Estilo) */
+/* Esto fuerza a que el texto baje de línea en lugar de ensanchar la tabla */
+table.data-table td:nth-child(4), /* Cliente */
+table.data-table td:nth-child(6), /* Estilo */
+table.data-table td:nth-child(7)  /* Team */ {
+    max-width: 160px; /* Ancho máximo antes de bajar de línea */
+    line-height: 1.3;
+}
+
+/* Columnas que NO deben romperse (Fechas, Códigos cortos, Números) */
+table.data-table td:nth-child(2), /* Estado */
+table.data-table td:nth-child(3), /* Fecha */
+table.data-table td:nth-child(5), /* Código */
+table.data-table td:last-child    /* Botones */ {
     white-space: nowrap;
 }
 
-/* HOVER */
+/* EFECTO HOVER */
 table.data-table tr:hover td {
-    background-color: #F3F4F6; /* gray-100 */
+    background-color: #F3F4F6; 
 }
 
-/* Resaltado de filas (Colores Pastel) */
-tr.very-late td { background-color: #FEF2F2 !important; border-left: 3px solid #EF4444; } /* red-50 */
-tr.late td { background-color: #FFF7ED !important; } /* orange-50 */
-tr.expiring td { background-color: #FEFCE8 !important; } /* yellow-50 */
+/* Resaltado de filas */
+tr.very-late td { background-color: #FEF2F2 !important; border-left: 3px solid #EF4444; } 
+tr.late td { background-color: #FFF7ED !important; } 
+tr.expiring td { background-color: #FEFCE8 !important; } 
 
-/* Checkbox Column */
+/* Columna de checkboxes */
 table.data-table th:first-child,
 table.data-table td:first-child {
-    padding-left: 1.5rem;
+    padding-left: 1rem;
     padding-right: 0.5rem;
-    width: 3rem;
+    width: 2.5rem;
     text-align: center;
 }
 
