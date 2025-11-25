@@ -1,4 +1,195 @@
 /* ====================================================== */
+/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) v7.0 ===== */
+/* ====================================================== */
+
+/* --- 1. Escala Global (Compacto) --- */
+html {
+    /* Base 12.5px para que todo se vea un 10-15% más pequeño y elegante */
+    font-size: 12.5px; 
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    height: 100%;
+    width: 100%;
+}
+
+body {
+    background-color: #F8FAFC; /* slate-50 */
+    /* SPRINT 1 FIX: Evita scroll horizontal global de forma estricta */
+    overflow-x: hidden; 
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* --- 2. Navegación Lateral (Sidebar) & Layout --- */
+
+/* Contenedor Principal desplazado */
+.main-content-shifted {
+    margin-left: 16rem !important; /* 256px (ancho del sidebar normal) */
+    width: auto !important; /* Dejar que ocupe el espacio restante */
+    max-width: 100% !important;
+    box-sizing: border-box; /* El padding no suma al ancho */
+    transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+}
+
+/* Estilos de los botones del menú */
+.nav-item {
+    transition: all 0.2s ease-in-out;
+    border-left: 3px solid transparent;
+}
+
+.nav-item:hover {
+    background-color: rgba(0, 0, 0, 0.03); /* Hover muy sutil (Gris claro) */
+}
+
+.nav-item.active-nav {
+    background-color: #eff6ff; /* blue-50 */
+    border-left-color: #3B82F6; /* Línea azul indicadora */
+    color: #1d4ed8; /* blue-700 */
+}
+
+.nav-item.active-nav i {
+    color: #3b82f6; /* Icono azul primario */
+}
+
+/* --- 3. SIDEBAR MINI (SPRINT 4 - NUEVO) --- */
+
+/* Ancho del Sidebar cuando está colapsado (5rem = 80px) */
+body.sidebar-collapsed #mainNavigation {
+    width: 5rem; 
+}
+
+/* Ajuste del margen del contenido principal */
+body.sidebar-collapsed .main-content-shifted {
+    margin-left: 5rem !important;
+}
+
+/* Ocultar textos y títulos */
+body.sidebar-collapsed .nav-text {
+    opacity: 0;
+    width: 0;
+    display: none; 
+}
+
+/* Ajustar padding del header para centrar el logo */
+body.sidebar-collapsed #mainNavigation .p-4 {
+    padding: 1rem;
+    align-items: center;
+}
+
+/* Centrar y ajustar botón toggle */
+body.sidebar-collapsed #sidebarToggleBtn {
+    margin: 0 auto;
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+/* Centrar iconos de navegación */
+body.sidebar-collapsed .nav-item {
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+}
+
+body.sidebar-collapsed .nav-item i {
+    margin: 0; 
+    font-size: 1.2rem; 
+}
+
+/* Ajustar caja de Info Usuario */
+body.sidebar-collapsed .border-slate-700\/50 {
+    padding: 0;
+    border: none;
+    background: transparent;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Ajustar Footer */
+body.sidebar-collapsed .p-4.border-t {
+    padding: 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+body.sidebar-collapsed .p-4.border-t button {
+    justify-content: center;
+    width: 100%;
+    padding: 0.5rem;
+}
+
+/* Centrar barra flotante de selección */
+body.sidebar-collapsed:has(.main-content-shifted) .multi-select-bar {
+    left: calc(50% + 2.5rem); 
+}
+
+
+/* --- 4. Modales (Ventanas emergentes) --- */
+body.modal-open { overflow: hidden; } /* Bloquea scroll del fondo */
+
+.modal { 
+    display: flex; 
+    opacity: 0; 
+    pointer-events: none; 
+    transition: opacity 0.2s ease; 
+    position: fixed; 
+    inset: 0; 
+    z-index: 2000; 
+    align-items: center; 
+    justify-content: center;
+    background-color: rgba(15, 23, 42, 0.6); /* Fondo oscuro semitransparente */
+    backdrop-filter: blur(2px); /* Efecto desenfoque moderno */
+}
+
+.modal.active { 
+    opacity: 1; 
+    pointer-events: auto; 
+}
+
+.modal-content { 
+    transform: scale(0.98) translateY(10px); 
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+    max-height: 90vh; 
+    overflow-y: auto; 
+    width: 100%;
+    margin: auto;
+    scrollbar-width: thin;
+    border: 1px solid rgba(255,255,255,0.1); /* Borde sutil */
+}
+
+.modal.active .modal-content { 
+    transform: scale(1) translateY(0); 
+}
+
+/* --- 5. Barra Flotante de Selección Múltiple --- */
+.multi-select-bar {
+    position: fixed; 
+    bottom: 2rem; 
+    left: 50%; 
+    transform: translateX(-50%) translateY(200%); 
+    opacity: 0; 
+    pointer-events: none; 
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    z-index: 100; 
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+/* Ajuste inteligente: Si el sidebar está abierto, la barra se centra respecto al contenido restante */
+body:has(.main-content-shifted) .multi-select-bar {
+    left: calc(50% + 8rem); 
+}
+
+.multi-select-bar.active { 
+    opacity: 1; 
+    transform: translateX(-50%) translateY(0); 
+    pointer-events: auto; 
+}
+
+/* ====================================================== */
 /* ===== SECCIÓN DE TABLA MEJORADA (Reemplazar en estilos.css) ===== */
 /* ====================================================== */
 
@@ -223,4 +414,277 @@ table.data-table .status-badge {
 
 .table-container::-webkit-scrollbar-thumb:hover {
     background: #94A3B8;
+}
+
+/* --- 7. Utilerías (Loaders, Scrollbars, Overlays) --- */
+.spinner {
+    border: 3px solid #E2E8F0; 
+    border-top: 3px solid #2563EB; 
+    border-radius: 50%;
+    width: 28px; 
+    height: 28px; 
+    animation: spin 0.8s linear infinite; 
+    margin: 0 auto;
+}
+
+@keyframes spin { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}
+
+.loading-overlay {
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    background: rgba(255,255,255,0.9); 
+    backdrop-filter: blur(5px); 
+    display: flex; 
+    align-items: center;
+    justify-content: center; 
+    z-index: 9999; 
+    flex-direction: column;
+}
+
+/* QA FIX: Bloqueo de UI durante procesos Batch */
+body.processing-batch {
+    pointer-events: none; /* Bloquea clics */
+    cursor: wait;
+}
+
+body.processing-batch::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.5);
+    z-index: 2999; /* Debajo de los modales de alerta (3000) */
+    backdrop-filter: blur(1px);
+}
+
+/* Scrollbar personalizado (más fino y estético) */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* --- 8. Diseño Responsivo (Móvil) --- */
+@media (max-width: 768px) {
+    /* En móvil, el sidebar desaparece (o usa su propia lógica), quitamos margen */
+    .main-content-shifted {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* Sidebar Toggle en móvil (Opcional: podrías ocultarlo por defecto) */
+    #mainNavigation {
+        transform: translateX(-100%);
+    }
+    
+    /* Transformar la tabla en tarjetas para que sea legible en vertical */
+    table.data-table, .data-table thead, .data-table tbody, .data-table th, .data-table td, .data-table tr { 
+        display: block; 
+    }
+    
+    .data-table thead tr { 
+        position: absolute; top: -9999px; left: -9999px; 
+    }
+    
+    .data-table tr { 
+        margin-bottom: 0.75rem; 
+        border: 1px solid #E2E8F0; 
+        border-radius: 0.75rem; 
+        background: white;
+        padding: 0.75rem;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    
+    .data-table td { 
+        border: none;
+        border-bottom: 1px dashed #F1F5F9; 
+        position: relative;
+        padding-left: 40% !important; 
+        text-align: right;
+        min-height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+    
+    .data-table td:before { 
+        position: absolute; 
+        left: 0.5rem; 
+        width: 35%; 
+        font-weight: 600; 
+        color: #64748B; 
+        text-align: left;
+        content: attr(data-label); 
+        font-size: 0.7rem;
+        text-transform: uppercase;
+    }
+    
+    .data-table td:first-child { 
+        padding-left: 0.5rem !important; 
+        text-align: left; 
+        background: #F8FAFC; 
+        border-radius: 0.5rem; 
+        margin-bottom: 0.5rem;
+        justify-content: flex-start;
+    }
+    
+    .data-table td:first-child:before { 
+        display: none; 
+    }
+}
+
+/* ====================================================== */
+/* ===== 9. ESTILOS KANBAN (CORREGIDO PARA SCROLL) ===== */
+/* ====================================================== */
+
+/* PERMITIR que la vista crezca más allá del 100vh si es necesario */
+#kanbanView {
+    height: 100vh; 
+    overflow-y: auto; /* CAMBIO CLAVE: Scroll vertical activado */
+    overflow-x: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Estilo para las columnas */
+.kanban-column {
+    /* CAMBIO CLAVE: Quitamos max-height para que la columna crezca */
+    height: auto; 
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    min-width: 300px; 
+    margin-bottom: 2rem; 
+}
+
+/* ZONA DE DROP (CRÍTICO) */
+/* Esto asegura que una columna vacía tenga espacio para soltar */
+.kanban-dropzone {
+    min-height: 150px; 
+    height: auto; /* Dejar que el contenido empuje la altura */
+    flex-grow: 1;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+/* Efecto visual cuando arrastras algo sobre una columna */
+.kanban-dropzone.drag-over {
+    background-color: rgba(59, 130, 246, 0.1) !important; /* Azul muy suave */
+    border: 2px dashed #3B82F6;
+    border-radius: 0.75rem;
+}
+
+/* Estilo de la tarjeta mientras se arrastra (opcional) */
+.kanban-card.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+/* Scrollbars específicos para las columnas del Kanban */
+.kanban-column .overflow-y-auto::-webkit-scrollbar {
+    width: 4px;
+}
+.kanban-column .overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+}
+.kanban-column .overflow-y-auto::-webkit-scrollbar-thumb {
+    background-color: #CBD5E1;
+    border-radius: 10px;
+}
+
+/* ====================================================== */
+/* ===== 10. ESTILOS CHAT Y MENCIONES (v7.1) ===== */
+/* ====================================================== */
+
+.chat-bubble {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    position: relative;
+    font-size: 0.75rem; /* 12px */
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+/* Mensajes míos (Derecha) */
+.chat-bubble.me {
+    align-self: flex-end;
+    background-color: #EFF6FF; /* blue-50 */
+    color: #1E3A8A; /* blue-900 */
+    border-bottom-right-radius: 2px;
+    border: 1px solid #DBEAFE;
+}
+
+/* Mensajes de otros (Izquierda) */
+.chat-bubble.other {
+    align-self: flex-start;
+    background-color: #FFFFFF;
+    color: #334155; /* slate-700 */
+    border-bottom-left-radius: 2px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.chat-meta {
+    font-size: 0.65rem; /* 10px */
+    margin-top: 4px;
+    opacity: 0.7;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+/* Estilo para las menciones dentro del texto */
+.mention-tag {
+    background-color: #DBEAFE; /* blue-100 */
+    color: #2563EB; /* blue-600 */
+    padding: 0 4px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* Dropdown de menciones */
+.mention-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: #475569;
+    border-bottom: 1px solid #F1F5F9;
+}
+.mention-item:hover {
+    background-color: #F8FAFC;
+    color: #2563EB;
+    font-weight: 600;
+}
+.mention-item:last-child { border-bottom: none; }
+
+/* ====================================================== */
+/* ===== 11. ANIMACIONES DE NOTIFICACIONES (v7.2) ===== */
+/* ====================================================== */
+
+/* Animación de latido para el badge rojo */
+@keyframes pulse-notification {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+#notificationBadge {
+    /* Aplicar animación solo cuando es visible */
+    animation: pulse-notification 2s infinite;
+}
+
+/* Estilo para las menciones en el chat cuando pasas el mouse */
+.mention-tag:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Scroll suave para el chat */
+#chatHistory {
+    scroll-behavior: smooth;
 }
