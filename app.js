@@ -1063,6 +1063,7 @@ function calculateStats(orders) {
 }
 
 function updateAlerts(stats) {
+    // Corrección: Apuntar al contenedor específico del sistema
     const container = document.getElementById('notif-system');
     if (!container) return;
 
@@ -1130,7 +1131,7 @@ function updateTable() {
             const hasChild = order.childPieces > 0 ? `<span class="ml-1 text-[9px] bg-blue-100 text-blue-700 px-1.5 rounded-full font-bold">+${order.childPieces}</span>` : '';
             const isArt = order.departamento === CONFIG.DEPARTMENTS.ART;
 
-            // Estilos Pill para Depto y Diseñador
+            // --- Estilos Pill para Depto y Diseñador ---
             const pillBase = "px-3 py-1 rounded-full text-xs font-medium border inline-block shadow-sm text-center whitespace-nowrap";
             
             let deptBadge = '-';
@@ -1145,7 +1146,7 @@ function updateTable() {
                 designerBadge = `<span class="${pillBase} bg-indigo-50 text-indigo-700 border-indigo-200">${escapeHTML(order.designer)}</span>`;
             }
 
-            // Nota: Se eliminó la celda de notas (<td>...</td>) antes del botón de acción
+            // --- RENDERIZADO DE FILA (SIN NOTAS) ---
             return `
             <tr class="${rowClass} hover:bg-blue-50 transition-colors cursor-pointer border-b border-slate-50 last:border-b-0" onclick="openAssignModal('${order.orderId}')">
                 <td class="px-3 py-2.5 text-center" onclick="event.stopPropagation()">
@@ -1156,12 +1157,18 @@ function updateTable() {
                 <td class="px-3 py-2.5 font-medium text-slate-900 truncate max-w-[160px]" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
                 <td class="px-3 py-2.5 text-slate-500 font-mono text-xs whitespace-nowrap">${escapeHTML(order.codigoContrato)}</td>
                 <td class="px-3 py-2.5 text-slate-600 truncate max-w-[160px]" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                
                 <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 text-[11px] max-w-[160px] truncate" title="${escapeHTML(order.teamName)}">${escapeHTML(order.teamName)}</td>
+                
                 <td class="px-3 py-2.5 hidden md:table-cell">${deptBadge}</td>
+                
                 <td class="px-3 py-2.5">${designerBadge}</td>
+                
                 <td class="px-3 py-2.5">${internalBadge}</td>
+                
                 <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 text-xs whitespace-nowrap">${order.receivedDate ? formatDate(new Date(order.receivedDate + 'T00:00:00')) : '-'}</td>
                 <td class="px-3 py-2.5 font-bold text-slate-700 flex items-center justify-end gap-1 whitespace-nowrap">${order.cantidad.toLocaleString()} ${hasChild}</td>
+                
                 <td class="px-3 py-2.5 text-right"><i class="fa-solid fa-chevron-right text-slate-300 text-[10px]"></i></td>
             </tr>`;
         }).join('');
@@ -1204,7 +1211,7 @@ function renderPagination() {
     c.innerHTML = h;
 }
 
-// Helpers de Estado
+// Helpers de Estado (ESTILO PILL / PASTEL)
 function getStatusBadge(order) {
     const base = "px-3 py-1 rounded-full text-xs font-medium inline-flex items-center justify-center shadow-sm whitespace-nowrap";
     
@@ -2667,3 +2674,72 @@ document.getElementById('chatInput')?.addEventListener('keydown', function(e) {
         sendComment();
     }
 });
+// ======================================================
+// ===== 19. FUNCIONES GLOBALES (EXPOSED TO WINDOW) =====
+// ======================================================
+// Pegar esto al FINAL de app.js para asegurar que el HTML las encuentre
+
+window.changePage = (p) => { 
+    if(typeof currentPage !== 'undefined') { currentPage = p; updateTable(); }
+};
+
+window.changeRowsPerPage = () => { 
+    const el = document.getElementById('rowsPerPage');
+    if(el) { rowsPerPage = parseInt(el.value); currentPage = 1; updateTable(); }
+};
+
+window.setFilter = (f) => { 
+    currentFilter = f; currentPage = 1; updateTable(); 
+};
+
+window.setDateFilter = (f) => {
+    currentDateFilter = f; currentFilter = 'all'; currentPage = 1; updateTable();
+};
+
+window.sortTable = (k) => { 
+    if(typeof sortConfig !== 'undefined') {
+        sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc'; 
+        sortConfig.key = k; 
+        if(typeof filteredCache !== 'undefined') filteredCache.key = null; 
+        updateTable(); 
+    }
+};
+
+window.clearAllFilters = () => { 
+    currentSearch = ''; currentClientFilter = ''; currentStyleFilter = ''; 
+    currentTeamFilter = ''; currentDepartamentoFilter = ''; currentDesignerFilter = ''; 
+    currentCustomStatusFilter = ''; currentFilter = 'all'; currentDateFilter = 'all';
+    currentDateFrom = ''; currentDateTo = '';
+    
+    document.querySelectorAll('.filter-select, .filter-input').forEach(el => el.value = '');
+    const searchInput = document.getElementById('searchInput');
+    if(searchInput) searchInput.value = '';
+    
+    if(typeof filteredCache !== 'undefined') filteredCache.key = null; 
+    currentPage = 1; 
+    updateTable();
+};
+
+window.toggleOrderSelection = (id) => { 
+    if (selectedOrders.has(id)) selectedOrders.delete(id); 
+    else selectedOrders.add(id); 
+    updateTable(); 
+};
+
+window.toggleSelectAll = () => { 
+    const c = document.getElementById('selectAll');
+    if(c && typeof paginatedOrders !== 'undefined') {
+        paginatedOrders.forEach(o => c.checked ? selectedOrders.add(o.orderId) : selectedOrders.delete(o.orderId)); 
+        updateTable(); 
+    }
+};
+
+window.clearSelection = () => { 
+    selectedOrders.clear(); 
+    updateTable(); 
+};
+
+window.toggleNotifications = () => { 
+    const drop = document.getElementById('notificationDropdown');
+    if(drop) drop.classList.toggle('hidden'); 
+};
