@@ -964,25 +964,32 @@ function navigateTo(viewId) {
         window.scrollTo(0, 0);
     }
 
-    // Actualizar Sidebar
+    // Actualizar Sidebar (Estilo Light/Clean)
     document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.classList.remove('active-nav', 'bg-slate-800', 'text-white', 'shadow-md');
-        btn.classList.add('text-slate-400');
+        // Limpiar clases activas (Antiguas Dark y Nuevas Light)
+        btn.classList.remove('active-nav', 'bg-slate-800', 'text-white', 'shadow-md', 'bg-blue-50', 'text-blue-700', 'border-r-4', 'border-blue-600');
+        // Estado inactivo base
+        btn.classList.add('text-slate-500'); 
+        
+        // Limpiar color de iconos
         const icon = btn.querySelector('i');
         if(icon) icon.className = icon.className.replace(/text-\w+-400/g, '').trim();
     });
 
     const activeBtn = document.getElementById('nav-' + viewId);
     if (activeBtn) {
-        activeBtn.classList.add('active-nav', 'bg-slate-800', 'text-white', 'shadow-md');
-        activeBtn.classList.remove('text-slate-400');
+        // Aplicar estado activo Light (Azul suave)
+        activeBtn.classList.add('active-nav', 'bg-blue-50', 'text-blue-700', 'border-r-4', 'border-blue-600');
+        activeBtn.classList.remove('text-slate-500');
+        
         const icon = activeBtn.querySelector('i');
         if (icon) {
-            if (viewId === 'dashboard') icon.classList.add('text-blue-400');
-            if (viewId === 'kanbanView') icon.classList.add('text-pink-400'); // <--- NUEVO
-            if (viewId === 'workPlanView') icon.classList.add('text-orange-400');
-            if (viewId === 'designerMetricsView') icon.classList.add('text-purple-400');
-            if (viewId === 'departmentMetricsView') icon.classList.add('text-green-400');
+            // Colores específicos por sección para dar vida al menú blanco
+            if (viewId === 'dashboard') icon.classList.add('text-blue-600');
+            if (viewId === 'kanbanView') icon.classList.add('text-pink-500');
+            if (viewId === 'workPlanView') icon.classList.add('text-orange-500');
+            if (viewId === 'designerMetricsView') icon.classList.add('text-purple-500');
+            if (viewId === 'departmentMetricsView') icon.classList.add('text-green-500');
         }
     }
 
@@ -990,7 +997,7 @@ function navigateTo(viewId) {
     if (viewId === 'dashboard') {
         updateDashboard();
     } 
-    else if (viewId === 'kanbanView') { // <--- NUEVO
+    else if (viewId === 'kanbanView') {
         updateKanbanDropdown();
         updateKanban();
     }

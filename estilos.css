@@ -39,17 +39,17 @@ body {
 }
 
 .nav-item:hover {
-    background-color: rgba(30, 41, 59, 0.5); /* Efecto hover sutil */
+    background-color: rgba(0, 0, 0, 0.03); /* Hover muy sutil (Gris claro) */
 }
 
 .nav-item.active-nav {
-    background-color: #1e293b; /* slate-800 (activo) */
+    background-color: #eff6ff; /* blue-50 */
     border-left-color: #3B82F6; /* Línea azul indicadora */
-    color: #ffffff;
+    color: #1d4ed8; /* blue-700 */
 }
 
 .nav-item.active-nav i {
-    color: #60A5FA; /* Icono azul claro */
+    color: #3b82f6; /* Icono azul primario */
 }
 
 /* --- 3. SIDEBAR MINI (SPRINT 4 - NUEVO) --- */
