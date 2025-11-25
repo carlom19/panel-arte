@@ -367,29 +367,34 @@ body.processing-batch::after {
 }
 
 /* ====================================================== */
-/* ===== 9. ESTILOS KANBAN (NUEVO v7) ===== */
+/* ===== 9. ESTILOS KANBAN (CORREGIDO PARA SCROLL) ===== */
 /* ====================================================== */
 
-/* Asegura que el contenedor del Kanban ocupe la altura exacta */
+/* PERMITIR que la vista crezca más allá del 100vh si es necesario */
 #kanbanView {
-    height: 100vh;
-    overflow: hidden; /* Evita scroll en la página principal */
+    height: 100vh; 
+    overflow-y: auto; /* CAMBIO CLAVE: Scroll vertical activado */
+    overflow-x: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Estilo para las columnas */
 .kanban-column {
-    /* Altura máxima calculada para que no se salga de la pantalla */
-    max-height: calc(100vh - 100px); 
+    /* CAMBIO CLAVE: Quitamos max-height para que la columna crezca */
+    height: auto; 
+    min-height: 200px;
     display: flex;
     flex-direction: column;
-    min-width: 320px; /* Ancho fijo mínimo para que no se aplasten */
+    min-width: 300px; 
+    margin-bottom: 2rem; 
 }
 
 /* ZONA DE DROP (CRÍTICO) */
 /* Esto asegura que una columna vacía tenga espacio para soltar */
 .kanban-dropzone {
     min-height: 150px; 
-    height: 100%;
+    height: auto; /* Dejar que el contenido empuje la altura */
     flex-grow: 1;
     transition: background-color 0.2s, box-shadow 0.2s;
 }

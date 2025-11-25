@@ -46,7 +46,8 @@ const CONFIG = {
 let allOrders = []; 
 let selectedOrders = new Set();
 let usuarioActual = null; 
-let isExcelLoaded = false; 
+let isExcelLoaded = false;
+let userRole = 'user'; 
 
 // Filtros y Paginación
 let currentFilter = 'all';
@@ -243,7 +244,7 @@ async function createNotification(recipientEmail, type, title, message, orderId)
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v6.7 Loaded (Fixed & Complete)');
+    console.log('App v7.1 Loaded (Enterprise + Roles)');
     
     // Listeners de Auth
     const btnLogin = document.getElementById('loginButton');
@@ -253,24 +254,75 @@ document.addEventListener('DOMContentLoaded', () => {
     if(btnLogout) btnLogout.addEventListener('click', iniciarLogout);
 
     firebase.auth().onAuthStateChanged((user) => {
-        const login = document.getElementById('loginSection'), upload = document.getElementById('uploadSection'), main = document.getElementById('appMainContainer'), nav = document.getElementById('mainNavigation');
+        const login = document.getElementById('loginSection');
+        const upload = document.getElementById('uploadSection');
+        const main = document.getElementById('appMainContainer');
+        const nav = document.getElementById('mainNavigation');
+
         if (user) {
             usuarioActual = user;
             if(document.getElementById('navUserName')) document.getElementById('navUserName').textContent = user.displayName;
+
+            // ===============================================
+            // ===== NUEVO: VERIFICACIÓN DE ROLES (RBAC) =====
+            // ===============================================
+            const userEmail = user.email.toLowerCase();
+            
+            // Consultamos la colección 'users' para ver privilegios
+            db_firestore.collection('users').doc(userEmail).get()
+                .then((doc) => {
+                    if (doc.exists && doc.data().role === 'admin') {
+                        userRole = 'admin';
+                        // MOSTRAR botones sensibles si es admin
+                        if(document.getElementById('nav-resetApp')) document.getElementById('nav-resetApp').style.display = 'flex';
+                        if(document.getElementById('nav-manageTeam')) document.getElementById('nav-manageTeam').style.display = 'flex';
+                    } else {
+                        userRole = 'user';
+                        // OCULTAR botones sensibles si no es admin (Seguridad Visual)
+                        if(document.getElementById('nav-resetApp')) document.getElementById('nav-resetApp').style.display = 'none';
+                        if(document.getElementById('nav-manageTeam')) document.getElementById('nav-manageTeam').style.display = 'none';
+                    }
+                    console.log(`Sistema iniciado. Rol asignado: ${userRole}`);
+                })
+                .catch((error) => {
+                    console.error("Error verificando permisos:", error);
+                    userRole = 'user'; // Fallback seguro: ante error, es usuario normal
+                    if(document.getElementById('nav-resetApp')) document.getElementById('nav-resetApp').style.display = 'none';
+                    if(document.getElementById('nav-manageTeam')) document.getElementById('nav-manageTeam').style.display = 'none';
+                });
+            // ===============================================
+
             login.style.display = 'none';
             if (!isExcelLoaded) {
-                upload.style.display = 'block'; main.style.display = 'none'; nav.style.display = 'none'; main.classList.remove('main-content-shifted');
+                // Usuario logueado pero sin Excel cargado
+                upload.style.display = 'block'; 
+                main.style.display = 'none'; 
+                nav.style.display = 'none'; 
+                main.classList.remove('main-content-shifted');
             } else {
-                upload.style.display = 'none'; main.style.display = 'block'; nav.style.display = 'flex'; main.classList.add('main-content-shifted');
+                // Usuario logueado y datos cargados
+                upload.style.display = 'none'; 
+                main.style.display = 'block'; 
+                nav.style.display = 'flex'; 
+                main.classList.add('main-content-shifted');
             }
             conectarDatosDeFirebase();
         } else {
-            desconectarDatosDeFirebase(); usuarioActual = null; isExcelLoaded = false;
-            login.style.display = 'flex'; upload.style.display = 'none'; main.style.display = 'none'; nav.style.display = 'none'; main.classList.remove('main-content-shifted');
+            // Usuario desconectado
+            desconectarDatosDeFirebase(); 
+            usuarioActual = null; 
+            isExcelLoaded = false;
+            userRole = 'user'; // Resetear rol al salir
+            
+            login.style.display = 'flex'; 
+            upload.style.display = 'none'; 
+            main.style.display = 'none'; 
+            nav.style.display = 'none'; 
+            main.classList.remove('main-content-shifted');
         }
     });
 
-    // Listener para Sidebar Mini
+    // Listener para Sidebar Mini (Si decides usarlo más adelante o si el botón existe)
     const sidebarBtn = document.getElementById('sidebarToggleBtn');
     if (sidebarBtn) {
         sidebarBtn.addEventListener('click', () => {
@@ -312,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     }
 
-    // Delegación de Eventos
+    // Delegación de Eventos (Botones dinámicos)
     const delegate = (id, sel, cb) => { const el = document.getElementById(id); if(el) el.addEventListener('click', e => { const t = e.target.closest(sel); if(t) cb(t, e); }); };
     
     delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
@@ -425,7 +477,7 @@ function desconectarDatosDeFirebase() {
     if(unsubscribeChildOrders) unsubscribeChildOrders();
     if(unsubscribeDesigners) unsubscribeDesigners();
     if(unsubscribeWeeklyPlan) unsubscribeWeeklyPlan();
-    if(unsubscribeNotifications) unsubscribeNotifications(); // NUEVO
+    if(unsubscribeNotifications) unsubscribeNotifications(); 
     autoCompletedOrderIds.clear();
 }
 
@@ -448,59 +500,75 @@ function listenToMyNotifications() {
 }
 
 function updateNotificationUI(docs) {
-    const badge = document.getElementById('notificationBadge');
-    const list = document.getElementById('notificationList');
-    const count = docs.length;
+    // --- CORRECCIÓN: Apuntamos al contenedor 'notif-personal' ---
+    const container = document.getElementById('notif-personal'); 
+    if (!container) return;
 
-    // 1. Badge (Globito Rojo)
-    if (badge) {
-        if (count > 0) {
-            badge.textContent = count > 9 ? '9+' : count;
-            badge.classList.remove('hidden');
-            badge.classList.add('flex');
-        } else {
-            badge.classList.add('hidden');
-            badge.classList.remove('flex');
-        }
+    // Actualizamos el contador global
+    updateTotalBadge();
+
+    if (docs.length === 0) {
+        container.innerHTML = ''; // Limpiamos solo la sección personal
+        return;
     }
 
-    // 2. Lista Desplegable
-    if (list) {
-        if (count === 0) {
-            // Mantenemos las alertas de sistema calculadas si no hay notificaciones personales
-            // (Esta lógica se mezcla con updateAlerts en updateDashboard, aquí solo manejamos las personales)
-            const currentHTML = list.innerHTML;
-            if(!currentHTML.includes('Muy Atrasadas') && !currentHTML.includes('Por Vencer')) {
-                 list.innerHTML = '<div class="p-4 text-center text-[10px] text-slate-400 italic">Sin notificaciones nuevas.</div>';
-            }
-            return;
-        }
-
-        let html = '';
-        docs.forEach(doc => {
-            const data = doc.data();
-            let iconClass = 'fa-bell text-slate-500';
-            if (data.type === 'mention') iconClass = 'fa-at text-purple-500';
-            if (data.type === 'assign') iconClass = 'fa-user-tag text-blue-500';
-            
-            // Al hacer clic: Abrir modal de la orden y marcar como leída
-            html += `
-            <div onclick="handleNotificationClick('${doc.id}', '${data.orderId}')" class="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 transition relative group bg-white">
-                <div class="flex gap-3">
-                    <div class="mt-1"><i class="fa-solid ${iconClass}"></i></div>
-                    <div>
-                        <p class="text-xs font-bold text-slate-800">${escapeHTML(data.title)}</p>
-                        <p class="text-[10px] text-slate-500 line-clamp-2">${escapeHTML(data.message)}</p>
-                        <p class="text-[9px] text-slate-300 mt-1">${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                    </div>
-                </div>
-                <div class="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full" title="No leído"></div>
-            </div>`;
-        });
+    let html = '';
+    docs.forEach(doc => {
+        const data = doc.data();
+        let iconClass = 'fa-bell text-slate-500';
+        if (data.type === 'mention') iconClass = 'fa-at text-purple-500';
+        if (data.type === 'assign') iconClass = 'fa-user-tag text-blue-500';
         
-        // Prependemos las notificaciones personales a las alertas de sistema
-        const systemAlerts = list.innerHTML.includes('Muy Atrasadas') ? list.innerHTML : ''; 
-        list.innerHTML = html + systemAlerts;
+        // Al hacer clic: Abrir modal de la orden y marcar como leída
+        html += `
+        <div onclick="handleNotificationClick('${doc.id}', '${data.orderId}')" class="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 transition relative group bg-white">
+            <div class="flex gap-3">
+                <div class="mt-1"><i class="fa-solid ${iconClass}"></i></div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800">${escapeHTML(data.title)}</p>
+                    <p class="text-[10px] text-slate-500 line-clamp-2">${escapeHTML(data.message)}</p>
+                    <p class="text-[9px] text-slate-300 mt-1">${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                </div>
+            </div>
+            <div class="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full" title="No leído"></div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+    updateTotalBadge(); // Recalculamos badge al final
+}
+
+// --- NUEVA FUNCIÓN AUXILIAR PARA SUMAR ALERTAS + NOTIFICACIONES ---
+function updateTotalBadge() {
+    // Contamos hijos directos de ambos contenedores
+    const pCount = document.getElementById('notif-personal')?.children.length || 0;
+    const sCount = document.getElementById('notif-system')?.children.length || 0;
+    const total = pCount + sCount;
+    
+    const badge = document.getElementById('notificationBadge');
+    if (badge) {
+        if (total > 0) {
+            badge.textContent = total > 9 ? '9+' : total;
+            badge.classList.remove('hidden'); badge.classList.add('flex');
+        } else {
+            badge.classList.add('hidden'); badge.classList.remove('flex');
+        }
+    }
+    
+    // Mensaje de "Sin notificaciones" si ambos están vacíos
+    const list = document.getElementById('notificationList');
+    const emptyMsg = document.getElementById('empty-notif-msg');
+    
+    if (total === 0) {
+        if(!emptyMsg && list) {
+            const msg = document.createElement('div');
+            msg.id = 'empty-notif-msg';
+            msg.className = 'p-4 text-center text-[10px] text-slate-400 italic';
+            msg.textContent = 'Sin notificaciones nuevas.';
+            list.appendChild(msg);
+        }
+    } else {
+        if(emptyMsg) emptyMsg.remove();
     }
 }
 
@@ -988,18 +1056,9 @@ function calculateStats(orders) {
 }
 
 function updateAlerts(stats) {
-    const totalAlerts = stats.veryLate + stats.aboutToExpire + stats.late;
-    const badge = document.getElementById('notificationBadge');
-    const list = document.getElementById('notificationList');
-    
-    if (!badge || !list) return;
-    
-    if (totalAlerts > 0) {
-        badge.textContent = totalAlerts > 99 ? '99+' : totalAlerts;
-        badge.classList.remove('hidden'); badge.classList.add('flex');
-    } else {
-        badge.classList.add('hidden'); badge.classList.remove('flex');
-    }
+    // --- CORRECCIÓN: Apuntamos al contenedor 'notif-system' ---
+    const container = document.getElementById('notif-system');
+    if (!container) return;
 
     let html = '';
     if (stats.veryLate > 0) {
@@ -1008,7 +1067,11 @@ function updateAlerts(stats) {
     if (stats.aboutToExpire > 0) {
         html += `<div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 cursor-pointer border-b border-slate-50 group transition"><p class="text-xs font-bold text-slate-700 group-hover:text-yellow-600">Por Vencer (≤2 días)</p><p class="text-[10px] text-slate-500">${stats.aboutToExpire} atenciones necesarias</p></div>`;
     }
-    list.innerHTML = html || '<div class="p-4 text-center text-[10px] text-slate-400 italic">Sin alertas pendientes</div>';
+    
+    container.innerHTML = html;
+    
+    // Si existe la función auxiliar, la llamamos para actualizar el badge total
+    if(typeof updateTotalBadge === 'function') updateTotalBadge();
 }
 
 function updateWidgets(artOrders) {
@@ -1185,9 +1248,8 @@ window.toggleOrderSelection = (id) => { if (selectedOrders.has(id)) selectedOrde
 window.toggleSelectAll = () => { const c = document.getElementById('selectAll').checked; paginatedOrders.forEach(o => c ? selectedOrders.add(o.orderId) : selectedOrders.delete(o.orderId)); updateTable(); };
 window.clearSelection = () => { selectedOrders.clear(); updateTable(); };
 window.toggleNotifications = () => { document.getElementById('notificationDropdown').classList.toggle('hidden'); };
-
 // ======================================================
-// ===== 11. MODALES Y ACCIONES (CORREGIDO) =====
+// ===== 11. MODALES Y ACCIONES (CORREGIDO + RBAC) =====
 // ======================================================
 
 window.openAssignModal = async (id) => {
@@ -1195,23 +1257,33 @@ window.openAssignModal = async (id) => {
     const o = allOrders.find(x => x.orderId === id);
     if (!o) return;
 
+    // Poblar datos estáticos del Excel
     document.getElementById('detailCliente').textContent = o.cliente;
     document.getElementById('detailCodigo').textContent = o.codigoContrato;
     document.getElementById('detailEstilo').textContent = o.estilo;
     document.getElementById('detailFecha').textContent = formatDate(o.fechaDespacho);
-    document.getElementById('detailPiezas').textContent = `${o.cantidad.toLocaleString()} (+${o.childPieces}) = ${(o.cantidad + o.childPieces).toLocaleString()}`;
     
+    // Calcular total incluyendo hijas
+    const totalPcs = (o.cantidad + (o.childPieces || 0)).toLocaleString();
+    document.getElementById('detailPiezas').textContent = `${o.cantidad.toLocaleString()} (+${o.childPieces || 0}) = ${totalPcs}`;
+    
+    // Poblar inputs editables
     document.getElementById('modalDesigner').value = o.designer || '';
     document.getElementById('modalStatus').value = o.customStatus || '';
     document.getElementById('modalReceivedDate').value = o.receivedDate || '';
     
+    // Cargar historial
     const h = firebaseHistoryMap.get(id) || [];
     document.getElementById('modalHistory').innerHTML = h.length ? h.reverse().map(x => `
         <div class="border-b border-slate-100 pb-2 last:border-0 mb-2">
-            <div class="flex justify-between items-center text-[10px] text-slate-400 mb-0.5"><span>${new Date(x.timestamp).toLocaleString()}</span><span>${escapeHTML(x.user)}</span></div>
+            <div class="flex justify-between items-center text-[10px] text-slate-400 mb-0.5">
+                <span>${new Date(x.timestamp).toLocaleString()}</span>
+                <span>${escapeHTML(x.user)}</span>
+            </div>
             <div class="text-xs text-slate-600">${escapeHTML(x.change)}</div>
         </div>`).join('') : '<p class="text-slate-400 italic text-xs text-center py-4">Sin historial.</p>';
 
+    // Cargar Chat
     if (typeof loadOrderComments === 'function') {
         loadOrderComments(id);
     }
@@ -1228,41 +1300,71 @@ window.saveAssignment = async () => {
     const stat = document.getElementById('modalStatus').value;
     const rd = document.getElementById('modalReceivedDate').value;
     
-    const changes = []; const data = {};
+    const changes = []; 
+    const data = {};
     
-    // Detección de cambios
+    // 1. Detección de cambio de Diseñador + Notificación
     if(o.designer !== des) { 
         changes.push(`Diseñador: ${o.designer || 'N/A'} -> ${des}`); 
         data.designer = des; 
         
-        // --- NOTIFICACIÓN DE ASIGNACIÓN ---
+        // --- INTEGRACIÓN: NOTIFICACIÓN DE ASIGNACIÓN ---
         if (des && des !== 'Sin asignar') {
             let targetEmail = null;
+            // Buscar email del diseñador en el mapa de memoria
             firebaseDesignersMap.forEach(dData => {
                 if (dData.name === des) targetEmail = dData.email;
             });
 
-            if (targetEmail && usuarioActual.email !== targetEmail) {
+            // Si encontramos el email y no soy yo mismo, enviamos la alerta
+            if (targetEmail && usuarioActual && usuarioActual.email !== targetEmail) {
                 createNotification(
                     targetEmail, 
                     'assign', 
                     'Nueva Asignación', 
-                    `${usuarioActual.displayName} te asignó la orden ${o.codigoContrato} (${o.estilo})`, 
+                    `${usuarioActual.displayName || 'Admin'} te asignó la orden ${o.codigoContrato} (${o.estilo})`, 
                     currentEditingOrderId
                 );
             }
         }
     }
 
-    if(o.customStatus !== stat) { changes.push(`Estado: ${o.customStatus || 'N/A'} -> ${stat}`); data.customStatus = stat; if(stat === CONFIG.STATUS.COMPLETED) data.completedDate = new Date().toISOString(); }
-    if(o.receivedDate !== rd) { changes.push(`Fecha Rx: ${rd}`); data.receivedDate = rd; }
+    // 2. Detección de otros cambios
+    if(o.customStatus !== stat) { 
+        changes.push(`Estado: ${o.customStatus || 'N/A'} -> ${stat}`); 
+        data.customStatus = stat; 
+        // Si se marca como completada, guardamos la fecha
+        if(stat === CONFIG.STATUS.COMPLETED) data.completedDate = new Date().toISOString(); 
+    }
+    
+    if(o.receivedDate !== rd) { 
+        changes.push(`Fecha Rx: ${rd}`); 
+        data.receivedDate = rd; 
+    }
     
     if(changes.length === 0) return showCustomAlert('No hubo cambios en los campos principales', 'info');
 
+    // 3. Guardado en Firebase
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
-        batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), { ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION }, { merge: true });
-        changes.forEach(c => batch.set(db_firestore.collection('history').doc(), { orderId: currentEditingOrderId, change: c, user: usuarioActual.displayName, timestamp: new Date().toISOString() }));
+        
+        // Actualizar asignación
+        batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), { 
+            ...data, 
+            lastModified: new Date().toISOString(), 
+            schemaVersion: CONFIG.DB_VERSION 
+        }, { merge: true });
+        
+        // Registrar historial
+        changes.forEach(c => {
+            batch.set(db_firestore.collection('history').doc(), { 
+                orderId: currentEditingOrderId, 
+                change: c, 
+                user: usuarioActual.displayName, 
+                timestamp: new Date().toISOString() 
+            });
+        });
+        
         await batch.commit();
     }, 'Guardando cambios...', 'Cambios guardados');
 
@@ -1272,8 +1374,20 @@ window.saveAssignment = async () => {
 window.loadChildOrders = async () => {
     const list = document.getElementById('childOrdersList');
     const children = firebaseChildOrdersMap.get(currentEditingOrderId) || [];
+    
     document.getElementById('childOrderCount').textContent = children.length;
-    list.innerHTML = children.map(c => `<div class="flex justify-between items-center bg-white p-2 rounded border border-slate-200 shadow-sm text-xs"><div><strong class="text-blue-600 block">${escapeHTML(c.childCode)}</strong><span class="text-slate-500">${c.cantidad} pzs • ${c.fechaDespacho ? formatDate(new Date(c.fechaDespacho.seconds*1000)) : '-'}</span></div><button class="btn-delete-child text-red-400 hover:text-red-600 p-1" data-child-id="${c.childOrderId}" data-child-code="${c.childCode}"><i class="fa-solid fa-trash"></i></button></div>`).join('') || '<p class="text-slate-400 italic text-xs p-2 text-center">No hay órdenes hijas.</p>';
+    
+    list.innerHTML = children.map(c => `
+        <div class="flex justify-between items-center bg-white p-2 rounded border border-slate-200 shadow-sm text-xs">
+            <div>
+                <strong class="text-blue-600 block">${escapeHTML(c.childCode)}</strong>
+                <span class="text-slate-500">${c.cantidad} pzs • ${c.fechaDespacho ? formatDate(new Date(c.fechaDespacho.seconds*1000)) : '-'}</span>
+            </div>
+            <button class="btn-delete-child text-red-400 hover:text-red-600 p-1 transition" data-child-id="${c.childOrderId}" data-child-code="${c.childCode}">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+    `).join('') || '<p class="text-slate-400 italic text-xs p-2 text-center">No hay órdenes hijas.</p>';
 };
 
 window.openAddChildModal = () => {
@@ -1295,12 +1409,19 @@ window.saveChildOrder = async () => {
     const num = document.getElementById('childOrderNumber').value;
     const pcs = parseInt(document.getElementById('childPieces').value);
     const date = document.getElementById('childDeliveryDate').value;
-    if (!num || !pcs) return showCustomAlert('Datos incompletos', 'error');
+    
+    if (!num || !pcs) return showCustomAlert('Datos incompletos (Número y Piezas obligatorios)', 'error');
 
     const ok = await safeFirestoreOperation(async () => {
-        await db_firestore.collection('childOrders').doc(`${o.orderId}_child_${Date.now()}`).set({
-            childOrderId: `${o.orderId}_child_${Date.now()}`, parentOrderId: o.orderId, childCode: `${o.codigoContrato}-${num}`,
-            cantidad: pcs, fechaDespacho: date ? new Date(date) : (o.fechaDespacho || null), createdAt: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION
+        const childId = `${o.orderId}_child_${Date.now()}`;
+        await db_firestore.collection('childOrders').doc(childId).set({
+            childOrderId: childId, 
+            parentOrderId: o.orderId, 
+            childCode: `${o.codigoContrato}-${num}`,
+            cantidad: pcs, 
+            fechaDespacho: date ? new Date(date) : (o.fechaDespacho || null), 
+            createdAt: new Date().toISOString(), 
+            schemaVersion: CONFIG.DB_VERSION
         });
     }, 'Creando orden hija...', 'Orden hija creada');
     
@@ -1308,14 +1429,17 @@ window.saveChildOrder = async () => {
 };
 
 window.deleteChildOrder = async (id, code) => {
-    showConfirmModal(`¿Eliminar hija ${code}?`, async () => {
+    // --- PROTECCIÓN DE SEGURIDAD (ADMIN) ---
+    if (userRole !== 'admin') return showCustomAlert('Solo los administradores pueden eliminar órdenes hijas.', 'error');
+
+    showConfirmModal(`¿Eliminar la orden hija ${code}?`, async () => {
         await safeFirestoreOperation(() => db_firestore.collection('childOrders').doc(id).delete(), 'Eliminando...', 'Hija eliminada');
-        loadChildOrders();
+        loadChildOrders(); // Recargar la lista visualmente
     });
 };
 
 window.openMultiAssignModal = () => { 
-    if (selectedOrders.size === 0) return showCustomAlert('Selecciona órdenes', 'info');
+    if (selectedOrders.size === 0) return showCustomAlert('Selecciona al menos una orden', 'info');
     document.getElementById('multiModalCount').textContent = selectedOrders.size;
     openModalById('multiAssignModal');
 };
@@ -1330,40 +1454,88 @@ window.saveMultiAssignment = async () => {
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
         let c = 0;
+        
         selectedOrders.forEach(id => {
-            const data = { schemaVersion: CONFIG.DB_VERSION };
-            if (d) data.designer = d; if (s) data.customStatus = s; if (r) data.receivedDate = r; 
+            const data = { schemaVersion: CONFIG.DB_VERSION, lastModified: new Date().toISOString() };
+            if (d) data.designer = d; 
+            if (s) data.customStatus = s; 
+            if (r) data.receivedDate = r; 
             if (n) data.notes = n; 
-            if (Object.keys(data).length > 1) { batch.set(db_firestore.collection('assignments').doc(id), data, { merge: true }); c++; }
+            
+            // Solo agregar al batch si hay algo que actualizar
+            if (Object.keys(data).length > 2) { 
+                batch.set(db_firestore.collection('assignments').doc(id), data, { merge: true }); 
+                c++; 
+            }
         });
-        if(c>0) await batch.commit();
+        
+        if(c > 0) await batch.commit();
+        else throw new Error("No seleccionaste ningún campo para actualizar.");
+        
     }, 'Aplicando cambios masivos...', 'Órdenes actualizadas');
 
-    if(ok) { closeTopModal(); clearSelection(); }
+    if(ok) { 
+        closeTopModal(); 
+        clearSelection(); 
+    }
 };
 
-window.openDesignerManager = () => { populateDesignerManagerModal(); openModalById('designerManagerModal'); };
+window.openDesignerManager = () => { 
+    populateDesignerManagerModal(); 
+    openModalById('designerManagerModal'); 
+};
 
 function populateDesignerManagerModal() {
     const l = document.getElementById('designerManagerList');
-    l.innerHTML = firebaseDesignersMap.size === 0 ? '<p class="text-center text-slate-400 text-xs py-4">Sin datos.</p>' : '';
+    if (firebaseDesignersMap.size === 0) {
+        l.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">No hay diseñadores registrados.</p>';
+        return;
+    }
+    
+    l.innerHTML = '';
     firebaseDesignersMap.forEach((d, id) => {
-        l.innerHTML += `<div class="flex justify-between items-center p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 rounded transition"><div><div class="font-bold text-slate-800 text-xs">${escapeHTML(d.name)}</div><div class="text-[10px] text-slate-400">${escapeHTML(d.email)}</div></div><button class="btn-delete-designer text-red-500 hover:text-red-700 text-[10px] font-bold px-2 py-1" data-name="${escapeHTML(d.name)}" data-id="${id}">Eliminar</button></div>`;
+        l.innerHTML += `
+        <div class="flex justify-between items-center p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 rounded transition">
+            <div>
+                <div class="font-bold text-slate-800 text-xs">${escapeHTML(d.name)}</div>
+                <div class="text-[10px] text-slate-400">${escapeHTML(d.email)}</div>
+            </div>
+            <button class="btn-delete-designer text-red-500 hover:text-red-700 text-[10px] font-bold px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition" data-name="${escapeHTML(d.name)}" data-id="${id}">
+                Eliminar
+            </button>
+        </div>`;
     });
 }
 
 window.addDesigner = async () => {
+    // --- PROTECCIÓN DE SEGURIDAD (ADMIN) ---
+    if (userRole !== 'admin') return showCustomAlert('Solo los administradores pueden gestionar el equipo.', 'error');
+
     const name = document.getElementById('newDesignerName').value.trim();
     const email = document.getElementById('newDesignerEmail').value.trim().toLowerCase();
-    if(!name || !email) return showCustomAlert('Datos faltantes', 'error');
-    const ok = await safeFirestoreOperation(() => db_firestore.collection('designers').add({ name, email, createdAt: new Date().toISOString() }), 'Agregando...', 'Diseñador agregado');
-    if(ok) { document.getElementById('newDesignerName').value = ''; document.getElementById('newDesignerEmail').value = ''; populateDesignerManagerModal(); }
+    
+    if(!name || !email) return showCustomAlert('Nombre y correo son obligatorios', 'error');
+    
+    const ok = await safeFirestoreOperation(() => db_firestore.collection('designers').add({ 
+        name, 
+        email, 
+        createdAt: new Date().toISOString() 
+    }), 'Agregando...', 'Diseñador agregado');
+    
+    if(ok) { 
+        document.getElementById('newDesignerName').value = ''; 
+        document.getElementById('newDesignerEmail').value = ''; 
+        populateDesignerManagerModal(); 
+    }
 };
 
-// --- AQUÍ ESTABA EL ERROR, ESTE ES EL CÓDIGO CORRECTO ---
 window.deleteDesigner = (id, name) => {
-    showConfirmModal(`¿Eliminar a ${name}?`, async () => {
-        await safeFirestoreOperation(() => db_firestore.collection('designers').doc(id).delete(), 'Eliminando...', 'Eliminado');
+    // --- PROTECCIÓN DE SEGURIDAD (ADMIN) ---
+    if (userRole !== 'admin') return showCustomAlert('Solo los administradores pueden eliminar diseñadores.', 'error');
+
+    showConfirmModal(`¿Eliminar a ${name} del equipo?`, async () => {
+        await safeFirestoreOperation(() => db_firestore.collection('designers').doc(id).delete(), 'Eliminando...', 'Diseñador eliminado');
+        // La lista se actualiza sola gracias al listener en tiempo real
     });
 };
 
@@ -1793,7 +1965,7 @@ function generateWorkPlan() {
     }, 100);
 }
 
-// ======================================================
+/// ======================================================
 // ===== 15. EXPORTACIÓN Y COMPARACIÓN =====
 // ======================================================
 
@@ -1801,7 +1973,11 @@ window.openCompareModal = (name) => {
     currentCompareDesigner1 = name;
     document.getElementById('compareDesigner1Name').textContent = name;
     const sel = document.getElementById('compareDesignerSelect');
-    sel.innerHTML = '<option value="">Selecciona...</option>' + designerList.filter(d => d !== name).map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    
+    // Filtramos para no compararse consigo mismo
+    sel.innerHTML = '<option value="">Selecciona...</option>' + 
+        designerList.filter(d => d !== name).map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    
     openModalById('selectCompareModal');
 };
 
@@ -1815,11 +1991,16 @@ window.startComparison = () => {
         return;
     }
     
+    // Obtener datos de Arte solamente
     const art = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     const s1 = calculateStats(art.filter(o => o.designer === currentCompareDesigner1));
     const s2 = calculateStats(art.filter(o => o.designer === n2));
     
-    if (compareChart) compareChart.destroy();
+    // Limpieza de gráfico anterior para evitar superposiciones
+    if (compareChart) {
+        compareChart.destroy();
+        compareChart = null;
+    }
     
     const canvas = document.getElementById('compareChartCanvas');
     if (canvas) {
@@ -1828,12 +2009,48 @@ window.startComparison = () => {
             data: { 
                 labels: ['Total', 'A Tiempo', 'Atrasadas'], 
                 datasets: [
-                    { label: currentCompareDesigner1, data: [s1.total, s1.onTime, s1.late], backgroundColor: '#3b82f6' }, 
-                    { label: n2, data: [s2.total, s2.onTime, s2.late], backgroundColor: '#f59e0b' }
+                    { 
+                        label: currentCompareDesigner1, 
+                        data: [s1.total, s1.onTime, s1.late], 
+                        backgroundColor: '#3b82f6' // Azul
+                    }, 
+                    { 
+                        label: n2, 
+                        data: [s2.total, s2.onTime, s2.late], 
+                        backgroundColor: '#f59e0b' // Ámbar
+                    }
                 ] 
             },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: { y: { beginAtZero: true } },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
         });
+    }
+    
+    // Actualizar tabla comparativa simple
+    const container = document.getElementById('compareTableContainer');
+    if(container) {
+        container.innerHTML = `
+            <table class="w-full text-xs text-left mt-4 border-collapse">
+                <thead>
+                    <tr class="bg-slate-100 border-b border-slate-200">
+                        <th class="p-2">Métrica</th>
+                        <th class="p-2 font-bold text-blue-600">${escapeHTML(currentCompareDesigner1)}</th>
+                        <th class="p-2 font-bold text-amber-600">${escapeHTML(n2)}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr><td class="p-2">Total Órdenes</td><td class="p-2 font-bold">${s1.total}</td><td class="p-2 font-bold">${s2.total}</td></tr>
+                    <tr><td class="p-2">Eficiencia (A tiempo)</td><td class="p-2">${s1.total > 0 ? Math.round((s1.onTime/s1.total)*100) : 0}%</td><td class="p-2">${s2.total > 0 ? Math.round((s2.onTime/s2.total)*100) : 0}%</td></tr>
+                    <tr><td class="p-2">Muy Atrasadas</td><td class="p-2 text-red-500">${s1.veryLate}</td><td class="p-2 text-red-500">${s2.veryLate}</td></tr>
+                </tbody>
+            </table>
+        `;
     }
     
     document.getElementById('selectCompareModal').classList.remove('active');
@@ -1841,50 +2058,65 @@ window.startComparison = () => {
 };
 
 window.exportDesignerMetricsPDF = (name) => {
+    // Verificación de librerías
     if (typeof window.jspdf === 'undefined') {
-        showCustomAlert('Error: Librería jsPDF no está cargada', 'error');
-        return;
+        return showCustomAlert('Error: Librería jsPDF no está cargada', 'error');
     }
-    
     if (typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
-        showCustomAlert('Error: Plugin AutoTable no está cargado', 'error');
-        return;
+        return showCustomAlert('Error: Plugin AutoTable no está cargado', 'error');
     }
     
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
+    // Encabezado del PDF
     doc.setFontSize(16); doc.text(`Reporte de Desempeño: ${name}`, 14, 15);
     doc.setFontSize(10); doc.text(`Generado: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 22);
     
+    // Filtrar datos del diseñador
     const orders = allOrders.filter(x => x.departamento === CONFIG.DEPARTMENTS.ART && (name === 'Sin asignar' ? !x.designer : x.designer === name));
-    const body = orders.map(x => [x.cliente.substring(0, 20), x.codigoContrato, x.estilo.substring(0, 20), x.customStatus || '-', x.cantidad.toLocaleString()]);
     
+    // Preparar cuerpo de la tabla
+    const body = orders.map(x => [
+        x.cliente.substring(0, 20), 
+        x.codigoContrato, 
+        x.estilo.substring(0, 20), 
+        x.customStatus || '-', 
+        x.cantidad.toLocaleString()
+    ]);
+    
+    // Generar Tabla
     doc.autoTable({ 
         head: [['Cliente', 'Contrato', 'Estilo', 'Estado', 'Pzs']], 
         body: body, 
         startY: 30,
         styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [37, 99, 235] },
-        alternateRowStyles: { fillColor: [248, 250, 252] }
+        headStyles: { fillColor: [37, 99, 235] }, // Azul Header
+        alternateRowStyles: { fillColor: [248, 250, 252] } // Gris alternado
     });
     
+    // Pie de página con totales
     const finalY = doc.lastAutoTable.finalY + 10;
     const totalPzs = orders.reduce((s,o) => s+o.cantidad, 0);
     doc.setFontSize(10);
     doc.text(`Total Órdenes: ${orders.length} | Total Piezas: ${totalPzs.toLocaleString()}`, 14, finalY);
+    
     doc.save(`Metricas_${name.replace(/\s+/g,'_')}.pdf`);
 };
 
 window.exportTableToExcel = () => {
+    // Verificar datos
     if (allOrders.length === 0) return showCustomAlert('No hay datos para exportar', 'error');
     
+    // Verificar librería
     if (typeof XLSX === 'undefined') {
-        showCustomAlert('Error: Librería XLSX no está cargada', 'error');
-        return;
+        return showCustomAlert('Error: Librería XLSX no está cargada', 'error');
     }
     
-    const data = getFilteredOrders().map(o => ({
+    // Usamos getFilteredOrders() para respetar los filtros actuales del usuario
+    const ordersToExport = getFilteredOrders();
+    
+    const data = ordersToExport.map(o => ({
         "Cliente": o.cliente, 
         "Código": o.codigoContrato, 
         "Estilo": o.estilo, 
@@ -1895,7 +2127,7 @@ window.exportTableToExcel = () => {
         "Piezas": o.cantidad, 
         "Piezas Hijas": o.childPieces,
         "Total Piezas": o.cantidad + o.childPieces,
-        "Notas": o.notes
+        "Notas": o.notes || ''
     }));
     
     const wb = XLSX.utils.book_new();
@@ -1910,84 +2142,122 @@ window.generateWeeklyReport = () => {
         return;
     }
     
+    // Lógica para calcular inicio y fin de semana desde string "2023-W10"
     const [y, wk] = w.split('-W').map(Number);
     const d = new Date(y, 0, 1 + (wk - 1) * 7);
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajustar al Lunes
+    
     const start = new Date(d.setDate(diff)); start.setHours(0,0,0,0);
     const end = new Date(start); end.setDate(end.getDate() + 6); end.setHours(23,59,59,999);
     
+    // Filtrar por fecha de recepción (receivedDate)
     const filtered = allOrders.filter(o => {
         if(!o.receivedDate) return false;
+        // Asumiendo receivedDate es YYYY-MM-DD
         const rd = new Date(o.receivedDate + 'T00:00:00');
         return rd >= start && rd <= end;
     });
     
     document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `
-        <h3 class="font-bold mb-2">Resultados: ${filtered.length} órdenes</h3>
-        <table id="weeklyReportTable" class="w-full text-xs border-collapse">
+        <h3 class="font-bold mb-2 text-slate-700">Resultados Semana ${w}: ${filtered.length} órdenes ingresadas</h3>
+        <table id="weeklyReportTable" class="w-full text-xs border-collapse border border-slate-200">
             <thead>
-                <tr class="bg-gray-100 text-left">
-                    <th class="p-2 border">Fecha</th>
-                    <th class="p-2 border">Cliente</th>
-                    <th class="p-2 border">Estilo</th>
-                    <th class="p-2 border text-right">Pzs</th>
+                <tr class="bg-slate-100 text-left text-slate-600">
+                    <th class="p-2 border border-slate-200">Fecha Rx</th>
+                    <th class="p-2 border border-slate-200">Cliente</th>
+                    <th class="p-2 border border-slate-200">Estilo</th>
+                    <th class="p-2 border border-slate-200 text-right">Pzs</th>
+                    <th class="p-2 border border-slate-200">Diseñador</th>
                 </tr>
             </thead>
             <tbody>
                 ${filtered.map(o => `
-                    <tr>
-                        <td class="p-2 border">${o.receivedDate}</td>
-                        <td class="p-2 border">${escapeHTML(o.cliente)}</td>
-                        <td class="p-2 border">${escapeHTML(o.estilo)}</td>
-                        <td class="p-2 border text-right">${o.cantidad}</td>
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-2 border border-slate-200">${o.receivedDate}</td>
+                        <td class="p-2 border border-slate-200">${escapeHTML(o.cliente)}</td>
+                        <td class="p-2 border border-slate-200">${escapeHTML(o.estilo)}</td>
+                        <td class="p-2 border border-slate-200 text-right font-mono">${o.cantidad}</td>
+                        <td class="p-2 border border-slate-200">${escapeHTML(o.designer || '-')}</td>
                     </tr>
                 `).join('')}
             </tbody>
         </table>
-    ` : '<p class="text-center text-gray-400 py-8">No hay órdenes recibidas en este periodo.</p>';
+    ` : '<p class="text-center text-slate-400 py-8 italic">No hay órdenes recibidas en este periodo.</p>';
 };
 
 window.exportWeeklyReportAsPDF = () => {
     if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
-        showCustomAlert('Error: Librería PDF no está cargada', 'error');
-        return;
+        return showCustomAlert('Error: Librería PDF no está cargada', 'error');
     }
     
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    doc.text("Reporte Semanal de Entradas", 14, 15);
-    doc.autoTable({ html: '#weeklyReportTable', startY: 20, theme: 'grid', styles: { fontSize: 8 } });
-    doc.save("reporte_semanal.pdf");
+    const weekVal = document.getElementById('weekSelector').value || 'Actual';
+    
+    doc.text(`Reporte Semanal de Entradas (${weekVal})`, 14, 15);
+    
+    // Usar el HTML generado para crear el PDF
+    doc.autoTable({ 
+        html: '#weeklyReportTable', 
+        startY: 20, 
+        theme: 'grid', 
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [50, 50, 50] }
+    });
+    
+    doc.save(`reporte_semanal_${weekVal}.pdf`);
 };
 
 window.showConfirmModal = (msg, cb) => {
     document.getElementById('confirmModalMessage').textContent = msg;
     const btn = document.getElementById('confirmModalConfirm');
+    
+    // Clonar botón para eliminar listeners anteriores y evitar ejecuciones múltiples
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
-    newBtn.addEventListener('click', () => { cb(); closeTopModal(); });
+    
+    newBtn.addEventListener('click', () => { 
+        cb(); 
+        closeTopModal(); 
+    });
+    
     openModalById('confirmModal');
 };
 
 window.openLegendModal = () => openModalById('legendModal');
+
 window.openWeeklyReportModal = () => {
     // Inicializar el selector de semana con la semana actual
     const weekSelector = document.getElementById('weekSelector');
     if (weekSelector) {
         weekSelector.value = getWeekIdentifierString(new Date());
     }
+    generateWeeklyReport(); // Generar vista inicial vacía o actual
     openModalById('weeklyReportModal');
 };
 
+// --- FUNCIÓN PROTEGIDA (INTEGRACIÓN DE ROLES) ---
 window.resetApp = () => {
+    // 1. Verificación de Seguridad (Admin Only)
+    if (userRole !== 'admin') {
+        return showCustomAlert('Acceso Denegado: Se requieren permisos de Administrador.', 'error');
+    }
+
     showConfirmModal("¿Subir nuevo archivo? Se perderán los datos no guardados.", () => {
         document.getElementById('appMainContainer').style.display = 'none';
         document.getElementById('mainNavigation').style.display = 'none';
         document.getElementById('uploadSection').style.display = 'block';
-        allOrders = []; isExcelLoaded = false;
+        
+        // Resetear variables en memoria
+        allOrders = []; 
+        isExcelLoaded = false;
+        
+        // Limpiar inputs
         document.getElementById('fileInput').value = ''; 
         document.getElementById('fileName').textContent = '';
+        
+        // Desconectar listeners para ahorrar recursos
         desconectarDatosDeFirebase();
         destroyAllCharts();
     });
@@ -2028,15 +2298,16 @@ function updateKanban() {
 
     // Limpiar HTML y Contadores
     Object.keys(columns).forEach(k => {
-        columns[k].innerHTML = '';
-        document.getElementById(`count-${k}`).textContent = '0';
+        if(columns[k]) columns[k].innerHTML = '';
+        const countEl = document.getElementById(`count-${k}`);
+        if(countEl) countEl.textContent = '0';
     });
     
     const counts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0 };
 
     // 3. Generar tarjetas
     orders.forEach(o => {
-        // Si no tiene estado o estado raro, va a Bandeja por defecto, a menos que sea completada
+        // Si no tiene estado o estado raro, va a Bandeja por defecto
         let status = o.customStatus || 'Bandeja';
         if (!columns[status]) status = 'Bandeja'; 
         
@@ -2044,7 +2315,8 @@ function updateKanban() {
 
         // Crear Tarjeta
         const card = document.createElement('div');
-        card.className = 'bg-white p-3 rounded-lg shadow-sm border border-slate-200 cursor-move hover:shadow-md transition group relative border-l-4';
+        // --- CORRECCIÓN CRÍTICA: Agregamos 'kanban-card' al inicio de las clases ---
+        card.className = 'kanban-card bg-white p-3 rounded-lg shadow-sm border border-slate-200 cursor-move hover:shadow-md transition group relative border-l-4';
         
         // Color del borde según urgencia
         if(o.isVeryLate) card.classList.add('border-l-red-500');
@@ -2055,7 +2327,7 @@ function updateKanban() {
         card.draggable = true;
         card.dataset.id = o.orderId;
         card.ondragstart = drag;
-        card.onclick = () => openAssignModal(o.orderId); // Reutilizamos tu modal existente
+        card.onclick = () => openAssignModal(o.orderId); 
 
         card.innerHTML = `
             <div class="flex justify-between items-start mb-1">
@@ -2076,14 +2348,38 @@ function updateKanban() {
             </div>
         `;
 
-        columns[status].appendChild(card);
+        if(columns[status]) columns[status].appendChild(card);
     });
 
     // Actualizar contadores visuales
     Object.keys(counts).forEach(k => {
-        document.getElementById(`count-${k}`).textContent = counts[k];
+        const countEl = document.getElementById(`count-${k}`);
+        if(countEl) countEl.textContent = counts[k];
     });
+
+    // --- CORRECCIÓN: Aplicar filtro de búsqueda si existe texto ---
+    filterKanbanCards();
 }
+
+// --- NUEVA FUNCIÓN: Buscador en Tiempo Real ---
+window.filterKanbanCards = () => {
+    const input = document.getElementById('kanbanSearchInput');
+    if (!input) return;
+
+    const term = input.value.toLowerCase().trim();
+    const cards = document.querySelectorAll('.kanban-card');
+
+    cards.forEach(card => {
+        // Buscamos en todo el contenido de la tarjeta
+        const textContent = card.innerText.toLowerCase();
+        
+        if (textContent.includes(term)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+};
 
 // --- Drag & Drop Functions ---
 
@@ -2092,7 +2388,6 @@ function allowDrop(ev) {
     ev.currentTarget.classList.add('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
 }
 
-// Remover estilo al salir (opcional, para pulir UX)
 function dragLeave(ev) {
     ev.currentTarget.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
 }
@@ -2105,16 +2400,15 @@ function drag(ev) {
 async function drop(ev) {
     ev.preventDefault();
     const zone = ev.currentTarget;
-    zone.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset'); // Limpiar estilo hover
+    zone.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset'); 
 
     const orderId = ev.dataTransfer.getData("text");
     const newStatus = zone.dataset.status;
 
-    // Actualización Optimista en UI (para que se sienta instantáneo)
+    // Actualización Optimista UI
     const card = document.querySelector(`div[data-id="${orderId}"]`);
     if(card) {
-        zone.appendChild(card); // Mover visualmente
-        // Aquí podrías recalcular contadores inmediatamente
+        zone.appendChild(card); 
     }
 
     // Guardar en Firebase
@@ -2144,11 +2438,10 @@ async function drop(ev) {
         });
 
         await batch.commit();
-    }, 'Moviendo...', null); // Null para no mostrar alerta invasiva en cada movimiento
+    }, 'Moviendo...', null);
 }
 
 // --- Actualizar Dropdown del Kanban ---
-// Llama a esto cuando se actualicen los diseñadores
 function updateKanbanDropdown() {
     const sel = document.getElementById('kanbanDesignerFilter');
     if(sel) {
