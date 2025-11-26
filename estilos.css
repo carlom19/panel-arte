@@ -196,3 +196,85 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
     100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 #notificationBadge { animation: pulse-notification 2s infinite; }
+
+/* ====================================================== */
+/* ===== DARK MODE OVERRIDES ===== */
+/* ====================================================== */
+
+/* Fondo Global y Texto */
+html.dark body {
+    background-color: #0f172a; /* Slate 900 */
+    color: #f8fafc; /* Slate 50 */
+}
+
+html.dark .main-content-shifted,
+html.dark #appMainContainer {
+    background-color: #0f172a;
+}
+
+/* Tablas Personalizadas en Dark Mode */
+html.dark .table-responsive, 
+html.dark .table-container {
+    background-color: #1e293b; /* Fondo de contenedor de tabla oscuro */
+    border-color: #334155;
+    box-shadow: none;
+}
+
+html.dark table.data-table th {
+    background-color: #1e293b; /* Slate 800 */
+    color: #94a3b8; /* Slate 400 */
+    border-bottom-color: #334155;
+}
+
+html.dark table.data-table td {
+    color: #cbd5e1; /* Slate 300 */
+    border-bottom-color: #334155;
+    background-color: #1e293b; /* Fondo base de celda */
+}
+
+html.dark table.data-table tr:hover td {
+    background-color: #334155 !important; /* Hover más claro que el fondo base */
+}
+
+/* Estados de fila en Dark Mode (Más sutiles) */
+html.dark tr.very-late td { background-color: #450a0a !important; color: #fecaca; border-left-color: #ef4444; } 
+html.dark tr.late td { background-color: #431407 !important; color: #fed7aa; } 
+html.dark tr.expiring td { background-color: #422006 !important; color: #fde047; } 
+
+/* Modales */
+html.dark .modal-content {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+/* Inputs y Selects */
+html.dark input, 
+html.dark select, 
+html.dark textarea {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+    color: #475569;
+}
+
+/* Scrollbar oscuro */
+html.dark ::-webkit-scrollbar-track { background: #0f172a; }
+html.dark ::-webkit-scrollbar-thumb { background: #475569; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Chat Bubbles Dark Mode */
+html.dark .chat-bubble.other {
+    background-color: #334155;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+html.dark .chat-bubble.me {
+    background-color: #1e40af; /* Blue 800 */
+    color: #dbeafe;
+    border-color: #1e3a8a;
+}

@@ -245,6 +245,11 @@ async function createNotification(recipientEmail, type, title, message, orderId)
 document.addEventListener('DOMContentLoaded', () => {
     console.log('App v7.1 Loaded (Enterprise + Roles)');
     
+    // --- NUEVO: Inicializar Modo Oscuro ---
+    if (typeof initTheme === 'function') {
+        initTheme();
+    }
+    
     // Listeners de Auth
     const btnLogin = document.getElementById('loginButton');
     if(btnLogin) btnLogin.addEventListener('click', iniciarLoginConGoogle);
@@ -2842,3 +2847,39 @@ window.toggleNotifications = () => {
     const drop = document.getElementById('notificationDropdown');
     if(drop) drop.classList.toggle('hidden'); 
 };
+
+// ======================================================
+// ===== 20. MODO OSCURO (LOGIC & PERSISTENCE) =====
+// ======================================================
+
+window.toggleTheme = () => {
+    const html = document.documentElement;
+    if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+    }
+    updateThemeIcon();
+};
+
+function updateThemeIcon() {
+    const icon = document.getElementById('themeIcon');
+    if (icon) {
+        const isDark = document.documentElement.classList.contains('dark');
+        // Cambiamos el icono: Sol amarillo si es oscuro, Luna gris si es claro
+        icon.className = isDark ? 'fa-solid fa-sun text-yellow-400' : 'fa-solid fa-moon text-slate-400';
+    }
+}
+
+function initTheme() {
+    // 1. Revisar si el usuario ya guardó una preferencia
+    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+    // 2. Actualizar el icono acorde al tema cargado
+    updateThemeIcon();
+}
