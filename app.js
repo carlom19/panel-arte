@@ -9,7 +9,7 @@ const firebaseConfig = {
     storageBucket: "panel-arte.firebasestorage.app",
     messagingSenderId: "236381043860",
     appId: "1:236381043860:web:f6a9c2cb211dd9161d0881"
-}; // <--- ADD THIS CLOSING BRACE AND SEMICOLON
+}; 
 
 // Inicialización segura de Firebase
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
@@ -47,6 +47,9 @@ let selectedOrders = new Set();
 let usuarioActual = null; 
 let isExcelLoaded = false;
 let userRole = 'user'; 
+
+// NUEVO: Variable para identificar al diseñador logueado
+let currentDesignerName = null; 
 
 // Filtros y Paginación
 let currentFilter = 'all';
@@ -445,15 +448,23 @@ function conectarDatosDeFirebase() {
         if(isExcelLoaded) mergeYActualizar();
     });
     
-    // 4. Diseñadores
+    // 4. Diseñadores (MODIFICADO PARA DETECTAR IDENTIDAD)
     unsubscribeDesigners = db_firestore.collection('designers').orderBy('name').onSnapshot(s => {
         firebaseDesignersMap.clear(); 
         let newDesignerList = [];
+        
         s.forEach(d => { 
             const v = d.data(); 
             firebaseDesignersMap.set(d.id, v); 
             newDesignerList.push(v.name); 
+            
+            // LÓGICA DE VINCULACIÓN: Si mi email coincide, soy este diseñador
+            if (usuarioActual && v.email && v.email.toLowerCase() === usuarioActual.email.toLowerCase()) {
+                currentDesignerName = v.name;
+                console.log("Identidad verificada: Eres el diseñador " + currentDesignerName);
+            }
         });
+        
         designerList = newDesignerList;
         updateAllDesignerDropdowns(); 
         populateDesignerManagerModal(); 
@@ -471,7 +482,7 @@ function conectarDatosDeFirebase() {
         if(document.getElementById('workPlanView').style.display === 'block') generateWorkPlan();
     });
 
-    // 6. Notificaciones (NUEVO)
+    // 6. Notificaciones
     listenToMyNotifications();
 }
 
@@ -504,7 +515,7 @@ function listenToMyNotifications() {
 }
 
 function updateNotificationUI(docs) {
-    // --- CORRECCIÓN: Apuntamos al contenedor 'notif-personal' ---
+    // Apuntamos al contenedor 'notif-personal'
     const container = document.getElementById('notif-personal'); 
     if (!container) return;
 
@@ -525,12 +536,12 @@ function updateNotificationUI(docs) {
         
         // Al hacer clic: Abrir modal de la orden y marcar como leída
         html += `
-        <div onclick="handleNotificationClick('${doc.id}', '${data.orderId}')" class="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 transition relative group bg-white">
+        <div onclick="handleNotificationClick('${doc.id}', '${data.orderId}')" class="p-3 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 transition relative group bg-white dark:bg-slate-800">
             <div class="flex gap-3">
                 <div class="mt-1"><i class="fa-solid ${iconClass}"></i></div>
                 <div>
-                    <p class="text-xs font-bold text-slate-800">${escapeHTML(data.title)}</p>
-                    <p class="text-[10px] text-slate-500 line-clamp-2">${escapeHTML(data.message)}</p>
+                    <p class="text-xs font-bold text-slate-800 dark:text-white">${escapeHTML(data.title)}</p>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2">${escapeHTML(data.message)}</p>
                     <p class="text-[9px] text-slate-300 mt-1">${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                 </div>
             </div>
@@ -1367,7 +1378,7 @@ function updateAllDesignerDropdowns() {
     if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
 }
 // ======================================================
-// ===== 11. MODALES Y ACCIONES (CORREGIDO + RBAC) =====
+// ===== 11. MODALES Y ACCIONES (CORREGIDO + RBAC + DARK MODE) =====
 // ======================================================
 
 window.openAssignModal = async (id) => {
@@ -1375,38 +1386,75 @@ window.openAssignModal = async (id) => {
     const o = allOrders.find(x => x.orderId === id);
     if (!o) return;
 
-    // Poblar datos estáticos del Excel
+    // --- 1. Cargar Datos Estáticos ---
     document.getElementById('detailCliente').textContent = o.cliente;
     document.getElementById('detailCodigo').textContent = o.codigoContrato;
     document.getElementById('detailEstilo').textContent = o.estilo;
     document.getElementById('detailFecha').textContent = formatDate(o.fechaDespacho);
     
-    // Calcular total incluyendo hijas
     const totalPcs = (o.cantidad + (o.childPieces || 0)).toLocaleString();
     document.getElementById('detailPiezas').textContent = `${o.cantidad.toLocaleString()} (+${o.childPieces || 0}) = ${totalPcs}`;
     
-    // Poblar inputs editables
-    document.getElementById('modalDesigner').value = o.designer || '';
+    // --- 2. Cargar Inputs Básicos ---
     document.getElementById('modalStatus').value = o.customStatus || '';
     document.getElementById('modalReceivedDate').value = o.receivedDate || '';
+
+    // --- 3. LÓGICA DE AUTO-ASIGNACIÓN ---
+    const designerSelect = document.getElementById('modalDesigner');
+    const container = designerSelect.parentNode;
     
-    // Cargar historial
+    // Limpiar botones previos si existen (evita duplicados al reabrir)
+    const existingBtn = document.getElementById('btn-self-assign');
+    if(existingBtn) existingBtn.remove();
+    
+    // Reiniciar visibilidad del select por defecto
+    designerSelect.style.display = 'block';
+    designerSelect.value = o.designer || '';
+
+    // Si soy Diseñador y NO Admin -> Interfaz Simplificada
+    if (currentDesignerName && userRole !== 'admin') {
+        // Ocultar el select estándar
+        designerSelect.style.display = 'none';
+        
+        // Crear botón dinámico
+        const btn = document.createElement('button');
+        btn.id = 'btn-self-assign';
+        btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1';
+        
+        if (o.designer === currentDesignerName) {
+            // Caso 1: Ya es mía -> Botón para liberar
+            btn.classList.add('bg-red-50', 'text-red-600', 'border-red-200', 'hover:bg-red-100', 'dark:bg-red-900/30', 'dark:text-red-400', 'dark:border-red-800');
+            btn.innerHTML = `<i class="fa-solid fa-user-xmark"></i> Liberar Orden (Es mía)`;
+            btn.onclick = () => { designerSelect.value = ''; saveAssignment(); };
+        } else if (!o.designer || o.designer === 'Sin asignar') {
+            // Caso 2: Está libre -> Botón para tomar
+            btn.classList.add('bg-green-50', 'text-green-600', 'border-green-200', 'hover:bg-green-100', 'dark:bg-green-900/30', 'dark:text-green-400', 'dark:border-green-800');
+            btn.innerHTML = `<i class="fa-solid fa-hand-point-up"></i> Tomar esta Orden`;
+            btn.onclick = () => { designerSelect.value = currentDesignerName; saveAssignment(); };
+        } else {
+            // Caso 3: Es de otro -> Mostrar nombre y bloquear
+            btn.classList.add('bg-slate-100', 'text-slate-500', 'border-slate-200', 'cursor-not-allowed', 'dark:bg-slate-700', 'dark:text-slate-400', 'dark:border-slate-600');
+            btn.innerHTML = `<i class="fa-solid fa-lock"></i> Asignada a: ${o.designer}`;
+            btn.disabled = true;
+        }
+        
+        container.appendChild(btn);
+    }
+    
+    // --- 4. Cargar Historial y Chat ---
     const h = firebaseHistoryMap.get(id) || [];
     document.getElementById('modalHistory').innerHTML = h.length ? h.reverse().map(x => `
-        <div class="border-b border-slate-100 pb-2 last:border-0 mb-2">
+        <div class="border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 mb-2">
             <div class="flex justify-between items-center text-[10px] text-slate-400 mb-0.5">
                 <span>${new Date(x.timestamp).toLocaleString()}</span>
                 <span>${escapeHTML(x.user)}</span>
             </div>
-            <div class="text-xs text-slate-600">${escapeHTML(x.change)}</div>
+            <div class="text-xs text-slate-600 dark:text-slate-300">${escapeHTML(x.change)}</div>
         </div>`).join('') : '<p class="text-slate-400 italic text-xs text-center py-4">Sin historial.</p>';
 
-    // Cargar Chat
-    if (typeof loadOrderComments === 'function') {
-        loadOrderComments(id);
-    }
-
+    if (typeof loadOrderComments === 'function') loadOrderComments(id);
     await loadChildOrders();
+    
     openModalById('assignModal');
 };
 
@@ -1496,10 +1544,10 @@ window.loadChildOrders = async () => {
     document.getElementById('childOrderCount').textContent = children.length;
     
     list.innerHTML = children.map(c => `
-        <div class="flex justify-between items-center bg-white p-2 rounded border border-slate-200 shadow-sm text-xs">
+        <div class="flex justify-between items-center bg-white dark:bg-slate-700 p-2 rounded border border-slate-200 dark:border-slate-600 shadow-sm text-xs">
             <div>
-                <strong class="text-blue-600 block">${escapeHTML(c.childCode)}</strong>
-                <span class="text-slate-500">${c.cantidad} pzs • ${c.fechaDespacho ? formatDate(new Date(c.fechaDespacho.seconds*1000)) : '-'}</span>
+                <strong class="text-blue-600 dark:text-blue-400 block">${escapeHTML(c.childCode)}</strong>
+                <span class="text-slate-500 dark:text-slate-300">${c.cantidad} pzs • ${c.fechaDespacho ? formatDate(new Date(c.fechaDespacho.seconds*1000)) : '-'}</span>
             </div>
             <button class="btn-delete-child text-red-400 hover:text-red-600 p-1 transition" data-child-id="${c.childOrderId}" data-child-code="${c.childCode}">
                 <i class="fa-solid fa-trash"></i>
@@ -1613,12 +1661,12 @@ function populateDesignerManagerModal() {
     l.innerHTML = '';
     firebaseDesignersMap.forEach((d, id) => {
         l.innerHTML += `
-        <div class="flex justify-between items-center p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 rounded transition">
+        <div class="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-600 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700 rounded transition">
             <div>
-                <div class="font-bold text-slate-800 text-xs">${escapeHTML(d.name)}</div>
+                <div class="font-bold text-slate-800 dark:text-white text-xs">${escapeHTML(d.name)}</div>
                 <div class="text-[10px] text-slate-400">${escapeHTML(d.email)}</div>
             </div>
-            <button class="btn-delete-designer text-red-500 hover:text-red-700 text-[10px] font-bold px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition" data-name="${escapeHTML(d.name)}" data-id="${id}">
+            <button class="btn-delete-designer text-red-500 hover:text-red-700 text-[10px] font-bold px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100 transition" data-name="${escapeHTML(d.name)}" data-id="${id}">
                 Eliminar
             </button>
         </div>`;
@@ -1656,7 +1704,6 @@ window.deleteDesigner = (id, name) => {
         // La lista se actualiza sola gracias al listener en tiempo real
     });
 };
-
 // ======================================================
 // ===== 12. MÉTRICAS DE DISEÑADORES (CORREGIDO) =====
 // ======================================================
@@ -2393,20 +2440,30 @@ console.log('   - generateDepartmentMetrics()');
 console.log('   - Verificaciones de librerías externas');
 console.log('   - Gestión de gráficos mejorada');
 
-// ======================================================
+/// ======================================================
 // ===== 17. LÓGICA KANBAN (NEXT LEVEL) =====
 // ======================================================
 
 function updateKanban() {
-    // 1. Obtener datos filtrados por el dropdown del header
-    const designerFilter = document.getElementById('kanbanDesignerFilter').value;
+    // 1. Obtener datos filtrados
+    const designerFilterSelect = document.getElementById('kanbanDesignerFilter');
+    let targetDesigner = designerFilterSelect.value;
     
+    // LÓGICA DE PRIVACIDAD: Si soy diseñador (y no admin), FUERZO el filtro
+    if (currentDesignerName && userRole !== 'admin') {
+        targetDesigner = currentDesignerName;
+        // Ocultar visualmente el filtro para que no confunda
+        designerFilterSelect.style.display = 'none'; 
+    } else {
+        designerFilterSelect.style.display = 'block';
+    }
+
     // Filtrar solo órdenes de Arte
     let orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     
-    // Aplicar filtro de diseñador si existe
-    if(designerFilter) {
-        orders = orders.filter(o => o.designer === designerFilter);
+    // Aplicar filtro de diseñador si existe (o si fue forzado)
+    if(targetDesigner) {
+        orders = orders.filter(o => o.designer === targetDesigner);
     }
 
     // 2. Referencias a columnas del DOM
@@ -2417,7 +2474,7 @@ function updateKanban() {
         'Completada': document.querySelector('.kanban-dropzone[data-status="Completada"]')
     };
 
-    // Limpiar columnas y contadores visuales
+    // Limpiar columnas
     Object.keys(columns).forEach(k => {
         if(columns[k]) columns[k].innerHTML = '';
         const countEl = document.getElementById(`count-${k}`);
@@ -2428,15 +2485,14 @@ function updateKanban() {
 
     // 3. Generar tarjetas
     orders.forEach(o => {
-        // Si no tiene estado o es desconocido, va a Bandeja por defecto
         let status = o.customStatus || 'Bandeja';
         if (!columns[status]) status = 'Bandeja'; 
         
         counts[status]++;
 
         const card = document.createElement('div');
-        // CLASE IMPORTANTE: 'kanban-card' es necesaria para el buscador
-        card.className = 'kanban-card bg-white p-3 rounded-lg shadow-sm border border-slate-200 cursor-move hover:shadow-md transition group relative border-l-4';
+        // NOTA: Se agregaron clases dark: para modo oscuro
+        card.className = 'kanban-card bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 cursor-move hover:shadow-md transition group relative border-l-4';
         
         // Colores de borde según urgencia
         if(o.isVeryLate) card.classList.add('border-l-red-500');
@@ -2444,44 +2500,42 @@ function updateKanban() {
         else if(o.isAboutToExpire) card.classList.add('border-l-yellow-400');
         else card.classList.add('border-l-slate-300'); 
 
-        // Propiedades de arrastre
         card.draggable = true;
         card.dataset.id = o.orderId;
         card.ondragstart = drag;
         
-        // Al hacer clic, abrir el modal de edición
+        // Al hacer clic, abrir el modal
         card.onclick = () => openAssignModal(o.orderId); 
 
-        // Contenido HTML de la tarjeta
+        // Contenido HTML de la tarjeta (con soporte Dark Mode)
         card.innerHTML = `
             <div class="flex justify-between items-start mb-1">
-                <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 rounded truncate max-w-[120px]">${escapeHTML(o.cliente)}</span>
-                ${o.childPieces > 0 ? '<span class="text-[9px] bg-blue-100 text-blue-600 px-1 rounded-full font-bold">+'+o.childPieces+'</span>' : ''}
+                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 rounded truncate max-w-[120px]">${escapeHTML(o.cliente)}</span>
+                ${o.childPieces > 0 ? '<span class="text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-1 rounded-full font-bold">+'+o.childPieces+'</span>' : ''}
             </div>
-            <div class="font-bold text-xs text-slate-800 mb-0.5 truncate" title="${escapeHTML(o.estilo)}">${escapeHTML(o.estilo)}</div>
-            <div class="text-[10px] text-slate-500 font-mono mb-2">${escapeHTML(o.codigoContrato)}</div>
+            <div class="font-bold text-xs text-slate-800 dark:text-slate-200 mb-0.5 truncate" title="${escapeHTML(o.estilo)}">${escapeHTML(o.estilo)}</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono mb-2">${escapeHTML(o.codigoContrato)}</div>
             
-            <div class="flex justify-between items-end border-t border-slate-50 pt-2">
+            <div class="flex justify-between items-end border-t border-slate-50 dark:border-slate-600 pt-2">
                 <div class="flex items-center gap-1">
                     <div class="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[9px] font-bold" title="${escapeHTML(o.designer)}">
                         ${o.designer ? o.designer.substring(0,2).toUpperCase() : '?'}
                     </div>
                     <span class="text-[10px] text-slate-400">${formatDate(o.fechaDespacho).slice(0,5)}</span>
                 </div>
-                <div class="font-bold text-xs text-slate-700">${(o.cantidad + o.childPieces).toLocaleString()} pzs</div>
+                <div class="font-bold text-xs text-slate-700 dark:text-slate-300">${(o.cantidad + o.childPieces).toLocaleString()} pzs</div>
             </div>
         `;
 
         if(columns[status]) columns[status].appendChild(card);
     });
 
-    // Actualizar badges de conteo en los encabezados
+    // Actualizar badges
     Object.keys(counts).forEach(k => {
         const countEl = document.getElementById(`count-${k}`);
         if(countEl) countEl.textContent = counts[k];
     });
     
-    // Re-aplicar filtro de texto si ya había algo escrito en el buscador
     filterKanbanCards();
 }
 
