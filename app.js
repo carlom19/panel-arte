@@ -2,7 +2,6 @@
 // ===== 1. CONFIGURACIÓN Y VARIABLES GLOBALES =====
 // ======================================================
 
-// --- Firebase Config ---
 const firebaseConfig = {
     apiKey: "AIzaSyAX9jZYnVSGaXdM06I0LTBvbvDpNulMPpk",
     authDomain: "panel-arte.firebaseapp.com",
@@ -10,6 +9,7 @@ const firebaseConfig = {
     storageBucket: "panel-arte.firebasestorage.app",
     messagingSenderId: "236381043860",
     appId: "1:236381043860:web:f6a9c2cb211dd9161d0881"
+}; // <--- ADD THIS CLOSING BRACE AND SEMICOLON
 
 // Inicialización segura de Firebase
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
@@ -17,7 +17,6 @@ if (typeof firebase !== 'undefined' && !firebase.apps.length) {
 } else if (typeof firebase === 'undefined') {
     console.error("Error CRÍTICO: El SDK de Firebase no se ha cargado en el HTML.");
 }
-
 const db_firestore = firebase.firestore(); 
 
 // --- Configuración Global ---
