@@ -820,6 +820,7 @@ async function uploadBatchesToFirestore(dataArray) {
     // Recargar datos locales para reflejar los cambios
     loadMasterOrders();
 }
+
 // ======================================================
 // ===== 7. FILTRADO OPTIMIZADO (SPRINT 1 - CACHÉ) =====
 // ======================================================
@@ -839,17 +840,30 @@ function getFilteredOrders() {
     let res = allOrders;
     const s = currentSearch.toLowerCase();
     
+    // 1. Búsqueda por Texto (Global)
     if (s) {
         res = res.filter(o => 
-            (o.cliente || '').toLowerCase().includes(s) || (o.codigoContrato || '').toLowerCase().includes(s) || 
-            (o.estilo || '').toLowerCase().includes(s) || (o.designer || '').toLowerCase().includes(s)
+            (o.cliente || '').toLowerCase().includes(s) || 
+            (o.codigoContrato || '').toLowerCase().includes(s) || 
+            (o.estilo || '').toLowerCase().includes(s) || 
+            (o.designer || '').toLowerCase().includes(s)
         );
     }
     
+    // 2. Filtro de Cliente
     if (currentClientFilter) res = res.filter(o => o.cliente === currentClientFilter);
     
-    if (currentDepartamentoFilter) res = res.filter(o => o.departamento === currentDepartamentoFilter);
-    else res = res.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART); 
+    // 3. Lógica de Departamento Inteligente (MEJORA)
+    if (currentDepartamentoFilter) {
+        // A. Si el usuario eligió un depto específico, respetarlo siempre
+        res = res.filter(o => o.departamento === currentDepartamentoFilter);
+    } else if (s !== '') {
+        // B. Si el usuario está BUSCANDO (y no eligió depto), buscar en TODOS lados.
+        // (No aplicamos ningún filtro de departamento aquí)
+    } else {
+        // C. Si NO busca y NO elige depto, mostrar solo ARTE por defecto
+        res = res.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART); 
+    }
     
     if (currentDesignerFilter) res = res.filter(o => o.designer === currentDesignerFilter);
     if (currentCustomStatusFilter) res = res.filter(o => o.customStatus === currentCustomStatusFilter);
