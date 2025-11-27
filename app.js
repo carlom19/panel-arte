@@ -1,8 +1,7 @@
 // ======================================================
-// ===== MÓDULO 1: CONFIGURACIÓN, VARIABLES Y UTILS =====
+// ===== 1. CONFIGURACIÓN Y VARIABLES GLOBALES =====
 // ======================================================
 
-// 1.1 CONFIGURACIÓN DE FIREBASE
 const firebaseConfig = {
     apiKey: "AIzaSyAX9jZYnVSGaXdM06I0LTBvbvDpNulMPpk",
     authDomain: "panel-arte.firebaseapp.com",
@@ -12,7 +11,7 @@ const firebaseConfig = {
     appId: "1:236381043860:web:f6a9c2cb211dd9161d0881"
 }; 
 
-// Inicialización segura
+// Inicialización segura de Firebase
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 } else if (typeof firebase === 'undefined') {
@@ -20,11 +19,10 @@ if (typeof firebase !== 'undefined' && !firebase.apps.length) {
 }
 
 const db_firestore = firebase.firestore(); 
-// Habilitar persistencia offline para mejorar velocidad
-db_firestore.enablePersistence({ synchronizeTabs: true })
-    .catch(err => console.warn('Persistencia:', err.code));
+// Habilitar persistencia offline para velocidad
+db_firestore.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('Persistencia:', err.code));
 
-// 1.2 CONSTANTES GLOBALES
+// --- Configuración Global ---
 const CONFIG = {
     DEPARTMENTS: {
         ART: 'P_Art',
@@ -41,19 +39,19 @@ const CONFIG = {
         PROD: 'Producción',
         AUDIT: 'Auditoría'
     },
+    // LISTA DE EXCLUIDOS: Agrega aquí los nombres que no deben salir en métricas
     EXCLUDED_DESIGNERS: ['Magdali Fernandez'], 
     DB_VERSION: 1,
     PAGINATION_DEFAULT: 50
 };
 
-// 1.3 VARIABLES DE ESTADO
+// --- Variables de Estado ---
 let allOrders = []; 
 let selectedOrders = new Set();
 let usuarioActual = null; 
 let isExcelLoaded = false;
 let userRole = 'user'; 
 let currentDesignerName = null; 
-let masterOrdersLoaded = false;
 
 // Filtros y Paginación
 let currentFilter = 'all';
@@ -80,8 +78,9 @@ let designerList = [];
 let needsRecalculation = true; 
 let autoCompleteBatchWrites = []; 
 let autoCompletedOrderIds = new Set(); 
+let masterOrdersLoaded = false;
 
-// Suscripciones de Firebase (Declaración única)
+// Suscripciones de Firebase
 let unsubscribeAssignments = null;
 let unsubscribeHistory = null;
 let unsubscribeChildOrders = null;
@@ -98,7 +97,7 @@ let firebaseChildOrdersMap = new Map();
 let firebaseDesignersMap = new Map(); 
 let firebaseWeeklyPlanMap = new Map();
 
-// Variables de Gráficos (para limpieza)
+// Gráficos
 let designerDoughnutChart = null;
 let designerBarChart = null;
 let deptLoadPieChart = null;
@@ -106,21 +105,19 @@ let deptLoadBarChart = null;
 let compareChart = null;
 let currentCompareDesigner1 = '';
 
-// 1.4 GESTOR DE MODALES
+// ======================================================
+// ===== 2. GESTOR DE MODALES =====
+// ======================================================
 const modalStack = []; 
-
 function openModalById(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
-    // Manejo de z-index para modales apilados
     modal.style.zIndex = 2000 + (modalStack.length * 10);
     if (modalId === 'confirmModal') modal.style.zIndex = parseInt(modal.style.zIndex) + 1000;
-    
     modal.classList.add('active');
     modalStack.push(modalId);
     document.body.classList.add('modal-open');
 }
-
 function closeTopModal() {
     if (modalStack.length === 0) return;
     const modalId = modalStack.pop(); 
@@ -128,29 +125,19 @@ function closeTopModal() {
     if (modal) modal.classList.remove('active');
     if (modalStack.length === 0) document.body.classList.remove('modal-open');
 }
-
 function closeAllModals() {
     document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
     modalStack.length = 0;
     document.body.classList.remove('modal-open');
 }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalStack.length > 0) closeTopModal(); });
+window.closeModal = () => closeTopModal(); window.closeConfirmModal = () => closeTopModal(); window.closeMultiModal = () => closeTopModal(); window.closeAddChildModal = () => closeTopModal(); window.closeDesignerManager = () => closeTopModal(); window.closeCompareModals = () => closeAllModals(); window.closeWeeklyReportModal = () => closeTopModal(); window.closeLegendModal = () => closeTopModal();
 
-// Atajos globales para cerrar modales específicos
-window.closeModal = () => closeTopModal(); 
-window.closeConfirmModal = () => closeTopModal(); 
-window.closeMultiModal = () => closeTopModal(); 
-window.closeAddChildModal = () => closeTopModal(); 
-window.closeDesignerManager = () => closeTopModal(); 
-window.closeCompareModals = () => closeAllModals(); 
-window.closeWeeklyReportModal = () => closeTopModal(); 
-window.closeLegendModal = () => closeTopModal();
+// ======================================================
+// ===== 3. UTILIDADES (THEME FIX BUG #2) =====
+// ======================================================
 
-// Cerrar con tecla ESC
-document.addEventListener('keydown', (e) => { 
-    if (e.key === 'Escape' && modalStack.length > 0) closeTopModal(); 
-});
-
-// 1.5 TEMA (DARK MODE)
+// BUG #2: Definir initTheme ANTES de usarlo
 function initTheme() {
     if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
@@ -180,11 +167,9 @@ window.toggleTheme = () => {
     updateThemeIcon();
 };
 
-// 1.6 UTILIDADES GENERALES
 async function safeFirestoreOperation(operation, loadingMsg = 'Procesando...', successMsg = null) {
     showLoading(loadingMsg);
-    // Timeout extendido a 15s para operaciones batch grandes
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 15000));
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 10000));
     try {
         await Promise.race([operation(), timeoutPromise]);
         if (successMsg) showCustomAlert(successMsg, 'success');
@@ -199,127 +184,58 @@ async function safeFirestoreOperation(operation, loadingMsg = 'Procesando...', s
 function showCustomAlert(message, type = 'info') {
     const alertDiv = document.getElementById('customAlert');
     if(!alertDiv) return;
-    
     let borderClass = type === 'error' ? 'border-red-500' : type === 'success' ? 'border-green-500' : 'border-blue-500';
     let icon = type === 'error' ? 'fa-circle-xmark text-red-500' : type === 'success' ? 'fa-circle-check text-green-500' : 'fa-circle-info text-blue-500';
-    
     alertDiv.className = `fixed top-5 right-5 z-[3000] max-w-sm w-full bg-white dark:bg-slate-800 shadow-2xl rounded-xl pointer-events-auto transform transition-all duration-300 ring-1 ring-black/5 overflow-hidden border-l-4 ${borderClass}`;
-    alertDiv.innerHTML = `
-        <div class="p-4 flex items-start">
-            <div class="flex-shrink-0"><i class="fa-solid ${icon} text-xl"></i></div>
-            <div class="ml-3 w-0 flex-1 pt-0.5">
-                <p class="text-sm font-medium text-slate-900 dark:text-white uppercase">${type}</p>
-                <p class="mt-1 text-xs text-slate-500 dark:text-slate-300">${escapeHTML(message)}</p>
-            </div>
-            <div class="ml-4 flex flex-shrink-0">
-                <button onclick="document.getElementById('customAlert').style.display='none'" class="text-slate-400 hover:text-slate-500 dark:hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-        </div>`;
+    alertDiv.innerHTML = `<div class="p-4 flex items-start"><div class="flex-shrink-0"><i class="fa-solid ${icon} text-xl"></i></div><div class="ml-3 w-0 flex-1 pt-0.5"><p class="text-sm font-medium text-slate-900 dark:text-white uppercase">${type}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-300">${escapeHTML(message)}</p></div><div class="ml-4 flex flex-shrink-0"><button onclick="document.getElementById('customAlert').style.display='none'" class="text-slate-400 hover:text-slate-500 dark:hover:text-white"><i class="fa-solid fa-xmark"></i></button></div></div>`;
     alertDiv.style.display = 'block';
-    
     if (window.alertTimeout) clearTimeout(window.alertTimeout);
     window.alertTimeout = setTimeout(() => { alertDiv.style.display = 'none'; }, 4000);
 }
 
 function showLoading(msg='Cargando...') {
     if (document.getElementById('loadingOverlay')) return;
-    const o = document.createElement('div'); 
-    o.id = 'loadingOverlay'; 
-    o.className = 'loading-overlay fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm'; 
+    const o = document.createElement('div'); o.id = 'loadingOverlay'; o.className = 'loading-overlay fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm'; 
     o.innerHTML = `<div class="spinner border-4 border-slate-200 dark:border-slate-700 border-t-blue-600 dark:border-t-blue-500 rounded-full w-10 h-10 animate-spin"></div><p class="text-xs font-bold text-slate-600 dark:text-slate-300 mt-4 animate-pulse">${escapeHTML(msg)}</p>`;
     document.body.appendChild(o);
 }
-
-function hideLoading() { 
-    const o = document.getElementById('loadingOverlay'); 
-    if(o) o.remove(); 
-}
-
+function hideLoading() { const o = document.getElementById('loadingOverlay'); if(o) o.remove(); }
 let debounceTimer;
-function debounce(func, delay) { 
-    return function() { 
-        clearTimeout(debounceTimer); 
-        debounceTimer = setTimeout(() => func.apply(this, arguments), delay); 
-    } 
-}
-
-function preventDefaults(e){ 
-    e.preventDefault(); 
-    e.stopPropagation(); 
-}
-
-function escapeHTML(str) { 
-    return !str ? '' : String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;'); 
-}
-
-function formatDate(d) { 
-    if (!d || !(d instanceof Date) || isNaN(d)) return '-';
-    return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function getWeekIdentifierString(d) { 
-    const date = new Date(d.getTime()); 
-    date.setHours(0, 0, 0, 0); 
-    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7); 
-    var week1 = new Date(date.getFullYear(), 0, 4); 
-    return `${date.getFullYear()}-W${String(1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)).padStart(2, '0')}`; 
-}
-
-// Función auxiliar para notificaciones (usada en otros módulos)
-async function createNotification(recipientEmail, type, title, message, orderId) { 
-    try { 
-        await db_firestore.collection('notifications').add({ 
-            recipientEmail: recipientEmail.toLowerCase().trim(), 
-            type, title, message, orderId, 
-            read: false, 
-            timestamp: new Date().toISOString() 
-        }); 
-    } catch (e) { 
-        console.error("Error notify:", e); 
-    } 
-}
+function debounce(func, delay) { return function() { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => func.apply(this, arguments), delay); } }
+function preventDefaults(e){ e.preventDefault(); e.stopPropagation(); }
+function escapeHTML(str) { return !str ? '' : String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function formatDate(d) { return d ? d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'; }
+function getWeekIdentifierString(d) { const date = new Date(d.getTime()); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7); var week1 = new Date(date.getFullYear(), 0, 4); return `${date.getFullYear()}-W${String(1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)).padStart(2, '0')}`; }
+async function createNotification(recipientEmail, type, title, message, orderId) { try { await db_firestore.collection('notifications').add({ recipientEmail: recipientEmail.toLowerCase().trim(), type, title, message, orderId, read: false, timestamp: new Date().toISOString() }); } catch (e) { console.error("Error notify:", e); } }
 
 // ======================================================
-// ===== MÓDULO 2: INICIALIZACIÓN Y DATOS (CORE) =====
+// ===== 4. INICIALIZACIÓN Y AUTH =====
 // ======================================================
 
-// 2.1 INICIALIZACIÓN DEL DOM Y EVENTOS
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Módulo 2: Core Cargado');
+    console.log('App v7.2 Loaded (Bugfixes + Performance)');
     
-    // Aplicar tema guardado (función del Módulo 1)
+    // BUG #2 FIX: InitTheme ya está definido arriba
     initTheme();
     
-    // Eventos de Auth
     const btnLogin = document.getElementById('loginButton');
     if(btnLogin) btnLogin.addEventListener('click', iniciarLoginConGoogle);
-    
     const btnLogout = document.getElementById('logoutNavBtn');
     if(btnLogout) btnLogout.addEventListener('click', iniciarLogout);
 
-    // Monitor de Estado de Auth
     firebase.auth().onAuthStateChanged((user) => {
         const login = document.getElementById('loginSection');
         const upload = document.getElementById('uploadSection');
         const main = document.getElementById('appMainContainer');
         const nav = document.getElementById('mainNavigation');
-        const userNameDisplay = document.getElementById('navUserName');
 
         if (user) {
-            // USUARIO LOGUEADO
             usuarioActual = user;
-            if(userNameDisplay) userNameDisplay.textContent = user.displayName;
-            
-            // Verificación de Rol (Admin)
+            if(document.getElementById('navUserName')) document.getElementById('navUserName').textContent = user.displayName;
             const userEmail = user.email.toLowerCase();
             db_firestore.collection('users').doc(userEmail).get().then((doc) => {
                 if (doc.exists && doc.data().role === 'admin') {
                     userRole = 'admin';
-                    // Mostrar controles de admin
                     if(document.getElementById('nav-resetApp')) document.getElementById('nav-resetApp').style.display = 'flex';
                     if(document.getElementById('nav-manageTeam')) document.getElementById('nav-manageTeam').style.display = 'flex';
                 } else {
@@ -329,56 +245,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }).catch(() => { userRole = 'user'; });
 
-            // Gestión de Vistas
             login.style.display = 'none';
             if (!isExcelLoaded) {
-                // Si no hay datos cargados, mostrar zona de carga
-                upload.style.display = 'block'; 
-                main.style.display = 'none'; 
-                nav.style.display = 'none'; 
-                main.classList.remove('main-content-shifted');
+                upload.style.display = 'block'; main.style.display = 'none'; nav.style.display = 'none'; main.classList.remove('main-content-shifted');
             } else {
-                // Si ya hay datos (recarga de página), ir al main
-                upload.style.display = 'none'; 
-                main.style.display = 'block'; 
-                nav.style.display = 'flex'; 
-                main.classList.add('main-content-shifted');
+                upload.style.display = 'none'; main.style.display = 'block'; nav.style.display = 'flex'; main.classList.add('main-content-shifted');
             }
-            
-            // INICIAR CONEXIÓN DE DATOS
             conectarDatosDeFirebase();
-
         } else {
-            // USUARIO DESCONECTADO
-            desconectarDatosDeFirebase(); 
-            usuarioActual = null; 
-            isExcelLoaded = false; 
-            userRole = 'user';
-            
-            login.style.display = 'flex'; 
-            upload.style.display = 'none'; 
-            main.style.display = 'none'; 
-            nav.style.display = 'none'; 
-            main.classList.remove('main-content-shifted');
+            desconectarDatosDeFirebase(); usuarioActual = null; isExcelLoaded = false; userRole = 'user';
+            login.style.display = 'flex'; upload.style.display = 'none'; main.style.display = 'none'; nav.style.display = 'none'; main.classList.remove('main-content-shifted');
         }
     });
 
-    // Eventos Globales de UI (Sidebar y Búsqueda)
+    // Sidebar & Filtros
     const sidebarBtn = document.getElementById('sidebarToggleBtn');
     if (sidebarBtn) sidebarBtn.addEventListener('click', () => { document.body.classList.toggle('sidebar-collapsed'); });
-    
     const searchInp = document.getElementById('searchInput');
-    if(searchInp) searchInp.addEventListener('input', debounce((e) => { 
-        currentSearch = e.target.value; 
-        currentPage = 1; 
-        updateTable(); // Se definirá en Módulo UI
-    }, 300));
-    
-    // Listeners para filtros
+    if(searchInp) searchInp.addEventListener('input', debounce((e) => { currentSearch = e.target.value; currentPage = 1; updateTable(); }, 300));
     ['clientFilter', 'styleFilter', 'teamFilter', 'departamentoFilter', 'designerFilter', 'customStatusFilter', 'dateFrom', 'dateTo'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.addEventListener('change', debounce((e) => {
-            // Actualización de variables globales según el filtro
             if(id==='clientFilter') currentClientFilter = e.target.value;
             if(id==='styleFilter') currentStyleFilter = e.target.value;
             if(id==='teamFilter') currentTeamFilter = e.target.value;
@@ -387,27 +274,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if(id==='customStatusFilter') currentCustomStatusFilter = e.target.value;
             if(id==='dateFrom') currentDateFrom = e.target.value;
             if(id==='dateTo') currentDateTo = e.target.value;
-            
-            currentPage = 1; 
-            updateTable();
+            currentPage = 1; updateTable();
         }, 150));
     });
 
-    // Delegación de Eventos (Botones dinámicos)
-    // Nota: Las funciones handlers (deleteDesigner, etc.) se definirán en módulos posteriores.
-    const delegate = (id, sel, cb) => { 
-        const el = document.getElementById(id); 
-        if(el) el.addEventListener('click', e => { 
-            const t = e.target.closest(sel); 
-            if(t) cb(t, e); 
-        }); 
-    };
-    
-    delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
-    delegate('childOrdersList', '.btn-delete-child', (btn, e) => { e.stopPropagation(); deleteChildOrder(btn.dataset.childId, btn.dataset.childCode); });
-    delegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
-    
-    // Drag & Drop de Archivos
     const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput');
     if(dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
@@ -415,22 +285,27 @@ document.addEventListener('DOMContentLoaded', () => {
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     }
+
+    const delegate = (id, sel, cb) => { const el = document.getElementById(id); if(el) el.addEventListener('click', e => { const t = e.target.closest(sel); if(t) cb(t, e); }); };
+    delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
+    delegate('metricsSidebarList', '.filter-btn', (btn) => {
+        document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-50', 'border-blue-200'));
+        btn.classList.add('active', 'bg-blue-50', 'border-blue-200');
+        generateDesignerMetrics(btn.dataset.designer);
+    });
+    delegate('childOrdersList', '.btn-delete-child', (btn, e) => { e.stopPropagation(); deleteChildOrder(btn.dataset.childId, btn.dataset.childCode); });
+    
+    // FIX BUG #8: removeOrderFromPlan is now defined properly below
+    delegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
 });
 
-// 2.2 FUNCIONES DE AUTH
-function iniciarLoginConGoogle() { 
-    firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
-        .catch(e => showCustomAlert(e.message, 'error')); 
-}
+function iniciarLoginConGoogle() { firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => showCustomAlert(e.message, 'error')); }
+function iniciarLogout() { firebase.auth().signOut().then(() => { document.getElementById('mainNavigation').style.transform = 'translateX(-100%)'; document.getElementById('appMainContainer').classList.remove('main-content-shifted'); }); }
 
-function iniciarLogout() { 
-    firebase.auth().signOut().then(() => { 
-        document.getElementById('mainNavigation').style.transform = 'translateX(-100%)'; 
-        document.getElementById('appMainContainer').classList.remove('main-content-shifted'); 
-    }); 
-}
+// ======================================================
+// ===== 5. LÓGICA DE DATOS (FIREBASE LISTENERS & SYNC) =====
+// ======================================================
 
-// 2.3 CONEXIÓN Y SINCRONIZACIÓN DE DATOS
 function conectarDatosDeFirebase() {
     if (!usuarioActual) return;
     const navDbStatus = document.getElementById('navDbStatus'); 
@@ -445,58 +320,70 @@ function conectarDatosDeFirebase() {
 
     setStatus(false);
     
-    // Carga inicial de Maestros (Estrategia Híbrida)
+    // ESTRATEGIA HÍBRIDA: Carga única de maestros + Realtime de cambios
     loadMasterOrders().then(() => {
         console.log("Datos maestros listos.");
         setupRealtimeListeners(setStatus);
     });
 }
 
+// A. CARGA DE DATOS MAESTROS (Excel subido previamente)
 async function loadMasterOrders() {
     try {
         const snapshot = await db_firestore.collection('master_orders').get();
+        
         masterOrdersMap.clear();
-        snapshot.forEach(doc => { masterOrdersMap.set(doc.id, doc.data()); });
+        snapshot.forEach(doc => {
+            masterOrdersMap.set(doc.id, doc.data());
+        });
         
         masterOrdersLoaded = true;
         isExcelLoaded = masterOrdersMap.size > 0; 
         
+        // Si hay datos en la nube, reconstruimos la memoria local
         if (masterOrdersMap.size > 0) {
-            rebuildAllOrders(); // Construcción inicial en memoria
+            rebuildAllOrders(); // <--- Esta función ahora está definida más abajo
             
-            // Transición de UI
+            // Transiciones de UI
             document.getElementById('uploadSection').style.display = 'none';
             document.getElementById('appMainContainer').style.display = 'block';
             document.getElementById('appMainContainer').classList.add('main-content-shifted');
             document.getElementById('mainNavigation').style.display = 'flex';
             setTimeout(() => document.getElementById('mainNavigation').style.transform = 'translateX(0)', 50);
             
+            // Ir al Dashboard por defecto
             if (typeof navigateTo === 'function') navigateTo('dashboard');
         }
+        
     } catch (e) {
         console.error("Error cargando master_orders:", e);
         showCustomAlert("Error cargando base de datos maestra.", "error");
     }
 }
 
+// B. LISTENERS REALTIME
 function setupRealtimeListeners(statusCallback) {
-    // 1. Asignaciones (Cambios de estado, diseñador)
+    
+    // 1. Asignaciones (Cambios de estado, diseñador, notas)
     unsubscribeAssignments = db_firestore.collection('assignments').onSnapshot(s => {
         firebaseAssignmentsMap.clear();
         s.forEach(d => firebaseAssignmentsMap.set(d.id, d.data()));
+        
         if(masterOrdersLoaded) mergeYActualizar(); 
         statusCallback(true);
     });
 
-    // 2. Historial (Solo últimos 100 para rendimiento)
-    unsubscribeHistory = db_firestore.collection('history').orderBy('timestamp', 'desc').limit(100).onSnapshot(s => {
-        firebaseHistoryMap.clear();
-        s.forEach(d => { 
-            const v = d.data(); 
-            if(!firebaseHistoryMap.has(v.orderId)) firebaseHistoryMap.set(v.orderId, []); 
-            firebaseHistoryMap.get(v.orderId).push(v); 
+    // 2. Historial
+    unsubscribeHistory = db_firestore.collection('history')
+        .orderBy('timestamp', 'desc').limit(100) 
+        .onSnapshot(s => {
+            firebaseHistoryMap.clear();
+            s.forEach(d => { 
+                const v = d.data(); 
+                if(!firebaseHistoryMap.has(v.orderId)) firebaseHistoryMap.set(v.orderId, []); 
+                firebaseHistoryMap.get(v.orderId).push(v); 
+            });
         });
-    });
 
     // 3. Órdenes Hijas
     unsubscribeChildOrders = db_firestore.collection('childOrders').onSnapshot(s => {
@@ -514,19 +401,22 @@ function setupRealtimeListeners(statusCallback) {
     unsubscribeDesigners = db_firestore.collection('designers').orderBy('name').onSnapshot(s => {
         firebaseDesignersMap.clear(); 
         let newDesignerList = [];
+        
         s.forEach(d => { 
             const v = d.data(); 
             firebaseDesignersMap.set(d.id, v); 
             newDesignerList.push(v.name); 
-            // Detectar identidad del usuario actual
+            
+            // Detectar identidad
             if (usuarioActual && v.email && v.email.toLowerCase() === usuarioActual.email.toLowerCase()) {
                 currentDesignerName = v.name;
             }
         });
-        designerList = newDesignerList;
         
-        if (typeof populateFilterDropdowns === 'function') populateFilterDropdowns();
-        if (typeof updateDashboard === 'function' && document.getElementById('dashboard').style.display === 'block') updateDashboard();
+        designerList = newDesignerList;
+        if(typeof updateAllDesignerDropdowns === 'function') updateAllDesignerDropdowns(); 
+        if(typeof populateDesignerManagerModal === 'function') populateDesignerManagerModal(); 
+        if(document.getElementById('dashboard').style.display === 'block') updateDashboard();
     });
 
     // 5. Plan Semanal
@@ -540,8 +430,8 @@ function setupRealtimeListeners(statusCallback) {
         if(document.getElementById('workPlanView').style.display === 'block' && typeof generateWorkPlan === 'function') generateWorkPlan();
     });
 
-    // 6. Notificaciones Personales
-    listenToMyNotifications();
+    // 6. Notificaciones
+    listenToMyNotifications(); // <--- Ahora definida abajo
 }
 
 function desconectarDatosDeFirebase() {
@@ -551,123 +441,46 @@ function desconectarDatosDeFirebase() {
     if(unsubscribeDesigners) unsubscribeDesigners();
     if(unsubscribeWeeklyPlan) unsubscribeWeeklyPlan();
     if(unsubscribeNotifications) unsubscribeNotifications();
-    if(unsubscribeChat) unsubscribeChat(); // Importante: Limpiar chat
+    if(unsubscribeChat) unsubscribeChat(); // Limpieza del chat
     
     autoCompletedOrderIds.clear();
     masterOrdersLoaded = false;
 }
 
-// 2.4 PROCESAMIENTO DE DATOS (FUSIÓN)
-
-// Recálculo de Piezas Hijas (Definida antes de usarse)
-function recalculateChildPieces() {
-    let cache = new Map();
-    firebaseChildOrdersMap.forEach((list, parentId) => {
-        const sum = list.reduce((s, c) => s + (Number(c.cantidad) || 0), 0);
-        cache.set(parentId, sum);
-    });
-    allOrders.forEach(o => { o.childPieces = cache.get(o.orderId) || 0; });
-}
-
-function rebuildAllOrders() {
-    let processed = [];
-    masterOrdersMap.forEach((masterData) => {
-        // CORRECCIÓN: Convertir fechas string a Objetos Date reales
-        let fdLocal = null;
-        if (masterData.fechaDespacho) {
-            const parsed = new Date(masterData.fechaDespacho);
-            if (!isNaN(parsed.getTime())) fdLocal = parsed;
-        }
-
-        const today = new Date(); today.setHours(0,0,0,0);
-        const dl = (fdLocal && fdLocal < today) ? Math.ceil((today - fdLocal) / 86400000) : 0;
-
-        processed.push({
-            ...masterData, 
-            fechaDespacho: fdLocal, // Ahora es un objeto Date
-            isLate: fdLocal && fdLocal < today,
-            isVeryLate: dl > 7,
-            isAboutToExpire: fdLocal && !dl && ((fdLocal - today) / 86400000) <= 2,
-            daysLate: dl,
-            // Campos vacíos por defecto (se llenarán en merge)
-            designer: '', customStatus: '', receivedDate: '', notes: '', completedDate: null, complexity: 'Media'
-        });
-    });
-    allOrders = processed;
-    mergeYActualizar();
-}
-
-function mergeYActualizar() {
-    if (!masterOrdersLoaded) return;
-    
-    // Optimización: Recalcular solo si hubo cambios en childOrders
-    if (needsRecalculation) {
-        recalculateChildPieces(); 
-        needsRecalculation = false;
-    }
-    
-    autoCompleteBatchWrites = []; 
-    filteredCache.key = null; // Invalidar caché de búsqueda
-
-    for (let i = 0; i < allOrders.length; i++) {
-        const o = allOrders[i];
-        const fb = firebaseAssignmentsMap.get(o.orderId);
-        
-        if (fb) {
-            // Sobreescribir con datos de Firebase
-            o.designer = fb.designer || '';
-            o.customStatus = fb.customStatus || '';
-            o.receivedDate = fb.receivedDate || '';
-            o.notes = fb.notes || '';
-            o.completedDate = fb.completedDate || null;
-            o.complexity = fb.complexity || 'Media'; 
-        } else {
-            o.designer = ''; o.customStatus = ''; o.receivedDate = ''; o.notes = ''; o.completedDate = null; o.complexity = 'Media';
-        }
-
-        // Auto-Completado: Si salió de Arte en el Excel nuevo
-        if (fb && o.departamento !== CONFIG.DEPARTMENTS.ART && o.departamento !== CONFIG.DEPARTMENTS.NONE) {
-            if (fb.customStatus !== CONFIG.STATUS.COMPLETED && !autoCompletedOrderIds.has(o.orderId)) {
-                autoCompleteBatchWrites.push({
-                    orderId: o.orderId,
-                    displayCode: o.codigoContrato,
-                    data: { customStatus: CONFIG.STATUS.COMPLETED, completedDate: new Date().toISOString(), lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION },
-                    history: [`Salio de Arte (en ${o.departamento}) → Completada`]
-                });
-                autoCompletedOrderIds.add(o.orderId);
-            }
-        }
-    }
-    
-    // Actualizar UI si está visible
-    if (document.getElementById('dashboard') && document.getElementById('dashboard').style.display === 'block' && typeof updateDashboard === 'function') {
-        updateDashboard();
-    }
-    
-    // Ejecutar Batch de Autocompletado
-    if (autoCompleteBatchWrites.length > 0) confirmAutoCompleteBatch();
-}
-
-// 2.5 NOTIFICACIONES E INTERNOS
+// --- C. NOTIFICACIONES (LÓGICA INTERNA) ---
 function listenToMyNotifications() {
     if (!usuarioActual) return;
     const myEmail = usuarioActual.email.toLowerCase();
+    
     if (unsubscribeNotifications) unsubscribeNotifications();
 
     unsubscribeNotifications = db_firestore.collection('notifications')
-        .where('recipientEmail', '==', myEmail).where('read', '==', false).orderBy('timestamp', 'desc').limit(20)
-        .onSnapshot(snapshot => { updateNotificationUI(snapshot.docs); }, error => { console.log("Info notificaciones (permisos):", error.code); });
+        .where('recipientEmail', '==', myEmail)
+        .where('read', '==', false)
+        .orderBy('timestamp', 'desc')
+        .limit(20)
+        .onSnapshot(snapshot => { 
+            updateNotificationUI(snapshot.docs); 
+        }, error => {
+            console.log("Info notificaciones:", error.code); // Ignoramos error de permisos iniciales
+        });
 }
 
 function updateNotificationUI(docs) {
     const container = document.getElementById('notif-personal'); 
     if (!container) return;
-    if (docs.length === 0) { container.innerHTML = ''; updateTotalBadge(); return; }
+    
+    if (docs.length === 0) { 
+        container.innerHTML = ''; 
+        updateTotalBadge();
+        return; 
+    }
 
     let html = '';
     docs.forEach(doc => {
         const data = doc.data();
         let iconClass = data.type === 'mention' ? 'fa-at text-purple-500' : 'fa-user-tag text-blue-500';
+        
         html += `
         <div onclick="handleNotificationClick('${doc.id}', '${data.orderId}')" class="p-3 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 transition relative group bg-white dark:bg-slate-800">
             <div class="flex gap-3">
@@ -681,6 +494,7 @@ function updateNotificationUI(docs) {
             <div class="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full" title="No leído"></div>
         </div>`;
     });
+    
     container.innerHTML = html;
     updateTotalBadge();
 }
@@ -689,6 +503,7 @@ function updateTotalBadge() {
     const pCount = document.getElementById('notif-personal')?.children.length || 0;
     const sCount = document.getElementById('notif-system')?.children.length || 0;
     const total = pCount + sCount;
+    
     const badge = document.getElementById('notificationBadge');
     if (badge) {
         if (total > 0) {
@@ -702,14 +517,140 @@ function updateTotalBadge() {
 
 async function handleNotificationClick(notificationId, orderId) {
     db_firestore.collection('notifications').doc(notificationId).update({ read: true });
-    if (orderId && typeof openAssignModal === 'function') await openAssignModal(orderId);
+    if (orderId) await openAssignModal(orderId);
+}
+
+// --- D. PROCESAMIENTO Y FUSIÓN DE DATOS ---
+
+function rebuildAllOrders() {
+    let processed = [];
+    
+    masterOrdersMap.forEach((masterData) => {
+        // Convertir fecha string a objeto Date
+        let fdLocal = masterData.fechaDespacho ? new Date(masterData.fechaDespacho) : null;
+        
+        // Cálculos de fecha
+        const today = new Date(); today.setHours(0,0,0,0);
+        const dl = (fdLocal && fdLocal < today) ? Math.ceil((today - fdLocal) / 86400000) : 0;
+
+        processed.push({
+            ...masterData, 
+            fechaDespacho: fdLocal,
+            isLate: fdLocal && fdLocal < today,
+            isVeryLate: dl > 7,
+            isAboutToExpire: fdLocal && !dl && ((fdLocal - today) / 86400000) <= 2,
+            daysLate: dl,
+            
+            // Valores por defecto que se llenarán en mergeYActualizar
+            designer: '', customStatus: '', receivedDate: '', notes: '', completedDate: null, complexity: 'Media'
+        });
+    });
+    
+    allOrders = processed;
+    mergeYActualizar(); // Llamada inicial para cruzar con assignments
+}
+
+function mergeYActualizar() {
+    if (!masterOrdersLoaded) return;
+    
+    // FIX DE RENDIMIENTO: Recalcular hijas solo si es necesario
+    if (needsRecalculation) {
+        recalculateChildPieces(); 
+        needsRecalculation = false;
+    }
+    
+    autoCompleteBatchWrites = []; 
+    filteredCache.key = null; // Invalidar caché de búsqueda
+
+    for (let i = 0; i < allOrders.length; i++) {
+        const o = allOrders[i];
+        const fb = firebaseAssignmentsMap.get(o.orderId);
+        
+        if (fb) {
+            // Si hay datos en Firebase, sobreescribimos los del Excel
+            o.designer = fb.designer || '';
+            o.customStatus = fb.customStatus || '';
+            o.receivedDate = fb.receivedDate || '';
+            o.notes = fb.notes || '';
+            o.completedDate = fb.completedDate || null;
+            o.complexity = fb.complexity || 'Media'; 
+        } else {
+            // Si no, valores limpios
+            o.designer = ''; o.customStatus = ''; o.receivedDate = ''; o.notes = ''; o.completedDate = null; o.complexity = 'Media';
+        }
+
+        // Lógica de Autocompletado (Si salió de Arte en el Excel nuevo)
+        if (fb && o.departamento !== CONFIG.DEPARTMENTS.ART && o.departamento !== CONFIG.DEPARTMENTS.NONE) {
+            if (fb.customStatus !== CONFIG.STATUS.COMPLETED && !autoCompletedOrderIds.has(o.orderId)) {
+                autoCompleteBatchWrites.push({
+                    orderId: o.orderId,
+                    displayCode: o.codigoContrato,
+                    data: { customStatus: CONFIG.STATUS.COMPLETED, completedDate: new Date().toISOString(), lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION },
+                    history: [`Salio de Arte (en ${o.departamento}) → Completada`]
+                });
+                autoCompletedOrderIds.add(o.orderId);
+            }
+        }
+    }
+    
+    // Actualizar UI solo si el Dashboard es visible
+    if (document.getElementById('dashboard').style.display === 'block') {
+        updateDashboard();
+    }
+    
+    // Ejecutar autocompletado si aplica
+    if (autoCompleteBatchWrites.length > 0) confirmAutoCompleteBatch();
+}
+
+function recalculateChildPieces() {
+    let cache = new Map();
+    firebaseChildOrdersMap.forEach((list, parentId) => {
+        const sum = list.reduce((s, c) => s + (Number(c.cantidad) || 0), 0);
+        cache.set(parentId, sum);
+    });
+    
+    allOrders.forEach(o => {
+        o.childPieces = cache.get(o.orderId) || 0;
+    });
+}
+
+// --- E. OPERACIONES BATCH ---
+
+async function ejecutarAutoCompleteBatch() {
+    if (!usuarioActual || autoCompleteBatchWrites.length === 0) return;
+    document.body.classList.add('processing-batch');
+    
+    await safeFirestoreOperation(async () => {
+        const batch = db_firestore.batch();
+        const user = usuarioActual.displayName;
+        
+        // Procesar máximo 400 escrituras por lote (límite Firestore 500)
+        autoCompleteBatchWrites.slice(0, 400).forEach(w => {
+            batch.set(db_firestore.collection('assignments').doc(w.orderId), w.data, { merge: true });
+            batch.set(db_firestore.collection('history').doc(), { orderId: w.orderId, change: w.history[0], user, timestamp: new Date().toISOString() });
+            autoCompletedOrderIds.add(w.orderId);
+        });
+
+        await batch.commit();
+        autoCompleteBatchWrites = []; 
+        
+        // Limpieza de memoria (Set infinito fix)
+        if (autoCompletedOrderIds.size > 1000) {
+            const arr = Array.from(autoCompletedOrderIds);
+            autoCompletedOrderIds.clear();
+            // Mantener solo los últimos 500
+            arr.slice(-500).forEach(id => autoCompletedOrderIds.add(id));
+        }
+        return true;
+    }, 'Sincronizando...', 'Estados actualizados.');
+    
+    document.body.classList.remove('processing-batch');
 }
 
 // ======================================================
-// ===== MÓDULO 3: PARSER EXCEL & OPERACIONES BATCH =====
+// ===== 6. PARSER EXCEL & CLOUD UPLOAD (DIFFERENTIAL) =====
 // ======================================================
 
-// 3.1 MANEJO DE ARCHIVOS (DROP & SELECT)
 function handleFiles(files) {
     if (files.length > 0) {
         document.getElementById('fileName').textContent = files[0].name;
@@ -718,9 +659,9 @@ function handleFiles(files) {
 }
 
 async function processAndUploadFile(file) {
-    // 1. Verificación de Seguridad
+    // 1. Verificación de Rol
     if (userRole !== 'admin') {
-        return showCustomAlert('Acceso Denegado: Solo administradores pueden actualizar la BD.', 'error');
+        return showCustomAlert('Solo los administradores pueden actualizar la Base de Datos Maestra.', 'error');
     }
 
     showLoading('Analizando Excel...');
@@ -729,28 +670,21 @@ async function processAndUploadFile(file) {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         
-        // Buscar hoja por nombre aproximado (flexible)
         const sheetName = workbook.SheetNames.find(n => /working\s*pro[c]{1,2}ess/i.test(n));
         if (!sheetName) throw new Error('No se encontró la hoja "Working Process".');
         
         const arr = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
         
-        // 2. Escaneo Inteligente de Encabezados
+        // Escaneo de Encabezados
         let hIdx = -1;
-        // Buscamos en las primeras 20 filas
         for (let i = 0; i < Math.min(arr.length, 20); i++) {
             const r = arr[i].map(c => String(c).toLowerCase().trim());
-            // Condición: debe tener "fecha" y "cliente" en la misma fila
-            if (r.some(c => c.includes('fecha')) && r.some(c => c.includes('cliente'))) { 
-                hIdx = i; 
-                break; 
-            }
+            if (r.some(c => c.includes('fecha')) && r.some(c => c.includes('cliente'))) { hIdx = i; break; }
         }
-        if (hIdx === -1) throw new Error('No se detectaron los encabezados clave (Fecha, Cliente).');
+        if (hIdx === -1) throw new Error('Encabezados clave no encontrados.');
 
         const rawHeaders = arr[hIdx].map(h => String(h).trim().replace(/,/g, '').toLowerCase());
         
-        // Mapeo de columnas dinámico
         const cols = {
             fecha: rawHeaders.findIndex(h => h.includes('fecha')),
             cliente: rawHeaders.findIndex(h => h.includes('cliente')),
@@ -759,7 +693,6 @@ async function processAndUploadFile(file) {
             team: rawHeaders.findIndex(h => h.includes('team'))
         };
 
-        // Mapeo de Departamentos (Regex)
         const depts = [
             { p: /p[_\s]*art/i, n: CONFIG.DEPARTMENTS.ART }, 
             { p: /p[_\s]*sew/i, n: CONFIG.DEPARTMENTS.SEW },
@@ -775,36 +708,31 @@ async function processAndUploadFile(file) {
             if (m) deptCols.push({ idx: i, name: m.n }); 
         });
 
-        // 3. Procesamiento de Filas
         showLoading('Calculando diferencias...');
         const rows = arr.slice(hIdx + 1);
         let batchData = [];
         
-        // Variables para lógica "Fill-Down" (celdas vacías heredan valor anterior)
+        // Contexto Fill-Down
         let currentClient = "", currentContrato = "", currentStyle = "", currentTeam = "", currentDate = null;
 
         for (const r of rows) {
-            if (!r || r.every(c => !c)) continue; // Saltar filas vacías
+            if (!r || r.every(c => !c)) continue;
             
-            // A. Procesar Fecha (Excel Date Serial o String)
             if (cols.fecha >= 0 && r[cols.fecha]) { 
                 const v = r[cols.fecha]; 
                 let dObj = null;
                 if (typeof v === 'number') dObj = new Date((v - 25569) * 86400 * 1000);
                 else { const parsed = new Date(v); if (!isNaN(parsed.getTime())) dObj = parsed; }
-                
                 if (dObj) currentDate = new Date(Date.UTC(dObj.getFullYear(), dObj.getMonth(), dObj.getDate()));
             }
             
-            // B. Procesar Textos
             if (cols.cliente >= 0 && r[cols.cliente]) currentClient = String(r[cols.cliente]).trim();
             if (cols.codigo >= 0 && r[cols.codigo]) currentContrato = String(r[cols.codigo]).trim();
             if (cols.estilo >= 0 && r[cols.estilo]) currentStyle = String(r[cols.estilo]).trim();
             if (cols.team >= 0 && r[cols.team]) currentTeam = String(r[cols.team]).trim();
 
-            if (!currentClient || !currentContrato) continue; // Datos mínimos requeridos
+            if (!currentClient || !currentContrato) continue;
 
-            // C. Determinar Cantidad y Departamento (Prioridad inversa: último depto encontrado gana)
             let qty = 0, dept = CONFIG.DEPARTMENTS.NONE;
             for (let i = deptCols.length - 1; i >= 0; i--) {
                 const val = r[deptCols[i].idx];
@@ -814,13 +742,12 @@ async function processAndUploadFile(file) {
                 }
             }
 
-            // D. Generar ID Único
             const timePart = currentDate ? currentDate.getTime() : 'nodate';
             const oid = `${currentClient}_${currentContrato}_${timePart}_${currentStyle}`;
             const fdISO = currentDate ? currentDate.toISOString() : null;
 
-            // E. Lógica Diferencial (CRÍTICO)
-            // Comparamos con masterOrdersMap (cargado en Módulo 2)
+            // --- OPTIMIZACIÓN C: ESCRITURA DIFERENCIAL ---
+            // Comparamos con lo que ya tenemos en memoria (masterOrdersMap)
             const existing = masterOrdersMap.get(oid);
             
             let hasChanges = true;
@@ -830,7 +757,7 @@ async function processAndUploadFile(file) {
                     existing.departamento === dept && 
                     existing.fechaDespacho === fdISO &&
                     existing.teamName === currentTeam) {
-                    hasChanges = false; // Datos idénticos, ignorar
+                    hasChanges = false; // Datos idénticos, no subir
                 }
             }
 
@@ -844,18 +771,18 @@ async function processAndUploadFile(file) {
                     teamName: currentTeam,
                     departamento: dept,
                     cantidad: qty,
-                    lastModified: new Date().toISOString()
+                    lastModified: new Date().toISOString() // Timestamp para sincronización futura
                 });
             }
         }
 
         if (batchData.length === 0) {
-            showCustomAlert('El archivo se analizó pero no hay datos nuevos.', 'success');
+            showCustomAlert('El archivo se analizó pero no hay cambios nuevos para subir.', 'success');
             hideLoading();
             return;
         }
 
-        // 4. Subida a la Nube
+        // Subida en lotes de solo lo que cambió
         await uploadBatchesToFirestore(batchData);
 
     } catch (e) { 
@@ -867,10 +794,10 @@ async function processAndUploadFile(file) {
 }
 
 async function uploadBatchesToFirestore(dataArray) {
-    const BATCH_SIZE = 400; // Límite seguro de Firestore (max 500)
+    const BATCH_SIZE = 400; 
     const totalBatches = Math.ceil(dataArray.length / BATCH_SIZE);
     
-    showLoading(`Actualizando ${dataArray.length} registros...`);
+    showLoading(`Actualizando ${dataArray.length} registros en la nube...`);
     
     for (let i = 0; i < totalBatches; i++) {
         const start = i * BATCH_SIZE;
@@ -890,95 +817,14 @@ async function uploadBatchesToFirestore(dataArray) {
     showCustomAlert(`¡Éxito! Se actualizaron ${dataArray.length} órdenes.`, 'success');
     document.getElementById('uploadSection').style.display = 'none';
     
-    // Recargar datos locales para reflejar los cambios inmediatamente
-    if (typeof loadMasterOrders === 'function') loadMasterOrders();
+    // Recargar datos locales para reflejar los cambios
+    loadMasterOrders();
 }
 
-// 3.2 OPERACIONES BATCH (PLAN SEMANAL)
-
-// Cargar Órdenes Urgentes al Plan
-window.loadUrgentOrdersToPlan = async () => {
-    const wid = document.getElementById('view-workPlanWeekSelector').value;
-    if (!wid) return showCustomAlert('Selecciona una semana primero', 'error');
-    
-    // Filtro: Solo Arte + (Atrasadas O Por Vencer)
-    const urgents = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART && (o.isLate || o.isAboutToExpire));
-    
-    if (urgents.length === 0) return showCustomAlert('No hay órdenes urgentes pendientes.', 'info');
-    
-    showConfirmModal(`¿Cargar ${urgents.length} órdenes urgentes al plan ${wid}?`, async () => {
-        await safeFirestoreOperation(async () => {
-            const batch = db_firestore.batch();
-            let count = 0;
-            // Limitamos a 450 para seguridad del batch
-            urgents.slice(0, 450).forEach(o => {
-                const pid = `${o.orderId}_${wid}`;
-                const ref = db_firestore.collection('weeklyPlan').doc(pid);
-                batch.set(ref, {
-                    planEntryId: pid, orderId: o.orderId, weekIdentifier: wid, 
-                    designer: o.designer || '', cliente: o.cliente || '', 
-                    codigoContrato: o.codigoContrato || '', estilo: o.estilo || '',
-                    fechaDespacho: o.fechaDespacho ? o.fechaDespacho.toISOString() : null,
-                    cantidad: o.cantidad || 0, childPieces: o.childPieces || 0, 
-                    isLate: !!o.isLate, isAboutToExpire: !!o.isAboutToExpire,
-                    addedAt: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION
-                }, { merge: true });
-                count++;
-            });
-            await batch.commit();
-            
-            // Recargar vista si está activa
-            if(typeof generateWorkPlan === 'function') generateWorkPlan(); 
-            return true;
-        }, `Cargando urgentes...`, `¡Éxito! ${urgents.length} órdenes agregadas.`);
-    });
-};
-
-// Cargar Selección Manual al Plan
-window.addSelectedToWorkPlan = async () => {
-    if (selectedOrders.size === 0) return showCustomAlert('Selecciona órdenes primero', 'info');
-    
-    // Calculamos semana actual automáticamente
-    const wid = getWeekIdentifierString(new Date());
-
-    await safeFirestoreOperation(async () => {
-        const batch = db_firestore.batch();
-        let count = 0;
-        
-        for (let id of selectedOrders) {
-            const o = allOrders.find(x => x.orderId === id);
-            // Solo permitimos órdenes que estén actualmente en ARTE
-            if (o && o.departamento === CONFIG.DEPARTMENTS.ART) {
-                const pid = `${o.orderId}_${wid}`;
-                const ref = db_firestore.collection('weeklyPlan').doc(pid);
-                batch.set(ref, {
-                    planEntryId: pid, orderId: o.orderId, weekIdentifier: wid, 
-                    designer: o.designer || '', cliente: o.cliente, 
-                    codigoContrato: o.codigoContrato, estilo: o.estilo,
-                    fechaDespacho: o.fechaDespacho ? o.fechaDespacho.toISOString() : null,
-                    cantidad: o.cantidad, childPieces: o.childPieces, 
-                    isLate: !!o.isLate, isAboutToExpire: !!o.isAboutToExpire,
-                    addedAt: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION
-                }, { merge: true });
-                count++;
-            }
-        }
-        
-        if (count === 0) throw new Error("Ninguna orden válida seleccionada (deben estar en P_Art).");
-        await batch.commit();
-        
-        clearSelection(); // Limpiar UI
-        if(document.getElementById('workPlanView').style.display === 'block') generateWorkPlan();
-        
-        return true;
-    }, 'Agregando al plan...', `${count} órdenes agregadas a la semana actual.`);
-};
-
 // ======================================================
-// ===== MÓDULO 4: FILTROS INTELIGENTES Y RENDERIZADO UI =====
+// ===== 7. FILTRADO OPTIMIZADO (SPRINT 1 - CACHÉ) =====
 // ======================================================
 
-// 4.1 MOTOR DE FILTRADO (SMART SEARCH)
 function getFilteredOrders() {
     const currentFilterKey = JSON.stringify({
         s: currentSearch.trim().toLowerCase(),
@@ -987,15 +833,14 @@ function getFilteredOrders() {
     });
 
     const now = Date.now();
-    // Cache de corta duración (3s) para evitar recálculos en tipeo rápido
-    if (filteredCache.key === currentFilterKey && (now - filteredCache.timestamp < 3000)) {
+    if (filteredCache.key === currentFilterKey && (now - filteredCache.timestamp < 2000)) {
         return filteredCache.results;
     }
 
     let res = allOrders;
     const s = currentSearch.toLowerCase();
     
-    // 1. Búsqueda Global por Texto
+    // 1. Búsqueda por Texto (Global)
     if (s) {
         res = res.filter(o => 
             (o.cliente || '').toLowerCase().includes(s) || 
@@ -1008,20 +853,18 @@ function getFilteredOrders() {
     // 2. Filtro de Cliente
     if (currentClientFilter) res = res.filter(o => o.cliente === currentClientFilter);
     
-    // 3. Lógica de Departamento Inteligente (TU SOLICITUD)
+    // 3. Lógica de Departamento Inteligente (MEJORA)
     if (currentDepartamentoFilter) {
-        // A. Prioridad 1: Si elegiste un depto explícito, se respeta siempre.
+        // A. Si el usuario eligió un depto específico, respetarlo siempre
         res = res.filter(o => o.departamento === currentDepartamentoFilter);
     } else if (s !== '') {
-        // B. Prioridad 2: Si estás BUSCANDO texto y NO elegiste depto...
-        // ... Buscamos en TODOS los departamentos (no filtramos nada).
+        // B. Si el usuario está BUSCANDO (y no eligió depto), buscar en TODOS lados.
+        // (No aplicamos ningún filtro de departamento aquí)
     } else {
-        // C. Prioridad 3: Si NO buscas y NO eliges depto...
-        // ... Mostramos solo ARTE por defecto para no saturar la vista.
+        // C. Si NO busca y NO elige depto, mostrar solo ARTE por defecto
         res = res.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART); 
     }
     
-    // 4. Resto de Filtros
     if (currentDesignerFilter) res = res.filter(o => o.designer === currentDesignerFilter);
     if (currentCustomStatusFilter) res = res.filter(o => o.customStatus === currentCustomStatusFilter);
     
@@ -1029,46 +872,147 @@ function getFilteredOrders() {
     else if (currentFilter === 'veryLate') res = res.filter(o => o.isVeryLate);
     else if (currentFilter === 'aboutToExpire') res = res.filter(o => o.isAboutToExpire);
     
-    if(currentDateFrom) { const df = new Date(currentDateFrom); res = res.filter(o => o.fechaDespacho && o.fechaDespacho >= df); }
-    if(currentDateTo) { const dt = new Date(currentDateTo); res = res.filter(o => o.fechaDespacho && o.fechaDespacho <= dt); }
+    if(currentDateFrom) res = res.filter(o => o.fechaDespacho && o.fechaDespacho >= new Date(currentDateFrom));
+    if(currentDateTo) res = res.filter(o => o.fechaDespacho && o.fechaDespacho <= new Date(currentDateTo));
 
-    // 5. Ordenamiento
     res.sort((a, b) => {
         let va = a[sortConfig.key], vb = b[sortConfig.key];
-        if (sortConfig.key === 'date') { 
-            va = a.fechaDespacho ? a.fechaDespacho.getTime() : 0; 
-            vb = b.fechaDespacho ? b.fechaDespacho.getTime() : 0; 
-        }
+        if (sortConfig.key === 'date') { va = a.fechaDespacho ? a.fechaDespacho.getTime() : 0; vb = b.fechaDespacho ? b.fechaDespacho.getTime() : 0; }
         if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
         return (va < vb ? -1 : 1) * (sortConfig.direction === 'asc' ? 1 : -1);
     });
     
-    // Actualizar caché
     filteredCache = { key: currentFilterKey, results: res, timestamp: now };
     return res;
 }
 
-// 4.2 NAVEGACIÓN (ROUTER)
+// ======================================================
+// ===== 8. OPERACIONES BATCH & PLAN (BLINDADAS) =====
+// ======================================================
+
+function confirmAutoCompleteBatch() {
+    if (document.body.classList.contains('processing-batch') || autoCompleteBatchWrites.length === 0) return;
+    const count = autoCompleteBatchWrites.length;
+    const examples = autoCompleteBatchWrites.slice(0, 3).map(w => w.displayCode).join(', ');
+    const message = `Se han detectado ${count} órdenes que salieron de Arte (Ej: ${examples}...). \n\n¿Marcar como 'Completada'?`;
+
+    showConfirmModal(message, () => ejecutarAutoCompleteBatch());
+}
+
+async function ejecutarAutoCompleteBatch() {
+    if (!usuarioActual || autoCompleteBatchWrites.length === 0) return;
+    document.body.classList.add('processing-batch');
+    
+    await safeFirestoreOperation(async () => {
+        const batch = db_firestore.batch();
+        const user = usuarioActual.displayName;
+        
+        autoCompleteBatchWrites.slice(0, 400).forEach(w => {
+            const ref = db_firestore.collection('assignments').doc(w.orderId);
+            batch.set(ref, w.data, { merge: true });
+            const hRef = db_firestore.collection('history').doc();
+            batch.set(hRef, { orderId: w.orderId, change: w.history[0], user, timestamp: new Date().toISOString() });
+            autoCompletedOrderIds.add(w.orderId);
+        });
+
+        await batch.commit();
+        autoCompleteBatchWrites = []; 
+        return true;
+    }, 'Sincronizando estados...', 'Estados actualizados correctamente.');
+    
+    document.body.classList.remove('processing-batch');
+}
+
+window.loadUrgentOrdersToPlan = async () => {
+    const wid = document.getElementById('view-workPlanWeekSelector').value;
+    if (!wid) return showCustomAlert('Selecciona una semana primero', 'error');
+    
+    const urgents = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART && (o.isLate || o.isAboutToExpire));
+    if (urgents.length === 0) return showCustomAlert('No hay órdenes urgentes', 'info');
+    
+    showConfirmModal(`Cargar ${urgents.length} órdenes urgentes al plan ${wid}?`, async () => {
+        await safeFirestoreOperation(async () => {
+            const batch = db_firestore.batch();
+            let count = 0;
+            urgents.slice(0, 450).forEach(o => {
+                const pid = `${o.orderId}_${wid}`;
+                const ref = db_firestore.collection('weeklyPlan').doc(pid);
+                batch.set(ref, {
+                    planEntryId: pid, orderId: o.orderId, weekIdentifier: wid, designer: o.designer || '',
+                    cliente: o.cliente || '', codigoContrato: o.codigoContrato || '', estilo: o.estilo || '',
+                    fechaDespacho: o.fechaDespacho ? o.fechaDespacho.toISOString() : null,
+                    cantidad: o.cantidad || 0, childPieces: o.childPieces || 0, isLate: !!o.isLate, isAboutToExpire: !!o.isAboutToExpire,
+                    addedAt: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION
+                }, { merge: true });
+                count++;
+            });
+            await batch.commit();
+            generateWorkPlan(); 
+            return true;
+        }, `Cargando urgentes...`, `¡Éxito! ${urgents.length} órdenes agregadas.`);
+    });
+};
+
+window.addSelectedToWorkPlan = async () => {
+    if (selectedOrders.size === 0) return showCustomAlert('Selecciona órdenes primero', 'info');
+    const wid = getWeekIdentifierString(new Date());
+
+    await safeFirestoreOperation(async () => {
+        const batch = db_firestore.batch();
+        let count = 0;
+        for (let id of selectedOrders) {
+            const o = allOrders.find(x => x.orderId === id);
+            if (o && o.departamento === CONFIG.DEPARTMENTS.ART) {
+                const pid = `${o.orderId}_${wid}`;
+                const ref = db_firestore.collection('weeklyPlan').doc(pid);
+                batch.set(ref, {
+                    planEntryId: pid, orderId: o.orderId, weekIdentifier: wid, designer: o.designer || '',
+                    cliente: o.cliente, codigoContrato: o.codigoContrato, estilo: o.estilo,
+                    fechaDespacho: o.fechaDespacho ? o.fechaDespacho.toISOString() : null,
+                    cantidad: o.cantidad, childPieces: o.childPieces, isLate: !!o.isLate, isAboutToExpire: !!o.isAboutToExpire,
+                    addedAt: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION
+                }, { merge: true });
+                count++;
+            }
+        }
+        if (count === 0) throw new Error("Ninguna orden válida (deben estar en P_Art).");
+        await batch.commit();
+        clearSelection(); 
+        if(document.getElementById('workPlanView').style.display === 'block') generateWorkPlan();
+        return true;
+    }, 'Agregando al plan...', `${selectedOrders.size} órdenes procesadas.`);
+};
+// ======================================================
+// ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER UI - BUG #6 FIX) =====
+// ======================================================
+
 function navigateTo(viewId) {
     // Protección: No navegar si no hay datos (salvo para ir a cargar archivo)
     if (!isExcelLoaded && viewId !== 'uploadSection') return;
 
-    // Ocultar todas las vistas
+    // 1. Ocultar todas las vistas
     document.querySelectorAll('.main-view').forEach(el => el.style.display = 'none');
     
-    // Mostrar vista objetivo
+    // 2. Mostrar vista objetivo
     const target = document.getElementById(viewId);
-    if (target) { target.style.display = 'block'; window.scrollTo(0, 0); }
+    if (target) {
+        target.style.display = 'block';
+        window.scrollTo(0, 0);
+    }
 
-    // Actualizar estilos del menú lateral
+    // 3. Resetear estilos del menú
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.classList.remove('active-nav', 'bg-blue-50', 'text-blue-700', 'border-l-4', 'border-blue-600', 'font-bold');
         btn.classList.add('text-slate-500'); 
         const icon = btn.querySelector('i');
-        // Limpiar colores específicos
-        if(icon) { icon.className = icon.className.replace(/text-(blue|pink|orange|purple|green)-[0-9]+/g, '').trim(); icon.classList.add('text-slate-400'); }
+        if(icon) {
+            // Limpiar colores específicos previos
+            icon.className = icon.className.replace(/text-(blue|pink|orange|purple|green)-[0-9]+/g, '').trim();
+            icon.classList.add('text-slate-400');
+        }
     });
 
+    // 4. Activar botón actual
     const activeBtn = document.getElementById('nav-' + viewId);
     if (activeBtn) {
         activeBtn.classList.add('active-nav', 'bg-blue-50', 'text-blue-700', 'border-l-4', 'border-blue-600', 'font-bold');
@@ -1076,37 +1020,56 @@ function navigateTo(viewId) {
         const icon = activeBtn.querySelector('i');
         if (icon) {
             icon.classList.remove('text-slate-400');
-            // Asignar color según la vista
-            const colors = { 'dashboard': 'blue-600', 'kanbanView': 'pink-500', 'workPlanView': 'orange-500', 'designerMetricsView': 'purple-500', 'departmentMetricsView': 'green-500' };
-            if(colors[viewId]) icon.classList.add(`text-${colors[viewId]}`);
+            if (viewId === 'dashboard') icon.classList.add('text-blue-600');
+            if (viewId === 'kanbanView') icon.classList.add('text-pink-500');
+            if (viewId === 'workPlanView') icon.classList.add('text-orange-500');
+            if (viewId === 'designerMetricsView') icon.classList.add('text-purple-500');
+            if (viewId === 'departmentMetricsView') icon.classList.add('text-green-500');
         }
     }
 
-    // Inicializar lógica específica de la vista
-    if (viewId === 'dashboard') updateDashboard();
-    else if (viewId === 'kanbanView') { 
-        if(typeof updateKanbanDropdown === 'function') updateKanbanDropdown(); 
-        if(typeof updateKanban === 'function') updateKanban(); 
+    // 5. Inicializar lógica específica de la vista
+    if (viewId === 'dashboard') {
+        updateDashboard();
     } 
-    else if (viewId === 'workPlanView' && typeof generateWorkPlan === 'function') generateWorkPlan();
-    else if (viewId === 'designerMetricsView' && typeof populateMetricsSidebar === 'function') populateMetricsSidebar();
-    else if (viewId === 'departmentMetricsView' && typeof generateDepartmentMetrics === 'function') generateDepartmentMetrics();
+    else if (viewId === 'kanbanView') {
+        // BUG #6 FIX: Verificar existencia antes de llamar
+        if (typeof updateKanbanDropdown === 'function') updateKanbanDropdown(); 
+        if (typeof updateKanban === 'function') updateKanban(); 
+    } 
+    else if (viewId === 'workPlanView') {
+        if (typeof generateWorkPlan === 'function') generateWorkPlan();
+    }
+    else if (viewId === 'designerMetricsView') {
+        if (typeof populateMetricsSidebar === 'function') populateMetricsSidebar();
+    }
+    else if (viewId === 'departmentMetricsView') {
+        if (typeof generateDepartmentMetrics === 'function') generateDepartmentMetrics();
+    }
     
-    // Limpieza de memoria (Gráficos) al salir de vistas de análisis
-    if (!['designerMetricsView', 'departmentMetricsView'].includes(viewId) && typeof destroyAllCharts === 'function') destroyAllCharts();
+    // 6. Limpieza de memoria (Gráficos)
+    if (viewId !== 'designerMetricsView' && viewId !== 'departmentMetricsView') {
+        if (typeof destroyAllCharts === 'function') destroyAllCharts();
+    }
 }
 
-// 4.3 RENDERIZADO DEL DASHBOARD
+// ======================================================
+// ===== 10. RENDERIZADO UI (DASHBOARD & TABLAS) =====
+// ======================================================
+
 function updateDashboard() {
     if (!isExcelLoaded) return;
     
-    // Filtrar para estadísticas (Solo Arte se usa para los widgets superiores)
+    if (needsRecalculation && typeof recalculateChildPieces === 'function') {
+        recalculateChildPieces();
+    }
+    
     const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     const stats = calculateStats(artOrders);
     
-    // Actualizar Widgets Numéricos
     if(document.getElementById('statTotal')) document.getElementById('statTotal').textContent = artOrders.length;
     
+    // Protección contra NaN
     const totalPiezas = artOrders.reduce((s, o) => s + (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0), 0);
     if(document.getElementById('statTotalPieces')) document.getElementById('statTotalPieces').textContent = totalPiezas.toLocaleString();
     
@@ -1114,7 +1077,6 @@ function updateDashboard() {
     if(document.getElementById('statExpiring')) document.getElementById('statExpiring').textContent = stats.aboutToExpire;
     if(document.getElementById('statOnTime')) document.getElementById('statOnTime').textContent = stats.onTime;
     
-    // Calcular órdenes de "Esta Semana"
     const thisWeekCount = artOrders.filter(o => {
         if (!o.fechaDespacho) return false;
         const today = new Date(); today.setHours(0,0,0,0);
@@ -1126,12 +1088,11 @@ function updateDashboard() {
     updateAlerts(stats);
     updateWidgets(artOrders);
     
-    // Actualizar Dropdowns solo si están vacíos
+    // Solo actualizar dropdowns si es necesario (Optimización)
     if(document.getElementById('clientFilter') && document.getElementById('clientFilter').children.length <= 1) {
         populateFilterDropdowns();
     }
     
-    // Renderizar la Tabla Principal
     updateTable();
 }
 
@@ -1148,50 +1109,95 @@ function calculateStats(orders) {
 function updateAlerts(stats) {
     const container = document.getElementById('notif-system');
     if (!container) return;
+
     let html = '';
-    if (stats.veryLate > 0) html += `<div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800"><div class="mt-1 text-red-500"><i class="fa-solid fa-circle-exclamation"></i></div><div><p class="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-red-600">Muy Atrasadas (>7 días)</p><p class="text-[10px] text-slate-500">${stats.veryLate} órdenes requieren atención</p></div></div>`;
-    if (stats.aboutToExpire > 0) html += `<div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800"><div class="mt-1 text-yellow-500"><i class="fa-solid fa-stopwatch"></i></div><div><p class="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-yellow-600">Por Vencer (≤2 días)</p><p class="text-[10px] text-slate-500">${stats.aboutToExpire} órdenes próximas</p></div></div>`;
+    if (stats.veryLate > 0) {
+        html += `
+        <div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800">
+            <div class="mt-1 text-red-500"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <div>
+                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-red-600 dark:group-hover:text-red-400">Muy Atrasadas (>7 días)</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">${stats.veryLate} órdenes requieren atención inmediata</p>
+            </div>
+        </div>`;
+    }
+    if (stats.aboutToExpire > 0) {
+        html += `
+        <div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800">
+            <div class="mt-1 text-yellow-500"><i class="fa-solid fa-stopwatch"></i></div>
+            <div>
+                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-yellow-600 dark:group-hover:text-yellow-400">Por Vencer (≤2 días)</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">${stats.aboutToExpire} órdenes próximas a vencer</p>
+            </div>
+        </div>`;
+    }
+    
     container.innerHTML = html;
     if(typeof updateTotalBadge === 'function') updateTotalBadge();
 }
 
 function updateWidgets(artOrders) {
-    // Top Clientes
+    // 1. Top Clientes
     const clientCounts = {};
     artOrders.forEach(o => clientCounts[o.cliente] = (clientCounts[o.cliente] || 0) + 1);
     const topClients = Object.entries(clientCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    const cr = document.getElementById('clientReport');
-    if (cr) cr.innerHTML = topClients.map(([c, n], i) => `<div class="flex justify-between py-2 border-b border-slate-50 dark:border-slate-700 last:border-0 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-2 rounded transition"><span class="text-slate-600 dark:text-slate-300 truncate w-40 font-medium" title="${c}">${i+1}. ${c}</span><span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">${n}</span></div>`).join('');
+    
+    const clientReport = document.getElementById('clientReport');
+    if (clientReport) {
+        clientReport.innerHTML = topClients.map(([c, n], i) => `
+            <div class="flex justify-between py-2 border-b border-slate-50 dark:border-slate-700 last:border-0 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-2 rounded transition">
+                <span class="text-slate-600 dark:text-slate-300 truncate w-40 font-medium" title="${c}">${i+1}. ${c}</span>
+                <span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">${n}</span>
+            </div>`).join('');
+    }
 
-    // Carga Trabajo
-    const workload = {}; let totalWorkload = 0;
+    // 2. Carga de Trabajo (Soporte Array Excluidos)
+    const workload = {};
+    let totalWorkload = 0;
+    
     artOrders.forEach(o => {
         if (o.designer) {
             const pieces = (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0);
             workload[o.designer] = (workload[o.designer] || 0) + pieces;
-            if (!CONFIG.EXCLUDED_DESIGNERS.includes(o.designer)) totalWorkload += pieces;
+            
+            // FILTRO DE EXCLUIDOS MEJORADO (Array)
+            if (!CONFIG.EXCLUDED_DESIGNERS.includes(o.designer)) {
+                totalWorkload += pieces;
+            }
         }
     });
     
     if(document.getElementById('workloadTotal')) document.getElementById('workloadTotal').textContent = totalWorkload.toLocaleString() + ' pzs';
     
-    const wl = document.getElementById('workloadList');
-    if (wl) {
-        wl.innerHTML = Object.entries(workload).sort((a, b) => b[1] - a[1]).map(([designer, pieces]) => {
-            const isExcluded = CONFIG.EXCLUDED_DESIGNERS.includes(designer);
-            const pct = (totalWorkload > 0 && !isExcluded) ? ((pieces / totalWorkload) * 100).toFixed(1) : 0;
-            return `<div class="mb-3 ${isExcluded ? 'opacity-50' : ''}"><div class="flex justify-between text-xs mb-1"><span class="text-slate-700 dark:text-slate-300 font-bold truncate w-32">${designer} ${isExcluded ? '(Excl)' : ''}</span><span class="text-slate-500 dark:text-slate-400">${pieces.toLocaleString()} ${!isExcluded ? `(${pct}%)` : ''}</span></div><div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full" style="width: ${isExcluded ? 0 : pct}%"></div></div></div>`;
-        }).join('');
+    const workloadList = document.getElementById('workloadList');
+    if (workloadList) {
+        workloadList.innerHTML = Object.entries(workload)
+            .sort((a, b) => b[1] - a[1])
+            .map(([designer, pieces]) => {
+                const isExcluded = CONFIG.EXCLUDED_DESIGNERS.includes(designer);
+                const pct = (totalWorkload > 0 && !isExcluded) ? ((pieces / totalWorkload) * 100).toFixed(1) : 0;
+                
+                return `
+                <div class="mb-3 ${isExcluded ? 'opacity-50' : ''}">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-700 dark:text-slate-300 font-bold truncate w-32">${designer} ${isExcluded ? '(Excl)' : ''}</span>
+                        <span class="text-slate-500 dark:text-slate-400">${pieces.toLocaleString()} ${!isExcluded ? `(${pct}%)` : ''}</span>
+                    </div>
+                    <div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full" style="width: ${isExcluded ? 0 : pct}%"></div>
+                    </div>
+                </div>`;
+            }).join('');
     }
 }
 
-// 4.4 RENDERIZADO DE TABLA (HTML)
 function updateTable() {
+    if (typeof getFilteredOrders !== 'function') return;
+    
     const filtered = getFilteredOrders();
     const start = (currentPage - 1) * rowsPerPage;
     paginatedOrders = filtered.slice(start, start + rowsPerPage);
     
-    // Actualizar contadores
     if(document.getElementById('resultCount')) document.getElementById('resultCount').textContent = filtered.length;
     const totalTable = filtered.reduce((s, o) => s + (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0), 0);
     if(document.getElementById('resultPieces')) document.getElementById('resultPieces').textContent = totalTable.toLocaleString();
@@ -1200,7 +1206,7 @@ function updateTable() {
     if (!tbody) return;
 
     if (paginatedOrders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="13" class="text-center py-12 text-slate-400 italic">No se encontraron órdenes.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" class="text-center py-12 text-slate-400 italic">No se encontraron órdenes con los filtros actuales.</td></tr>`;
     } else {
         tbody.innerHTML = paginatedOrders.map(order => {
             const rowClass = order.isVeryLate ? 'very-late' : order.isLate ? 'late' : order.isAboutToExpire ? 'expiring' : '';
@@ -1208,141 +1214,159 @@ function updateTable() {
             const internalBadge = getCustomStatusBadge(order.customStatus);
             const hasChild = order.childPieces > 0 ? `<span class="ml-1 text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 rounded-full font-bold border border-blue-200 dark:border-blue-800">+${order.childPieces}</span>` : '';
             const isArt = order.departamento === CONFIG.DEPARTMENTS.ART;
-            
-            // Badges visuales
-            const deptBadge = order.departamento ? `<span class="px-3 py-1 rounded-full text-xs font-medium border inline-block shadow-sm text-center whitespace-nowrap ${order.departamento === CONFIG.DEPARTMENTS.ART ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' : 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600'}">${escapeHTML(order.departamento)}</span>` : '-';
-            const designerBadge = order.designer ? `<span class="px-3 py-1 rounded-full text-xs font-medium border inline-block shadow-sm text-center whitespace-nowrap bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">${escapeHTML(order.designer)}</span>` : '<span class="text-slate-400 text-xs italic">--</span>';
+
+            const pillBase = "px-3 py-1 rounded-full text-xs font-medium border inline-block shadow-sm text-center whitespace-nowrap";
+            let deptBadge = '-';
+            if (order.departamento) {
+                const isPArt = order.departamento === CONFIG.DEPARTMENTS.ART;
+                const deptClass = isPArt ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' : 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600';
+                deptBadge = `<span class="${pillBase} ${deptClass}">${escapeHTML(order.departamento)}</span>`;
+            }
+
+            let designerBadge = '<span class="text-slate-400 text-xs italic">--</span>';
+            if (order.designer) {
+                designerBadge = `<span class="${pillBase} bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">${escapeHTML(order.designer)}</span>`;
+            }
 
             return `
             <tr class="${rowClass} hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer border-b border-slate-50 dark:border-slate-700 last:border-b-0" onclick="openAssignModal('${order.orderId}')">
                 <td class="px-3 py-2.5 text-center" onclick="event.stopPropagation()">
-                    ${isArt ? `<input type="checkbox" class="w-4 h-4 cursor-pointer" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId) ? 'checked' : ''}>` : ''}
+                    ${isArt ? `<input type="checkbox" class="rounded border-slate-300 dark:border-slate-500 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId) ? 'checked' : ''}>` : ''}
                 </td>
-                <td class="px-3 py-2.5">${statusBadge}</td>
-                <td class="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">${formatDate(order.fechaDespacho)}</td>
+                <td class="px-3 py-2.5" data-label="Estado">${statusBadge}</td>
+                <td class="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
                 <td class="px-3 py-2.5 font-medium text-slate-900 dark:text-white truncate max-w-[160px]" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
                 <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">${escapeHTML(order.codigoContrato)}</td>
-                <td class="px-3 py-2.5 text-slate-600 dark:text-slate-300 truncate max-w-[160px]">${escapeHTML(order.estilo)}</td>
-                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 dark:text-slate-400 text-[11px] truncate max-w-[160px]">${escapeHTML(order.teamName)}</td>
+                <td class="px-3 py-2.5 text-slate-600 dark:text-slate-300 truncate max-w-[160px]" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 dark:text-slate-400 text-[11px] max-w-[160px] truncate" title="${escapeHTML(order.teamName)}">${escapeHTML(order.teamName)}</td>
                 <td class="px-3 py-2.5 hidden md:table-cell">${deptBadge}</td>
                 <td class="px-3 py-2.5">${designerBadge}</td>
                 <td class="px-3 py-2.5">${internalBadge}</td>
                 <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">${order.receivedDate ? formatDate(new Date(order.receivedDate + 'T00:00:00')) : '-'}</td>
-                <td class="px-3 py-2.5 text-right"><div class="flex items-center justify-end gap-1 font-bold text-slate-700 dark:text-slate-200">${(Number(order.cantidad)||0).toLocaleString()} ${hasChild}</div></td>
-                <td class="px-3 py-2.5 text-right"><i class="fa-solid fa-chevron-right text-slate-300 dark:text-slate-600 text-[10px]"></i></td>
+                <td class="px-3 py-2.5 text-right">
+                    <div class="flex items-center justify-end gap-1 font-bold text-slate-700 dark:text-slate-200">
+                        ${(Number(order.cantidad)||0).toLocaleString()} 
+                        ${hasChild}
+                    </div>
+                </td>
+                <td class="px-3 py-2.5 text-right">
+                    <i class="fa-solid fa-chevron-right text-slate-300 dark:text-slate-600 text-[10px]"></i>
+                </td>
             </tr>`;
         }).join('');
     }
     
-    // Actualizar estado del checkbox "Seleccionar Todo"
     const sa = document.getElementById('selectAll');
-    if (sa) { 
-        sa.checked = paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrders.has(o.orderId)); 
-        sa.indeterminate = !sa.checked && paginatedOrders.some(o => selectedOrders.has(o.orderId)); 
+    if (sa) {
+        const allChecked = paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrders.has(o.orderId));
+        sa.checked = allChecked;
+        sa.indeterminate = !allChecked && paginatedOrders.some(o => selectedOrders.has(o.orderId));
     }
     
-    // Barra flotante de selección múltiple
     const bar = document.getElementById('multiSelectBar');
-    if (selectedOrders.size > 0) { 
-        bar.classList.add('active'); 
-        document.getElementById('selectedCount').textContent = selectedOrders.size; 
-    } else { 
-        bar.classList.remove('active'); 
+    if (selectedOrders.size > 0) {
+        bar.classList.add('active');
+        document.getElementById('selectedCount').textContent = selectedOrders.size;
+    } else {
+        bar.classList.remove('active');
     }
     
     renderPagination();
 }
 
-function renderPagination() {
-    const totalPages = Math.ceil(getFilteredOrders().length / rowsPerPage);
-    const c = document.getElementById('paginationControls'); 
-    if (!c) return;
-    
-    let h = `<button onclick="changePage(${currentPage-1})" ${currentPage===1?'disabled':''} class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-600 dark:text-slate-300"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>`;
-    
-    let start = Math.max(1, currentPage - 2); 
-    let end = Math.min(totalPages, start + 4); 
-    if (end - start < 4) start = Math.max(1, end - 4);
-    
-    for (let i = start; i <= end; i++) {
-        h += `<button onclick="changePage(${i})" class="w-8 h-8 flex items-center justify-center border rounded-lg text-xs font-medium ${i === currentPage ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900 shadow-sm' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600'}">${i}</button>`;
-    }
-    
-    h += `<button onclick="changePage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''} class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-600 dark:text-slate-300"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>`;
-    c.innerHTML = h;
-}
 // ======================================================
-// ===== MÓDULO 5: GESTIÓN DE MODALES Y ACCIONES =====
+// ===== 11. MODALES Y ACCIONES (CON EMAIL LINKING) =====
 // ======================================================
 
-// 5.1 MODAL DE EDICIÓN / ASIGNACIÓN (CORREGIDO)
+window.loadChildOrders = async () => {
+    const list = document.getElementById('childOrdersList');
+    if(!list) return;
+    const children = firebaseChildOrdersMap.get(currentEditingOrderId) || [];
+    document.getElementById('childOrderCount').textContent = children.length;
+    
+    list.innerHTML = children.map(c => `
+        <div class="flex justify-between items-center bg-white dark:bg-slate-700 p-2 rounded border border-slate-200 dark:border-slate-600 shadow-sm text-xs">
+            <div><strong class="text-blue-600 dark:text-blue-400 block">${escapeHTML(c.childCode)}</strong><span class="text-slate-500 dark:text-slate-300">${c.cantidad} pzs</span></div>
+            <button class="btn-delete-child text-red-400 hover:text-red-600 p-1" data-child-id="${c.childOrderId}" data-child-code="${c.childCode}"><i class="fa-solid fa-trash"></i></button>
+        </div>`).join('') || '<p class="text-slate-400 italic text-xs p-2 text-center">No hay órdenes hijas.</p>';
+};
+
 window.openAssignModal = async (id) => {
     currentEditingOrderId = id;
     const o = allOrders.find(x => x.orderId === id);
     if (!o) return;
 
-    // A. Inyectar Datos Estáticos
+    // UI Estática
     document.getElementById('detailCliente').textContent = o.cliente || '-';
     document.getElementById('detailCodigo').textContent = o.codigoContrato || '-';
     document.getElementById('detailEstilo').textContent = o.estilo || '-';
     document.getElementById('detailFecha').textContent = formatDate(o.fechaDespacho);
-    
     const totalPcs = (Number(o.cantidad)||0) + (Number(o.childPieces)||0);
     document.getElementById('detailPiezas').textContent = `${(Number(o.cantidad)||0).toLocaleString()} (+${(Number(o.childPieces)||0)}) = ${totalPcs.toLocaleString()}`;
     
-    // B. Preparar Inputs Dinámicos
-    document.getElementById('modalStatus').value = o.customStatus || 'Bandeja';
-    
-    // Manejo seguro de fecha para el input type="date"
-    let dateVal = '';
-    if (o.receivedDate) {
-        // Si ya es YYYY-MM-DD
-        if (o.receivedDate.includes('-')) dateVal = o.receivedDate; 
-    } else {
-        dateVal = new Date().toISOString().split('T')[0];
+    // Inyección Selector Complejidad
+    const statusSelect = document.getElementById('modalStatus');
+    if (!document.getElementById('modalComplexityWrapper')) {
+        const wrapper = document.createElement('div');
+        wrapper.id = 'modalComplexityWrapper';
+        wrapper.innerHTML = `<label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Complejidad Visual</label>
+            <select id="modalComplexity" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500">
+                <option value="Baja">🟢 Baja (Básico)</option><option value="Media">🟡 Media (Estándar)</option><option value="Alta">🔴 Alta (Complejo)</option>
+            </select>`;
+        if(statusSelect?.parentNode?.parentNode) {
+            statusSelect.parentNode.parentNode.insertBefore(wrapper, statusSelect.parentNode.nextSibling);
+            statusSelect.closest('.grid')?.classList.replace('grid-cols-2', 'md:grid-cols-3');
+        }
     }
-    document.getElementById('modalReceivedDate').value = dateVal;
 
+    // Valores Inputs
+    document.getElementById('modalStatus').value = o.customStatus || 'Bandeja';
+    document.getElementById('modalReceivedDate').value = o.receivedDate || new Date().toISOString().split('T')[0];
     if(document.getElementById('modalComplexity')) document.getElementById('modalComplexity').value = o.complexity || 'Media';
 
-    // C. Lógica de Permisos (TU CORRECCIÓN AQUÍ)
+    // ============================================================
+    // CORRECCIÓN: Lógica de permisos de edición (Auto-Asignación)
+    // ============================================================
     const designerSelect = document.getElementById('modalDesigner');
     const container = designerSelect.parentNode;
     
-    // 1. Limpieza: Eliminar cualquier botón "Tomar/Bloqueado" previo
-    const oldBtn = document.getElementById('btn-self-assign');
-    if(oldBtn) oldBtn.remove();
+    // 1. Limpieza previa: Eliminar botones antiguos si existen
+    if(document.getElementById('btn-self-assign')) document.getElementById('btn-self-assign').remove();
     
-    // 2. Estado Base: Selector visible y habilitado
+    // 2. Estado Base: Mostrar SIEMPRE el select primero y habilitado
     designerSelect.style.display = 'block';
     designerSelect.disabled = false;
     designerSelect.value = o.designer || '';
 
-    // 3. Aplicar Restricciones SOLO si NO es Admin
+    // 3. Aplicar restricción SOLO si es diseñador Y NO es admin
     if (currentDesignerName && userRole !== 'admin') {
         
-        // Caso A: Orden ocupada por otro (BLOQUEO)
+        // A. Si la orden ya tiene dueño y no soy yo (BLOQUEADO)
         if (o.designer && o.designer !== 'Sin asignar' && o.designer !== currentDesignerName) {
             designerSelect.style.display = 'none';
-            container.insertAdjacentHTML('beforeend', `
-                <button id="btn-self-assign" class="w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600" disabled>
-                    <i class="fa-solid fa-lock"></i> Asignado a: ${escapeHTML(o.designer)}
-                </button>
-            `);
+            
+            const btn = document.createElement('button');
+            btn.id = 'btn-self-assign';
+            btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600';
+            btn.innerHTML = `<i class="fa-solid fa-lock"></i> Asignado a: ${o.designer}`;
+            btn.disabled = true;
+            container.appendChild(btn);
         } 
-        // Caso B: Orden es mía (LIBERAR)
+        // B. Si la orden es mía (LIBERAR)
         else if (o.designer === currentDesignerName) {
             designerSelect.style.display = 'none';
+            
             const btn = document.createElement('button');
             btn.id = 'btn-self-assign';
             btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
             btn.innerHTML = `<i class="fa-solid fa-user-xmark"></i> Liberar (Es mía)`;
             btn.onclick = () => { designerSelect.value = ''; saveAssignment(); };
             container.appendChild(btn);
-        } 
-        // Caso C: Orden libre (TOMAR)
+        }
+        // C. Si está libre (TOMAR)
         else {
             designerSelect.style.display = 'none';
+            
             const btn = document.createElement('button');
             btn.id = 'btn-self-assign';
             btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-green-50 text-green-600 border-green-200 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
@@ -1351,32 +1375,21 @@ window.openAssignModal = async (id) => {
             container.appendChild(btn);
         }
     }
-    // Si eres Admin, el código salta el bloque 'if' anterior y te deja el select libre.
-
-    // D. Cargar Historial
+    // Si soy ADMIN, se salta el bloque if anterior y muestra el select libremente.
+    
+    // Historial
     const h = firebaseHistoryMap.get(id) || [];
-    const histContainer = document.getElementById('modalHistory');
-    if (h.length === 0) {
-        histContainer.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-4">Sin historial.</p>';
-    } else {
-        histContainer.innerHTML = h.reverse().map(x => `
-            <div class="border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 mb-2">
-                <div class="flex justify-between items-center text-[10px] text-slate-400 mb-0.5">
-                    <span>${new Date(x.timestamp).toLocaleString()}</span>
-                    <span>${escapeHTML(x.user)}</span>
-                </div>
-                <div class="text-xs text-slate-600 dark:text-slate-300">${escapeHTML(x.change)}</div>
-            </div>`).join('');
-    }
+    document.getElementById('modalHistory').innerHTML = h.length ? h.reverse().map(x => `
+        <div class="border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 mb-2">
+            <div class="flex justify-between items-center text-[10px] text-slate-400 mb-0.5"><span>${new Date(x.timestamp).toLocaleString()}</span><span>${escapeHTML(x.user)}</span></div>
+            <div class="text-xs text-slate-600 dark:text-slate-300">${escapeHTML(x.change)}</div>
+        </div>`).join('') : '<p class="text-slate-400 italic text-xs text-center py-4">Sin historial.</p>';
 
-    // E. Cargar Sub-componentes
     if (typeof loadOrderComments === 'function') loadOrderComments(id);
     await loadChildOrders();
-    
     openModalById('assignModal');
 };
 
-// 5.2 GUARDAR ASIGNACIÓN
 window.saveAssignment = async () => {
     if (!currentEditingOrderId) return;
     const o = allOrders.find(x => x.orderId === currentEditingOrderId);
@@ -1389,87 +1402,66 @@ window.saveAssignment = async () => {
     const changes = []; 
     const data = {};
     
-    // Buscar Email para vinculación
+    // --- LÓGICA DE EMAIL VINCULADO ---
     let desEmail = null;
     if (desName && desName !== 'Sin asignar') {
-        firebaseDesignersMap.forEach(d => { if (d.name === desName) desEmail = d.email; });
+        // Buscar el email correspondiente al nombre seleccionado
+        firebaseDesignersMap.forEach(dData => { 
+            if (dData.name === desName) desEmail = dData.email; 
+        });
     }
 
-    // Detectar Cambios
+    // 1. Cambio de Diseñador
     if(o.designer !== desName) { 
         changes.push(`Diseñador: ${o.designer || 'N/A'} -> ${desName}`); 
         data.designer = desName; 
-        data.designerEmail = desEmail; 
-        
-        // Notificar al diseñador (si no se asignó él mismo)
+        data.designerEmail = desEmail; // <--- AQUÍ GUARDAMOS EL EMAIL EN LA BD
+
+        // Notificación
         if (desEmail && usuarioActual && usuarioActual.email !== desEmail) {
-            createNotification(desEmail, 'assign', 'Nueva Asignación', `${usuarioActual.displayName || 'Admin'} te asignó ${o.codigoContrato}`, currentEditingOrderId);
+            if(typeof createNotification === 'function') {
+                createNotification(desEmail, 'assign', 'Nueva Asignación', `${usuarioActual.displayName || 'Admin'} te asignó ${o.codigoContrato}`, currentEditingOrderId);
+            }
         }
     }
 
+    // 2. Cambio de Estado
     if(o.customStatus !== stat) { 
-        changes.push(`Estado: ${o.customStatus} -> ${stat}`); 
+        changes.push(`Estado: ${o.customStatus || 'N/A'} -> ${stat}`); 
         data.customStatus = stat; 
         if(stat === CONFIG.STATUS.COMPLETED) data.completedDate = new Date().toISOString(); 
     }
     
-    if(o.receivedDate !== rd) { 
-        changes.push(`Fecha Rx: ${rd}`); 
-        data.receivedDate = rd; 
-    }
+    if(o.receivedDate !== rd) { changes.push(`Fecha Rx: ${rd}`); data.receivedDate = rd; }
     
-    if((o.complexity || 'Media') !== comp) { 
-        changes.push(`Complejidad: ${comp}`); 
-        data.complexity = comp; 
+    // 3. Complejidad
+    if((o.complexity || 'Media') !== comp) {
+        changes.push(`Complejidad: ${o.complexity || 'Media'} -> ${comp}`);
+        data.complexity = comp;
+        o.complexity = comp; 
     }
     
     if(changes.length === 0) return showCustomAlert('Sin cambios', 'info');
 
-    // Guardar en Firestore
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
-        
+        // Guardamos nombre Y email
         batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), { 
-            ...data, 
-            lastModified: new Date().toISOString(), 
-            schemaVersion: CONFIG.DB_VERSION 
+            ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION 
         }, { merge: true });
         
         changes.forEach(c => {
             batch.set(db_firestore.collection('history').doc(), { 
-                orderId: currentEditingOrderId, 
-                change: c, 
-                user: usuarioActual.displayName, 
-                timestamp: new Date().toISOString() 
+                orderId: currentEditingOrderId, change: c, user: usuarioActual.displayName, timestamp: new Date().toISOString() 
             });
         });
-        
         await batch.commit();
     }, 'Guardando...', 'Guardado');
 
     if(ok) closeTopModal();
 };
 
-// 5.3 GESTIÓN DE ÓRDENES HIJAS
-window.loadChildOrders = async () => {
-    const list = document.getElementById('childOrdersList'); 
-    if(!list) return;
-    
-    const children = firebaseChildOrdersMap.get(currentEditingOrderId) || [];
-    document.getElementById('childOrderCount').textContent = children.length;
-    
-    list.innerHTML = children.map(c => `
-        <div class="flex justify-between items-center bg-white dark:bg-slate-700 p-2 rounded border border-slate-200 dark:border-slate-600 shadow-sm text-xs">
-            <div>
-                <strong class="text-blue-600 dark:text-blue-400 block">${escapeHTML(c.childCode)}</strong>
-                <span class="text-slate-500 dark:text-slate-300">${c.cantidad} pzs</span>
-            </div>
-            <button class="btn-delete-child text-red-400 hover:text-red-600 p-1" data-child-id="${c.childOrderId}" data-child-code="${c.childCode}">
-                <i class="fa-solid fa-trash"></i>
-            </button>
-        </div>`).join('') || '<p class="text-slate-400 italic text-xs p-2 text-center">No hay órdenes hijas.</p>';
-};
-
+// --- Funciones de soporte (Hijas, Batch, Equipo) se mantienen igual ---
 window.openAddChildModal = () => {
     const o = allOrders.find(x => x.orderId === currentEditingOrderId);
     document.getElementById('parentOrderInfo').textContent = `${o.cliente} - ${o.estilo}`;
@@ -1478,47 +1470,34 @@ window.openAddChildModal = () => {
     document.getElementById('childPieces').value = '';
     openModalById('addChildModal');
 };
-
-window.updateChildOrderCode = () => { 
-    const o = allOrders.find(x => x.orderId === currentEditingOrderId); 
-    if(o) document.getElementById('childOrderCode').value = `${o.codigoContrato}-${document.getElementById('childOrderNumber').value}`; 
+window.updateChildOrderCode = () => {
+    const o = allOrders.find(x => x.orderId === currentEditingOrderId);
+    if(o) document.getElementById('childOrderCode').value = `${o.codigoContrato}-${document.getElementById('childOrderNumber').value}`;
 };
-
 window.saveChildOrder = async () => {
     const o = allOrders.find(x => x.orderId === currentEditingOrderId);
     const num = document.getElementById('childOrderNumber').value;
     const pcs = parseInt(document.getElementById('childPieces').value);
-    
+    const date = document.getElementById('childDeliveryDate').value;
     if (!num || !pcs) return showCustomAlert('Datos incompletos', 'error');
-    
     const ok = await safeFirestoreOperation(async () => {
         const childId = `${o.orderId}_child_${Date.now()}`;
-        await db_firestore.collection('childOrders').doc(childId).set({ 
-            childOrderId: childId, 
-            parentOrderId: o.orderId, 
-            childCode: `${o.codigoContrato}-${num}`, 
-            cantidad: pcs, 
-            createdAt: new Date().toISOString() 
+        await db_firestore.collection('childOrders').doc(childId).set({
+            childOrderId: childId, parentOrderId: o.orderId, childCode: `${o.codigoContrato}-${num}`,
+            cantidad: pcs, fechaDespacho: date ? new Date(date) : (o.fechaDespacho || null), createdAt: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION
         });
     }, 'Creando...', 'Orden hija creada');
-    
     if(ok) closeTopModal();
 };
-
-window.deleteChildOrder = async (id, code) => { 
-    if (userRole !== 'admin') return showCustomAlert('Acceso denegado', 'error'); 
-    showConfirmModal(`¿Eliminar ${code}?`, async () => { 
-        await safeFirestoreOperation(() => db_firestore.collection('childOrders').doc(id).delete(), 'Eliminando...', 'Eliminada'); 
-    }); 
+window.deleteChildOrder = async (id, code) => {
+    if (userRole !== 'admin') return showCustomAlert('Acceso denegado', 'error');
+    showConfirmModal(`¿Eliminar ${code}?`, async () => { await safeFirestoreOperation(() => db_firestore.collection('childOrders').doc(id).delete(), 'Eliminando...', 'Eliminada'); });
 };
-
-// 5.4 ASIGNACIÓN MASIVA
 window.openMultiAssignModal = () => { 
     if (selectedOrders.size === 0) return showCustomAlert('Selecciona órdenes', 'info');
     document.getElementById('multiModalCount').textContent = selectedOrders.size;
     openModalById('multiAssignModal');
 };
-
 window.saveMultiAssignment = async () => {
     if (selectedOrders.size === 0) return;
     const d = document.getElementById('multiModalDesigner').value;
@@ -1526,6 +1505,7 @@ window.saveMultiAssignment = async () => {
     const r = document.getElementById('multiModalReceivedDate').value;
     const n = document.getElementById('multiModalNotes').value;
     
+    // Buscar email para asignación masiva
     let desEmail = null;
     if (d && d !== 'Sin asignar') {
         firebaseDesignersMap.forEach(dData => { if (dData.name === d) desEmail = dData.email; });
@@ -1536,12 +1516,10 @@ window.saveMultiAssignment = async () => {
         let c = 0;
         selectedOrders.forEach(id => {
             const data = { schemaVersion: CONFIG.DB_VERSION, lastModified: new Date().toISOString() };
-            if (d) { data.designer = d; data.designerEmail = desEmail; }
+            if (d) { data.designer = d; data.designerEmail = desEmail; } // Guardamos email también
             if (s) data.customStatus = s; 
-            if (r) data.receivedDate = r; 
-            if (n) data.notes = n; 
-            
-            if (Object.keys(data).length > 2) { // Si hay algo más que schema y lastModified
+            if (r) data.receivedDate = r; if (n) data.notes = n; 
+            if (Object.keys(data).length > 2) { 
                 batch.set(db_firestore.collection('assignments').doc(id), data, { merge: true }); 
                 c++; 
             }
@@ -1549,99 +1527,1025 @@ window.saveMultiAssignment = async () => {
         if(c > 0) await batch.commit();
         else throw new Error("Sin cambios seleccionados.");
     }, 'Aplicando...', 'Actualizado');
-    
     if(ok) { closeTopModal(); clearSelection(); }
 };
-
-// 5.5 GESTOR DE EQUIPO (ADMIN)
-window.openDesignerManager = () => { 
-    populateDesignerManagerModal(); 
-    openModalById('designerManagerModal'); 
-};
-
+window.openDesignerManager = () => { populateDesignerManagerModal(); openModalById('designerManagerModal'); };
 function populateDesignerManagerModal() {
     const l = document.getElementById('designerManagerList');
     l.innerHTML = firebaseDesignersMap.size === 0 ? '<p class="text-center text-slate-400 text-xs py-4">Sin diseñadores.</p>' : '';
-    
     firebaseDesignersMap.forEach((d, id) => {
-        l.innerHTML += `
-        <div class="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-600 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700 rounded transition">
-            <div>
-                <div class="font-bold text-slate-800 dark:text-white text-xs">${escapeHTML(d.name)}</div>
-                <div class="text-[10px] text-slate-400">${escapeHTML(d.email)}</div>
-            </div>
-            <button class="btn-delete-designer text-red-500 hover:text-red-700 text-[10px] font-bold px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100 transition" data-name="${escapeHTML(d.name)}" data-id="${id}">Eliminar</button>
-        </div>`;
+        l.innerHTML += `<div class="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-600 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700 rounded transition"><div><div class="font-bold text-slate-800 dark:text-white text-xs">${escapeHTML(d.name)}</div><div class="text-[10px] text-slate-400">${escapeHTML(d.email)}</div></div><button class="btn-delete-designer text-red-500 hover:text-red-700 text-[10px] font-bold px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100 transition" data-name="${escapeHTML(d.name)}" data-id="${id}">Eliminar</button></div>`;
     });
 }
-
 window.addDesigner = async () => {
     if (userRole !== 'admin') return showCustomAlert('Acceso denegado', 'error');
     const name = document.getElementById('newDesignerName').value.trim();
     const email = document.getElementById('newDesignerEmail').value.trim().toLowerCase();
-    
     if(!name || !email) return showCustomAlert('Datos incompletos', 'error');
-    
-    const ok = await safeFirestoreOperation(() => db_firestore.collection('designers').add({ 
-        name, email, createdAt: new Date().toISOString() 
-    }), 'Agregando...', 'Agregado');
-    
-    if(ok) { 
-        document.getElementById('newDesignerName').value = ''; 
-        document.getElementById('newDesignerEmail').value = ''; 
-        populateDesignerManagerModal(); 
-    }
+    const ok = await safeFirestoreOperation(() => db_firestore.collection('designers').add({ name, email, createdAt: new Date().toISOString() }), 'Agregando...', 'Agregado');
+    if(ok) { document.getElementById('newDesignerName').value = ''; document.getElementById('newDesignerEmail').value = ''; populateDesignerManagerModal(); }
 };
-
 window.deleteDesigner = (id, name) => {
     if (userRole !== 'admin') return showCustomAlert('Acceso denegado', 'error');
-    showConfirmModal(`¿Eliminar a ${name}?`, async () => { 
-        await safeFirestoreOperation(() => db_firestore.collection('designers').doc(id).delete(), 'Eliminando...', 'Eliminado'); 
+    showConfirmModal(`¿Eliminar a ${name}?`, async () => { await safeFirestoreOperation(() => db_firestore.collection('designers').doc(id).delete(), 'Eliminando...', 'Eliminado'); });
+};
+
+// ======================================================
+// ===== 12. MÉTRICAS DE DISEÑADORES Y REPORTES MENSUALES =====
+// ======================================================
+
+function populateMetricsSidebar() {
+    const list = document.getElementById('metricsSidebarList');
+    if (!list) return;
+    
+    const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    const designers = {};
+    
+    artOrders.forEach(o => {
+        const d = o.designer || 'Sin asignar';
+        if (!designers[d]) designers[d] = { total: 0, pieces: 0 };
+        designers[d].total++;
+        designers[d].pieces += (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0);
+    });
+    
+    list.innerHTML = Object.entries(designers)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([name, data]) => `
+            <button class="filter-btn w-full text-left p-3 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-blue-50 dark:hover:bg-slate-700 hover:border-blue-200 transition-all" data-designer="${escapeHTML(name)}">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-slate-800 dark:text-white text-sm">${escapeHTML(name)}</span>
+                    <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full text-[10px] font-bold">${data.total}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">${data.pieces.toLocaleString()} piezas</div>
+            </button>
+        `).join('');
+}
+
+function generateDesignerMetrics(designerName) {
+    const detail = document.getElementById('metricsDetail');
+    if (!detail) return;
+    
+    const orders = allOrders.filter(o => 
+        o.departamento === CONFIG.DEPARTMENTS.ART && 
+        (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName)
+    );
+    
+    const totalPieces = orders.reduce((s, o) => s + (Number(o.cantidad)||0) + (Number(o.childPieces)||0), 0);
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+    
+    detail.innerHTML = `
+        <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 text-white mb-6 shadow-lg">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">${escapeHTML(designerName)}</h2>
+                    <p class="text-blue-100 text-xs">Reporte de Productividad</p>
+                </div>
+                
+                <div class="flex items-center gap-2 bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/20">
+                    <input type="month" id="reportMonthSelector" value="${currentMonth}" class="bg-white/90 text-slate-800 text-xs rounded border-0 py-1.5 px-2 focus:ring-2 focus:ring-blue-400 cursor-pointer">
+                    <button onclick="exportMonthlyReport('${escapeHTML(designerName)}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> Descargar Reporte
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-white/10">
+                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Histórico</div>
+                    <div class="text-3xl font-bold">${orders.length} <span class="text-sm font-normal text-blue-200">órdenes</span></div>
+                </div>
+                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-white/10">
+                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Piezas</div>
+                    <div class="text-3xl font-bold">${totalPieces.toLocaleString()} <span class="text-sm font-normal text-blue-200">pzs</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700">
+                <h3 class="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-xs uppercase tracking-wide">
+                    <i class="fa-solid fa-chart-pie text-blue-500"></i> Distribución de Estados
+                </h3>
+                <div class="relative h-64 w-full"><canvas id="designerDoughnutChart"></canvas></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700">
+                <h3 class="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-xs uppercase tracking-wide">
+                    <i class="fa-solid fa-chart-bar text-green-500"></i> Eficiencia de Entrega
+                </h3>
+                <div class="relative h-64 w-full"><canvas id="designerBarChart"></canvas></div>
+            </div>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        if (typeof Chart === 'undefined') return;
+        const stats = calculateStats(orders);
+        const statusCounts = {
+            'Bandeja': orders.filter(o => o.customStatus === CONFIG.STATUS.TRAY).length,
+            'Producción': orders.filter(o => o.customStatus === CONFIG.STATUS.PROD).length,
+            'Auditoría': orders.filter(o => o.customStatus === CONFIG.STATUS.AUDIT).length,
+            'Completada': orders.filter(o => o.customStatus === CONFIG.STATUS.COMPLETED).length
+        };
+        const isDark = document.documentElement.classList.contains('dark');
+        const textColor = isDark ? '#cbd5e1' : '#666';
+
+        const ctx1 = document.getElementById('designerDoughnutChart');
+        if (ctx1) {
+            designerDoughnutChart = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#10b981'],
+                        borderColor: isDark ? '#1e293b' : '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: textColor, font: { size: 10 }, boxWidth: 12 } } } }
+            });
+        }
+        
+        const ctx2 = document.getElementById('designerBarChart');
+        if (ctx2) {
+            designerBarChart = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['A Tiempo', 'Atrasadas', 'Muy Atrasadas'],
+                    datasets: [{
+                        label: 'Órdenes',
+                        data: [stats.onTime, stats.late - stats.veryLate, stats.veryLate],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderRadius: 4
+                    }]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: isDark ? '#334155' : '#e5e5e5' }, ticks: { color: textColor } },
+                        x: { grid: { display: false }, ticks: { color: textColor } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    }, 100);
+}
+
+// --- GENERAR REPORTE MENSUAL (FORMATO FINAL + FECHA PRODUCCION) ---
+window.exportMonthlyReport = (designerName) => {
+    const monthInput = document.getElementById('reportMonthSelector').value; // YYYY-MM
+    if (!monthInput) return showCustomAlert('Selecciona un mes válido', 'error');
+
+    // Helper: Obtener número de semana ISO
+    const getWeekNumber = (d) => {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    };
+
+    // 1. Filtrar órdenes por Mes + Diseñador
+    const reportData = allOrders.filter(o => {
+        const matchDesigner = (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName);
+        if (!matchDesigner) return false;
+        
+        // Usamos Fecha Recibida como referencia de entrada para filtrar el mes
+        if (!o.receivedDate) return false;
+        return o.receivedDate.startsWith(monthInput);
+    });
+
+    if (reportData.length === 0) {
+        return showCustomAlert(`No hay órdenes registradas para ${designerName} en ${monthInput}`, 'info');
+    }
+
+    // 2. Mapear datos a columnas EXACTAS
+    const excelData = reportData.map(o => {
+        // Convertir string YYYY-MM-DD a objeto Date
+        const dateObj = new Date(o.receivedDate + "T12:00:00");
+        const weekNum = getWeekNumber(dateObj);
+        const dayName = dateObj.toLocaleDateString('es-ES', { weekday: 'long' }).toUpperCase();
+
+        return {
+            "SEMANA #-": weekNum,
+            "DIA": dayName,
+            "FECHA DE LLEGADA": o.receivedDate || '-',
+            "FECHA DE DESPACHO": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '-',
+            "CLIENTE": o.cliente || '',
+            "#- DE ORDEN": o.codigoContrato || '',
+            "CANT. PIEZAS": (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0),
+            
+            // CAMPOS MANUALES
+            "CANT. MONTADA": "", 
+            "PROOF": "", 
+            "APROBACION": "", 
+            
+            // AUTOMÁTICO: FECHA DE COMPLETADO (PRODUCCIÓN)
+            "PRODUCCION": o.completedDate ? new Date(o.completedDate).toLocaleDateString() : ''
+        };
+    });
+
+    // 3. Generar Excel
+    if (typeof XLSX === 'undefined') return showCustomAlert('Librería Excel no cargada', 'error');
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    
+    // Ancho de columnas para estética
+    const wscols = [
+        {wch: 10}, // Semana
+        {wch: 15}, // Dia
+        {wch: 15}, // Llegada
+        {wch: 15}, // Despacho
+        {wch: 25}, // Cliente
+        {wch: 15}, // Orden
+        {wch: 12}, // Cant Piezas
+        {wch: 12}, // Cant Montada
+        {wch: 10}, // Proof
+        {wch: 15}, // Aprobacion
+        {wch: 15}  // Produccion
+    ];
+    ws['!cols'] = wscols;
+
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte Mensual");
+    
+    const fileName = `REPORTE_ARTE_${monthInput}_${designerName.toUpperCase().replace(/\s+/g, '_')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    showCustomAlert('Reporte descargado correctamente', 'success');
+};
+
+// ======================================================
+// ===== 13. ANÁLISIS AVANZADO (LEAD TIME & CALIDAD) =====
+// ======================================================
+
+function generateDepartmentMetrics() {
+    const content = document.getElementById('departmentMetricsContent');
+    if (!content) return;
+    
+    if (typeof Chart === 'undefined') {
+        content.innerHTML = '<p class="text-red-500 text-center">Chart.js no cargado</p>';
+        return;
+    }
+    
+    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
+    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
+
+    const leadTimes = {}; 
+    const reworkCounts = {}; 
+    const complexityDist = { 'Baja': 0, 'Media': 0, 'Alta': 0 }; 
+    
+    const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    
+    artOrders.forEach(o => {
+        const designer = o.designer || 'Sin asignar';
+        
+        // FILTRO DE EXCLUIDOS (Array)
+        if (CONFIG.EXCLUDED_DESIGNERS.includes(designer)) return;
+
+        // A. Lead Time
+        if (o.customStatus === CONFIG.STATUS.COMPLETED && o.receivedDate && o.completedDate) {
+            const start = new Date(o.receivedDate);
+            const end = new Date(o.completedDate);
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            
+            if (!leadTimes[designer]) leadTimes[designer] = { totalDays: 0, count: 0 };
+            leadTimes[designer].totalDays += diffDays;
+            leadTimes[designer].count++;
+        }
+
+        // B. Complejidad
+        const comp = o.complexity || 'Media'; 
+        if (complexityDist[comp] !== undefined) complexityDist[comp]++;
+
+        // C. Retrabajo
+        const hist = firebaseHistoryMap.get(o.orderId) || [];
+        const hasRework = hist.some(h => {
+            const t = h.change.toLowerCase();
+            return (t.includes('auditoría -> producción') || 
+                    t.includes('completada -> producción') || 
+                    t.includes('completada -> auditoría'));
+        });
+
+        if (hasRework) {
+            reworkCounts[designer] = (reworkCounts[designer] || 0) + 1;
+        }
+    });
+
+    const designers = Object.keys(leadTimes);
+    const avgDays = designers.map(d => (leadTimes[d].totalDays / leadTimes[d].count).toFixed(1));
+    const reworkDesigners = Object.keys(reworkCounts);
+    const reworkValues = Object.values(reworkCounts);
+
+    content.innerHTML = `
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-stopwatch text-blue-500"></i> Lead Time Promedio
+                        </h3>
+                        <p class="text-[10px] text-slate-400">Días desde "Recibida" hasta "Completada"</p>
+                    </div>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="deptLoadBarChart"></canvas> 
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-rotate-left text-red-500"></i> Tasa de Retrabajo
+                        </h3>
+                        <p class="text-[10px] text-slate-400">Órdenes devueltas a fases anteriores</p>
+                    </div>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="reworkChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700">
+            <h3 class="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-purple-500"></i> Distribución de Complejidad Actual
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Baja</p>
+                        <p class="text-[10px] text-green-600/70 dark:text-green-400/70">Básicos / Rapidos</p>
+                    </div>
+                    <span class="text-2xl font-bold text-green-800 dark:text-green-300">${complexityDist['Baja']}</span>
+                </div>
+                <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-800 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-yellow-700 dark:text-yellow-400 uppercase">Media</p>
+                        <p class="text-[10px] text-yellow-600/70 dark:text-yellow-400/70">Estándar</p>
+                    </div>
+                    <span class="text-2xl font-bold text-yellow-800 dark:text-yellow-300">${complexityDist['Media']}</span>
+                </div>
+                <div class="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-red-700 dark:text-red-400 uppercase">Alta</p>
+                        <p class="text-[10px] text-red-600/70 dark:text-red-400/70">Complejos / Full Print</p>
+                    </div>
+                    <span class="text-2xl font-bold text-red-800 dark:text-red-300">${complexityDist['Alta']}</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    setTimeout(() => {
+        const isDark = document.documentElement.classList.contains('dark');
+        const textColor = isDark ? '#cbd5e1' : '#666';
+        const gridColor = isDark ? '#334155' : '#e5e5e5';
+
+        const ctx1 = document.getElementById('deptLoadBarChart');
+        if (ctx1) {
+            deptLoadBarChart = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: designers,
+                    datasets: [{
+                        label: 'Días Promedio',
+                        data: avgDays,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: gridColor }, ticks: { color: textColor } },
+                        y: { grid: { display: false }, ticks: { color: textColor } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        const ctx2 = document.getElementById('reworkChart');
+        if (ctx2 && reworkDesigners.length > 0) {
+            deptLoadPieChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: reworkDesigners,
+                    datasets: [{
+                        data: reworkValues,
+                        backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#6366f1'],
+                        borderColor: isDark ? '#1e293b' : '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { color: textColor, boxWidth: 12, font: { size: 10 } } } }
+                }
+            });
+        } else if (ctx2) {
+            ctx2.parentNode.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400 text-xs italic">No se han detectado retrabajos en el historial.</div>';
+        }
+    }, 100);
+}
+
+// ======================================================
+// ===== 14. GRÁFICOS Y PLAN SEMANAL (DARK MODE FIX) =====
+// ======================================================
+
+function destroyAllCharts() {
+    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
+    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
+    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
+    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
+    if (compareChart) { compareChart.destroy(); compareChart = null; }
+}
+
+function generateWorkPlan() {
+    const container = document.getElementById('view-workPlanContent');
+    const weekInput = document.getElementById('view-workPlanWeekSelector');
+    
+    if (!weekInput) return;
+    if (!weekInput.value) weekInput.value = getWeekIdentifierString(new Date());
+    
+    const weekIdentifier = weekInput.value;
+    container.innerHTML = '<div class="spinner"></div>';
+    
+    setTimeout(() => {
+        const planData = firebaseWeeklyPlanMap.get(weekIdentifier) || [];
+        
+        if (planData.length === 0) {
+            container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                <i class="fa-regular fa-calendar-xmark text-3xl text-slate-300 dark:text-slate-600 mb-2"></i>
+                <p class="text-slate-400 font-medium">El plan para la semana ${weekIdentifier} está vacío.</p>
+            </div>`;
+            const summary = document.getElementById('view-workPlanSummary');
+            if(summary) summary.textContent = "0 órdenes";
+            return;
+        }
+
+        let totalPzs = 0, doneCount = 0;
+        
+        planData.sort((a, b) => {
+            const oa = allOrders.find(x => x.orderId === a.orderId);
+            const da = oa && oa.customStatus === CONFIG.STATUS.COMPLETED;
+            const db = allOrders.find(x => x.orderId === b.orderId) && allOrders.find(x => x.orderId === b.orderId).customStatus === CONFIG.STATUS.COMPLETED;
+            
+            if (da && !db) return 1;
+            if (!da && db) return -1;
+            return (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1;
+        });
+
+        // HTML DE LA TABLA CORREGIDO PARA DARK MODE
+        let html = `
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs">
+                <thead class="bg-slate-50 dark:bg-slate-700 font-bold text-slate-500 dark:text-slate-300 uppercase">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Estado</th>
+                        <th class="px-4 py-3 text-left">Orden</th>
+                        <th class="px-4 py-3 text-left">Diseñador</th>
+                        <th class="px-4 py-3 text-left">Entrega</th>
+                        <th class="px-4 py-3 text-right">Piezas</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">`;
+
+        planData.forEach(item => {
+            const liveOrder = allOrders.find(o => o.orderId === item.orderId);
+            const isCompleted = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
+            const pzs = (item.cantidad || 0) + (item.childPieces || 0);
+            totalPzs += pzs; 
+            if (isCompleted) doneCount++;
+
+            let badge = isCompleted 
+                ? `<span class="bg-slate-600 text-white px-2 py-1 rounded font-bold flex items-center gap-1 w-fit shadow-sm"><i class="fa-solid fa-check"></i> LISTO</span>` 
+                : item.isLate 
+                    ? `<span class="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded font-bold border border-red-200 dark:border-red-800">ATRASADA</span>` 
+                    : `<span class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-bold border border-blue-100 dark:border-blue-800">En Proceso</span>`;
+            
+            let rowClasses = isCompleted ? 'bg-slate-50 dark:bg-slate-900 opacity-60 grayscale' : 'hover:bg-slate-50 dark:hover:bg-slate-700';
+
+            html += `
+            <tr class="${rowClasses} transition-colors">
+                <td class="px-4 py-3">${badge}</td>
+                <td class="px-4 py-3">
+                    <div class="font-bold text-slate-800 dark:text-white text-sm">${escapeHTML(item.cliente)}</div>
+                    <div class="text-slate-500 dark:text-slate-400 text-[11px]">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
+                </td>
+                <td class="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">${escapeHTML(item.designer || 'Sin asignar')}</td>
+                <td class="px-4 py-3 text-slate-600 dark:text-slate-400">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
+                <td class="px-4 py-3 text-right font-bold text-slate-800 dark:text-white">${pzs.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right">
+                    <button class="btn-remove-from-plan text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+        });
+        
+        html += `</tbody></table></div>`;
+        
+        const progress = planData.length > 0 ? Math.round((doneCount / planData.length) * 100) : 0;
+        
+        container.innerHTML = `
+        <div class="mb-6 bg-white dark:bg-slate-800 border border-blue-100 dark:border-slate-700 p-4 rounded-xl shadow-sm flex items-center justify-between gap-6">
+            <div class="flex-1">
+                <div class="flex justify-between mb-2">
+                    <span class="font-bold text-slate-700 dark:text-slate-300 text-xs uppercase">Progreso Semanal</span>
+                    <span class="font-bold text-blue-600 dark:text-blue-400 text-xs">${progress}%</span>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+                </div>
+            </div>
+            <div class="text-right border-l border-slate-100 dark:border-slate-700 pl-6">
+                 <div class="text-2xl font-bold text-slate-800 dark:text-white">${doneCount} <span class="text-slate-400 text-sm font-normal">/ ${planData.length}</span></div>
+                 <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wide">Órdenes Listas</div>
+            </div>
+        </div>
+        ${html}
+        `;
+        
+        const summary = document.getElementById('view-workPlanSummary');
+        if(summary) summary.textContent = `${planData.length} órdenes`;
+
+    }, 100);
+}
+
+// ======================================================
+// ===== 15. EXPORTACIÓN Y COMPARACIÓN (DARK MODE FIX) =====
+// ======================================================
+
+window.openCompareModal = (name) => {
+    currentCompareDesigner1 = name;
+    document.getElementById('compareDesigner1Name').textContent = name;
+    const sel = document.getElementById('compareDesignerSelect');
+    
+    sel.innerHTML = '<option value="">Selecciona...</option>' + 
+        designerList.filter(d => d !== name).map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    
+    openModalById('selectCompareModal');
+};
+
+window.startComparison = () => {
+    const n2 = document.getElementById('compareDesignerSelect').value;
+    if (!n2) return showCustomAlert('Selecciona un diseñador para comparar', 'error');
+    
+    if (typeof Chart === 'undefined') { showCustomAlert('Error: Chart.js no está cargado', 'error'); return; }
+    
+    const art = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    const s1 = calculateStats(art.filter(o => o.designer === currentCompareDesigner1));
+    const s2 = calculateStats(art.filter(o => o.designer === n2));
+    
+    if (compareChart) { compareChart.destroy(); compareChart = null; }
+    
+    const canvas = document.getElementById('compareChartCanvas');
+    if (canvas) {
+        compareChart = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: { 
+                labels: ['Total', 'A Tiempo', 'Atrasadas'], 
+                datasets: [
+                    { label: currentCompareDesigner1, data: [s1.total, s1.onTime, s1.late], backgroundColor: '#3b82f6' }, 
+                    { label: n2, data: [s2.total, s2.onTime, s2.late], backgroundColor: '#f59e0b' }
+                ] 
+            },
+            options: { 
+                responsive: true, maintainAspectRatio: false, 
+                scales: { 
+                    y: { beginAtZero: true, ticks: { color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#666' }, grid: { color: document.documentElement.classList.contains('dark') ? '#334155' : '#e5e5e5' } },
+                    x: { ticks: { color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#666' } }
+                },
+                plugins: { legend: { labels: { color: document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#666' }, position: 'bottom' } }
+            }
+        });
+    }
+    
+    const container = document.getElementById('compareTableContainer');
+    if(container) {
+        container.innerHTML = `
+            <table class="w-full text-xs text-left mt-4 border-collapse text-slate-700 dark:text-slate-300">
+                <thead>
+                    <tr class="bg-slate-100 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600">
+                        <th class="p-2">Métrica</th>
+                        <th class="p-2 font-bold text-blue-600 dark:text-blue-400">${escapeHTML(currentCompareDesigner1)}</th>
+                        <th class="p-2 font-bold text-amber-600 dark:text-amber-400">${escapeHTML(n2)}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tr><td class="p-2">Total Órdenes</td><td class="p-2 font-bold">${s1.total}</td><td class="p-2 font-bold">${s2.total}</td></tr>
+                    <tr><td class="p-2">Eficiencia (A tiempo)</td><td class="p-2">${s1.total > 0 ? Math.round((s1.onTime/s1.total)*100) : 0}%</td><td class="p-2">${s2.total > 0 ? Math.round((s2.onTime/s2.total)*100) : 0}%</td></tr>
+                    <tr><td class="p-2">Muy Atrasadas</td><td class="p-2 text-red-500 dark:text-red-400">${s1.veryLate}</td><td class="p-2 text-red-500 dark:text-red-400">${s2.veryLate}</td></tr>
+                </tbody>
+            </table>
+        `;
+    }
+    
+    document.getElementById('selectCompareModal').classList.remove('active');
+    openModalById('compareModal');
+};
+
+window.exportDesignerMetricsPDF = (name) => {
+    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF.API.autoTable === 'undefined') {
+        return showCustomAlert('Error: Librería PDF no cargada', 'error');
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFontSize(16); doc.text(`Reporte de Desempeño: ${name}`, 14, 15);
+    doc.setFontSize(10); doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 22);
+    
+    const orders = allOrders.filter(x => x.departamento === CONFIG.DEPARTMENTS.ART && (name === 'Sin asignar' ? !x.designer : x.designer === name));
+    
+    const body = orders.map(x => [
+        x.cliente.substring(0, 20), x.codigoContrato, x.estilo.substring(0, 20), 
+        x.customStatus || '-', x.cantidad.toLocaleString()
+    ]);
+    
+    doc.autoTable({ 
+        head: [['Cliente', 'Contrato', 'Estilo', 'Estado', 'Pzs']], body: body, startY: 30,
+        styles: { fontSize: 8, cellPadding: 2 }, headStyles: { fillColor: [37, 99, 235] }, alternateRowStyles: { fillColor: [248, 250, 252] }
+    });
+    
+    const finalY = doc.lastAutoTable.finalY + 10;
+    const totalPzs = orders.reduce((s,o) => s+o.cantidad, 0);
+    doc.setFontSize(10);
+    doc.text(`Total Órdenes: ${orders.length} | Total Piezas: ${totalPzs.toLocaleString()}`, 14, finalY);
+    
+    doc.save(`Metricas_${name.replace(/\s+/g,'_')}.pdf`);
+};
+
+window.exportTableToExcel = () => {
+    if (allOrders.length === 0) return showCustomAlert('No hay datos', 'error');
+    if (typeof XLSX === 'undefined') return showCustomAlert('Error: XLSX no cargado', 'error');
+    
+    const ordersToExport = getFilteredOrders();
+    const data = ordersToExport.map(o => ({
+        "Cliente": o.cliente, "Código": o.codigoContrato, "Estilo": o.estilo, "Departamento": o.departamento,
+        "Fecha Despacho": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
+        "Diseñador": o.designer, "Estado Interno": o.customStatus, 
+        "Piezas": o.cantidad, "Piezas Hijas": o.childPieces, "Total Piezas": o.cantidad + o.childPieces, "Notas": o.notes || ''
+    }));
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Reporte");
+    XLSX.writeFile(wb, `Reporte_Panel_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+window.generateWeeklyReport = () => {
+    const w = document.getElementById('weekSelector').value;
+    if(!w) { showCustomAlert('Selecciona una semana', 'error'); return; }
+    
+    const [y, wk] = w.split('-W').map(Number);
+    const d = new Date(y, 0, 1 + (wk - 1) * 7);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    
+    const start = new Date(d.setDate(diff)); start.setHours(0,0,0,0);
+    const end = new Date(start); end.setDate(end.getDate() + 6); end.setHours(23,59,59,999);
+    
+    const filtered = allOrders.filter(o => {
+        if(!o.receivedDate) return false;
+        const rd = new Date(o.receivedDate + 'T00:00:00');
+        return rd >= start && rd <= end;
+    });
+    
+    document.getElementById('weeklyReportContent').innerHTML = filtered.length ? `
+        <h3 class="font-bold mb-2 text-slate-700 dark:text-slate-300">Resultados Semana ${w}: ${filtered.length} órdenes ingresadas</h3>
+        <table id="weeklyReportTable" class="w-full text-xs border-collapse border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300">
+            <thead>
+                <tr class="bg-slate-100 dark:bg-slate-700 text-left text-slate-600 dark:text-slate-400">
+                    <th class="p-2 border border-slate-200 dark:border-slate-600">Fecha Rx</th>
+                    <th class="p-2 border border-slate-200 dark:border-slate-600">Cliente</th>
+                    <th class="p-2 border border-slate-200 dark:border-slate-600">Estilo</th>
+                    <th class="p-2 border border-slate-200 dark:border-slate-600 text-right">Pzs</th>
+                    <th class="p-2 border border-slate-200 dark:border-slate-600">Diseñador</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(o => `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
+                        <td class="p-2 border border-slate-200 dark:border-slate-600">${o.receivedDate}</td>
+                        <td class="p-2 border border-slate-200 dark:border-slate-600">${escapeHTML(o.cliente)}</td>
+                        <td class="p-2 border border-slate-200 dark:border-slate-600">${escapeHTML(o.estilo)}</td>
+                        <td class="p-2 border border-slate-200 dark:border-slate-600 text-right font-mono">${o.cantidad}</td>
+                        <td class="p-2 border border-slate-200 dark:border-slate-600">${escapeHTML(o.designer || '-')}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    ` : '<p class="text-center text-slate-400 py-8 italic">No hay órdenes recibidas en este periodo.</p>';
+};
+
+window.exportWeeklyReportAsPDF = () => {
+    if (typeof window.jspdf === 'undefined') return showCustomAlert('Error PDF', 'error');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const weekVal = document.getElementById('weekSelector').value || 'Actual';
+    doc.text(`Reporte Semanal de Entradas (${weekVal})`, 14, 15);
+    doc.autoTable({ html: '#weeklyReportTable', startY: 20, theme: 'grid', styles: { fontSize: 8, cellPadding: 2 }, headStyles: { fillColor: [50, 50, 50] } });
+    doc.save(`reporte_semanal_${weekVal}.pdf`);
+};
+
+window.showConfirmModal = (msg, cb) => {
+    document.getElementById('confirmModalMessage').textContent = msg;
+    const btn = document.getElementById('confirmModalConfirm');
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.addEventListener('click', () => { cb(); closeTopModal(); });
+    openModalById('confirmModal');
+};
+
+window.openLegendModal = () => openModalById('legendModal');
+
+window.openWeeklyReportModal = () => {
+    const weekSelector = document.getElementById('weekSelector');
+    if (weekSelector) weekSelector.value = getWeekIdentifierString(new Date());
+    generateWeeklyReport();
+    openModalById('weeklyReportModal');
+};
+
+window.resetApp = () => {
+    if (userRole !== 'admin') return showCustomAlert('Acceso Denegado', 'error');
+    showConfirmModal("¿Subir nuevo archivo? Se perderán los datos no guardados.", () => {
+        document.getElementById('appMainContainer').style.display = 'none';
+        document.getElementById('mainNavigation').style.display = 'none';
+        document.getElementById('uploadSection').style.display = 'block';
+        allOrders = []; isExcelLoaded = false;
+        document.getElementById('fileInput').value = ''; document.getElementById('fileName').textContent = '';
+        desconectarDatosDeFirebase(); destroyAllCharts();
     });
 };
 
 // ======================================================
-// ===== MÓDULO 6: CHAT, KANBAN, MÉTRICAS Y HELPERS =====
+// ===== 16. INICIALIZACIÓN FINAL =====
 // ======================================================
 
-// 6.1 SISTEMA DE CHAT Y MENCIONES
+console.log('✅ Panel Arte v6.7 - Código Completo Cargado');
+console.log('📋 Funciones Corregidas:');
+console.log('   - populateMetricsSidebar()');
+console.log('   - generateDesignerMetrics()');
+console.log('   - generateDepartmentMetrics()');
+console.log('   - Verificaciones de librerías externas');
+console.log('   - Gestión de gráficos mejorada');
+
+// ======================================================
+// ===== 17. LÓGICA KANBAN (NEXT LEVEL) =====
+// ======================================================
+
+function updateKanban() {
+    // 1. Obtener datos filtrados
+    const designerFilterSelect = document.getElementById('kanbanDesignerFilter');
+    let targetDesigner = designerFilterSelect.value;
+    
+    // LÓGICA DE PRIVACIDAD: Si soy diseñador (y no admin), FUERZO el filtro
+    if (currentDesignerName && userRole !== 'admin') {
+        targetDesigner = currentDesignerName;
+        // Ocultar visualmente el filtro para que no confunda
+        designerFilterSelect.style.display = 'none'; 
+    } else {
+        designerFilterSelect.style.display = 'block';
+    }
+
+    // Filtrar solo órdenes de Arte
+    let orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    
+    // Aplicar filtro de diseñador si existe (o si fue forzado)
+    if(targetDesigner) {
+        orders = orders.filter(o => o.designer === targetDesigner);
+    }
+
+    // 2. Referencias a columnas del DOM
+    const columns = {
+        'Bandeja': document.querySelector('.kanban-dropzone[data-status="Bandeja"]'),
+        'Producción': document.querySelector('.kanban-dropzone[data-status="Producción"]'),
+        'Auditoría': document.querySelector('.kanban-dropzone[data-status="Auditoría"]'),
+        'Completada': document.querySelector('.kanban-dropzone[data-status="Completada"]')
+    };
+
+    // Limpiar columnas
+    Object.keys(columns).forEach(k => {
+        if(columns[k]) columns[k].innerHTML = '';
+        const countEl = document.getElementById(`count-${k}`);
+        if(countEl) countEl.textContent = '0';
+    });
+    
+    const counts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0 };
+
+    // 3. Generar tarjetas
+    orders.forEach(o => {
+        let status = o.customStatus || 'Bandeja';
+        if (!columns[status]) status = 'Bandeja'; 
+        
+        counts[status]++;
+
+        const card = document.createElement('div');
+        // NOTA: Se agregaron clases dark: para modo oscuro
+        card.className = 'kanban-card bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 cursor-move hover:shadow-md transition group relative border-l-4';
+        
+        // Colores de borde según urgencia
+        if(o.isVeryLate) card.classList.add('border-l-red-500');
+        else if(o.isLate) card.classList.add('border-l-orange-400');
+        else if(o.isAboutToExpire) card.classList.add('border-l-yellow-400');
+        else card.classList.add('border-l-slate-300'); 
+
+        card.draggable = true;
+        card.dataset.id = o.orderId;
+        card.ondragstart = drag;
+        
+        // Al hacer clic, abrir el modal
+        card.onclick = () => openAssignModal(o.orderId); 
+
+        // Contenido HTML de la tarjeta (con soporte Dark Mode)
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 rounded truncate max-w-[120px]">${escapeHTML(o.cliente)}</span>
+                ${o.childPieces > 0 ? '<span class="text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-1 rounded-full font-bold">+'+o.childPieces+'</span>' : ''}
+            </div>
+            <div class="font-bold text-xs text-slate-800 dark:text-slate-200 mb-0.5 truncate" title="${escapeHTML(o.estilo)}">${escapeHTML(o.estilo)}</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono mb-2">${escapeHTML(o.codigoContrato)}</div>
+            
+            <div class="flex justify-between items-end border-t border-slate-50 dark:border-slate-600 pt-2">
+                <div class="flex items-center gap-1">
+                    <div class="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[9px] font-bold" title="${escapeHTML(o.designer)}">
+                        ${o.designer ? o.designer.substring(0,2).toUpperCase() : '?'}
+                    </div>
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500">${formatDate(o.fechaDespacho).slice(0,5)}</span>
+                </div>
+                <div class="font-bold text-xs text-slate-700 dark:text-slate-300">${(o.cantidad + o.childPieces).toLocaleString()} pzs</div>
+            </div>
+        `;
+
+        if(columns[status]) columns[status].appendChild(card);
+    });
+
+    // Actualizar badges
+    Object.keys(counts).forEach(k => {
+        const countEl = document.getElementById(`count-${k}`);
+        if(countEl) countEl.textContent = counts[k];
+    });
+    
+    filterKanbanCards();
+}
+
+// --- BUSCADOR REALTIME DEL KANBAN ---
+window.filterKanbanCards = () => {
+    const input = document.getElementById('kanbanSearchInput');
+    if(!input) return;
+    
+    const term = input.value.toLowerCase().trim();
+    const cards = document.querySelectorAll('.kanban-card');
+
+    cards.forEach(card => {
+        const textContent = card.innerText.toLowerCase();
+        if (textContent.includes(term)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+};
+
+// --- FUNCIONES DRAG & DROP ---
+
+function allowDrop(ev) {
+    ev.preventDefault();
+    // Resaltado visual de la zona de destino
+    ev.currentTarget.classList.add('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
+}
+
+function dragLeave(ev) {
+    // Quitar resaltado al salir
+    ev.currentTarget.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
+}
+
+function drag(ev) {
+    ev.dataTransfer.setData("text", ev.target.dataset.id);
+    ev.dataTransfer.effectAllowed = "move";
+}
+
+async function drop(ev) {
+    ev.preventDefault();
+    const zone = ev.currentTarget;
+    zone.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset'); 
+
+    const orderId = ev.dataTransfer.getData("text");
+    const newStatus = zone.dataset.status;
+
+    // 1. Actualización Optimista (UI inmediata)
+    const card = document.querySelector(`div[data-id="${orderId}"]`);
+    if(card) {
+        zone.appendChild(card); 
+        // Opcional: Actualizar contadores visuales aquí manualmente para mayor velocidad percibida
+    }
+
+    // 2. Guardado en Firebase
+    await safeFirestoreOperation(async () => {
+        const batch = db_firestore.batch();
+        const ref = db_firestore.collection('assignments').doc(orderId);
+        
+        const updateData = { 
+            customStatus: newStatus, 
+            lastModified: new Date().toISOString(),
+            schemaVersion: CONFIG.DB_VERSION 
+        };
+
+        if (newStatus === 'Completada') {
+            updateData.completedDate = new Date().toISOString();
+        }
+
+        batch.set(ref, updateData, { merge: true });
+
+        // Registrar en historial
+        const hRef = db_firestore.collection('history').doc();
+        batch.set(hRef, {
+            orderId: orderId,
+            change: `Movido a ${newStatus} (Kanban)`,
+            user: usuarioActual.displayName,
+            timestamp: new Date().toISOString()
+        });
+
+        await batch.commit();
+    }, 'Moviendo...', null); // Null para no mostrar alerta invasiva por cada movimiento
+}
+
+// --- Actualizar Dropdown de Filtro ---
+function updateKanbanDropdown() {
+    const sel = document.getElementById('kanbanDesignerFilter');
+    if(sel) {
+        // Reutilizamos la lista global de diseñadores
+        sel.innerHTML = '<option value="">Todos los Diseñadores</option>' + 
+        designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    }
+}
+
+// ======================================================
+// ===== 18. SISTEMA DE CHAT Y MENCIONES (COLLAB) =====
+// ======================================================
+
+// NOTA: Se eliminó 'let unsubscribeChat = null;' aquí porque ya está declarada arriba.
+
+// 1. Cargar comentarios de una orden
 function loadOrderComments(orderId) {
-    const chatContainer = document.getElementById('chatHistory'); 
+    const chatContainer = document.getElementById('chatHistory');
     if(!chatContainer) return;
     
     chatContainer.innerHTML = '<div class="flex justify-center pt-4"><div class="spinner"></div></div>';
     
-    // Limpiar listener anterior para evitar duplicados
-    if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
+    // CRÍTICO: Desconectar listener anterior
+    if (unsubscribeChat) {
+        unsubscribeChat();
+        unsubscribeChat = null;
+    }
 
-    unsubscribeChat = db_firestore.collection('assignments').doc(orderId).collection('comments')
-        .orderBy('timestamp', 'asc')
-        .onSnapshot(snapshot => {
-            chatContainer.innerHTML = '';
-            if (snapshot.empty) {
-                const o = allOrders.find(x => x.orderId === orderId);
-                if(o && o.notes) renderSystemMessage(`Nota original: "${o.notes}"`);
-                else chatContainer.innerHTML = '<p class="text-center text-slate-300 italic text-xs mt-4">No hay comentarios aún.</p>';
-                return;
+    // Escuchar subcolección 'comments' de la orden
+    const commentsRef = db_firestore.collection('assignments').doc(orderId).collection('comments').orderBy('timestamp', 'asc');
+
+    unsubscribeChat = commentsRef.onSnapshot(snapshot => {
+        chatContainer.innerHTML = '';
+        
+        if (snapshot.empty) {
+            // Si no hay chat, mostrar la nota original del Excel si existe
+            const order = allOrders.find(o => o.orderId === orderId);
+            if(order && order.notes) {
+                renderSystemMessage(`Nota del Excel: "${order.notes}"`);
+            } else {
+                chatContainer.innerHTML = '<p class="text-center text-slate-300 italic text-xs mt-4">No hay comentarios aún. ¡Inicia la conversación!</p>';
             }
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                // Determinar si el mensaje es mío
-                const isMe = usuarioActual && (data.userEmail === usuarioActual.email);
-                renderMessage(data, isMe, chatContainer);
-            });
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const isMe = usuarioActual && (data.userEmail === usuarioActual.email);
+            renderMessage(data, isMe, chatContainer);
         });
+
+        // Scroll automático al fondo
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
 }
 
+// 2. Renderizar un mensaje individual
 function renderMessage(data, isMe, container) {
     const div = document.createElement('div');
     div.className = `chat-bubble ${isMe ? 'me' : 'other'}`;
     
-    // Resaltar menciones y saltos de línea
-    let formattedText = escapeHTML(data.text)
-        .replace(/@([a-zA-Z0-9\s]+?)(?=\s|$)/g, '<span class="mention-tag">@$1</span>')
-        .replace(/\n/g, '<br>');
+    // Resaltar menciones
+    let formattedText = escapeHTML(data.text).replace(/@(\w+)/g, '<span class="mention-tag">@$1</span>');
+    formattedText = formattedText.replace(/\n/g, '<br>');
 
     div.innerHTML = `
         ${!isMe ? `<div class="font-bold text-[10px] text-blue-600 dark:text-blue-400 mb-0.5">${escapeHTML(data.userName)}</div>` : ''}
@@ -1655,91 +2559,135 @@ function renderMessage(data, isMe, container) {
 }
 
 function renderSystemMessage(text) {
-    const div = document.createElement('div'); 
-    div.className = "text-center text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 rounded py-1 px-2 mx-auto w-fit mb-3 border border-slate-200 dark:border-slate-600"; 
-    div.textContent = text; 
+    const div = document.createElement('div');
+    div.className = "text-center text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 rounded py-1 px-2 mx-auto w-fit mb-3 border border-slate-200 dark:border-slate-600";
+    div.textContent = text;
     document.getElementById('chatHistory').appendChild(div);
 }
 
+// 3. Enviar Comentario + Notificar Mención
 async function sendComment() {
-    const input = document.getElementById('chatInput'); 
+    const input = document.getElementById('chatInput');
     const text = input.value.trim();
     
     if (!text || !currentEditingOrderId || !usuarioActual) return;
-    
-    // UI Optimista
+
+    // UI optimista
     input.value = ''; 
     input.style.height = 'auto'; 
     document.getElementById('mentionDropdown').classList.add('hidden');
 
     try {
-        await db_firestore.collection('assignments').doc(currentEditingOrderId).collection('comments').add({ 
-            text, 
-            userId: usuarioActual.uid, 
-            userName: usuarioActual.displayName, 
-            userEmail: usuarioActual.email, 
-            timestamp: new Date().toISOString() 
+        // Guardar comentario
+        await db_firestore.collection('assignments').doc(currentEditingOrderId).collection('comments').add({
+            text: text,
+            userId: usuarioActual.uid,
+            userName: usuarioActual.displayName || 'Usuario',
+            userEmail: usuarioActual.email,
+            timestamp: new Date().toISOString()
         });
         
-        // Actualizar timestamp de la orden
-        db_firestore.collection('assignments').doc(currentEditingOrderId).update({ lastModified: new Date().toISOString() });
+        // Actualizar fecha de modificación de la orden para que se sepa que hubo actividad
+        db_firestore.collection('assignments').doc(currentEditingOrderId).update({
+            lastModified: new Date().toISOString()
+        });
 
-        // Detección de Menciones
-        const mentions = text.match(/@([a-zA-Z0-9\s]+?)(?=\s|$)/g);
+        // --- DETECCIÓN DE MENCIONES ---
+        // Regex mejorada para capturar nombres compuestos simples
+        const mentionRegex = /@([a-zA-Z0-9\s]+?)(?=\s|$)/g;
+        const mentions = text.match(mentionRegex);
+
         if (mentions) {
             mentions.forEach(m => {
-                const name = m.substring(1).trim();
-                let targetEmail = null;
-                firebaseDesignersMap.forEach(d => { 
-                    if (d.name.toLowerCase().includes(name.toLowerCase())) targetEmail = d.email; 
-                });
+                const nameMentioned = m.substring(1).trim(); // Quitar el @
                 
-                if (targetEmail && targetEmail !== usuarioActual.email) {
-                    createNotification(targetEmail, 'mention', 'Te mencionaron', `${usuarioActual.displayName} te mencionó`, currentEditingOrderId);
+                let targetEmail = null;
+                // Buscar email del diseñador mencionado en el mapa de memoria
+                firebaseDesignersMap.forEach(dData => {
+                    // Comparamos ignorando mayúsculas/minúsculas
+                    if (dData.name.toLowerCase().includes(nameMentioned.toLowerCase())) {
+                        targetEmail = dData.email;
+                    }
+                });
+
+                // Si encontramos email y no soy yo mismo, notificar
+                if (targetEmail && targetEmail.toLowerCase() !== usuarioActual.email.toLowerCase()) {
+                    createNotification(
+                        targetEmail,
+                        'mention',
+                        'Te mencionaron',
+                        `${usuarioActual.displayName} te mencionó en una orden`,
+                        currentEditingOrderId
+                    );
                 }
             });
         }
-    } catch (e) { 
-        console.error(e); 
-        showCustomAlert('Error enviando mensaje', 'error'); 
+
+    } catch (e) {
+        console.error(e);
+        showCustomAlert('Error enviando mensaje', 'error');
     }
 }
 
+// 4. Manejo del Input (Auto-resize y Dropdown de Menciones)
 function handleChatInput(textarea) {
     // Auto-resize
-    textarea.style.height = 'auto'; 
+    textarea.style.height = 'auto';
     textarea.style.height = (textarea.scrollHeight) + 'px';
-    
-    // Lógica Dropdown Menciones
+
+    // Lógica de Mención
     const val = textarea.value;
     const cursorPos = textarea.selectionStart;
-    const textBefore = val.substring(0, cursorPos);
-    const lastAt = textBefore.lastIndexOf('@');
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const lastAt = textBeforeCursor.lastIndexOf('@');
+    
     const dropdown = document.getElementById('mentionDropdown');
 
     if (lastAt !== -1) {
-        const query = textBefore.substring(lastAt + 1).toLowerCase();
+        // Verificar texto después del @
+        const query = textBeforeCursor.substring(lastAt + 1).toLowerCase();
+        
+        // Si hay un espacio y el query es corto, quizás ya terminó la mención
+        // Pero permitimos espacios para nombres como "Ana Maria"
         if (query.length < 20) {
             const matches = designerList.filter(d => d.toLowerCase().includes(query));
+
             if (matches.length > 0) {
-                dropdown.innerHTML = '';
-                matches.forEach(name => {
-                    const item = document.createElement('div'); 
-                    item.className = 'mention-item p-2 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer text-xs border-b border-slate-50 dark:border-slate-600 last:border-0 dark:text-slate-200'; 
-                    item.textContent = name;
-                    item.onclick = () => { 
-                        textarea.value = `${val.substring(0, lastAt)}@${name} `; 
-                        dropdown.classList.add('hidden'); 
-                        textarea.focus(); 
-                    };
-                    dropdown.appendChild(item);
-                });
-                dropdown.classList.remove('hidden');
-                return;
+                showMentionDropdown(matches, lastAt);
+            } else {
+                dropdown.classList.add('hidden');
             }
+            return;
         }
     }
     dropdown.classList.add('hidden');
+}
+
+function showMentionDropdown(matches, atIndex) {
+    const dropdown = document.getElementById('mentionDropdown');
+    dropdown.innerHTML = '';
+    
+    matches.forEach(name => {
+        const item = document.createElement('div');
+        item.className = 'mention-item p-2 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer text-xs border-b border-slate-50 dark:border-slate-600 last:border-0 dark:text-slate-200';
+        item.textContent = name;
+        item.onclick = () => selectMention(name, atIndex);
+        dropdown.appendChild(item);
+    });
+
+    dropdown.classList.remove('hidden');
+}
+
+function selectMention(name, atIndex) {
+    const textarea = document.getElementById('chatInput');
+    const val = textarea.value;
+    const before = val.substring(0, atIndex);
+    
+    // Reemplazar lo que se estaba escribiendo con el nombre completo + espacio
+    textarea.value = `${before}@${name} `;
+    
+    document.getElementById('mentionDropdown').classList.add('hidden');
+    textarea.focus();
 }
 
 function insertEmoji(emoji) {
@@ -1748,369 +2696,280 @@ function insertEmoji(emoji) {
     input.focus();
 }
 
-// 6.2 TABLERO KANBAN
-function updateKanban() {
-    // Usar filtro inteligente base + filtro local de Kanban
-    let orders = getFilteredOrders().filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
-    const designerFilter = document.getElementById('kanbanDesignerFilter');
-    let target = designerFilter.value;
-    
-    // Forzar filtro si no es admin y es diseñador
-    if (currentDesignerName && userRole !== 'admin') {
-        target = currentDesignerName;
-        designerFilter.style.display = 'none';
-    } else {
-        designerFilter.style.display = 'block';
+// Enviar con Enter (sin Shift)
+document.getElementById('chatInput')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendComment();
     }
-    
-    if(target) orders = orders.filter(o => o.designer === target);
+});
 
-    // Referencias DOM
-    const columns = {
-        'Bandeja': document.querySelector('.kanban-dropzone[data-status="Bandeja"]'),
-        'Producción': document.querySelector('.kanban-dropzone[data-status="Producción"]'),
-        'Auditoría': document.querySelector('.kanban-dropzone[data-status="Auditoría"]'),
-        'Completada': document.querySelector('.kanban-dropzone[data-status="Completada"]')
-    };
+// ======================================================
+// ===== 19. FUNCIONES GLOBALES (BUGS #3 & #8 FIX) =====
+// ======================================================
 
-    Object.values(columns).forEach(c => { if(c) c.innerHTML = ''; });
-    const counts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0 };
-
-    orders.forEach(o => {
-        let status = o.customStatus || 'Bandeja';
-        if (!columns[status]) status = 'Bandeja'; 
-        counts[status]++;
-
-        const card = document.createElement('div');
-        // Estilos condicionales de borde
-        const borderClass = o.isVeryLate ? 'border-l-red-500' : o.isLate ? 'border-l-orange-400' : o.isAboutToExpire ? 'border-l-yellow-400' : 'border-l-slate-300';
-        
-        card.className = `kanban-card bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border cursor-move hover:shadow-md transition group relative border-l-4 ${borderClass} border-slate-200 dark:border-slate-600`;
-        card.draggable = true;
-        card.dataset.id = o.orderId;
-        // Dataset optimizado para búsqueda rápida
-        card.dataset.search = (o.cliente + ' ' + o.estilo + ' ' + o.codigoContrato + ' ' + o.designer).toLowerCase();
-        
-        card.ondragstart = (ev) => { 
-            ev.dataTransfer.setData("text", ev.target.dataset.id); 
-            ev.dataTransfer.effectAllowed = "move"; 
-        };
-        card.onclick = () => openAssignModal(o.orderId); 
-
-        card.innerHTML = `
-            <div class="flex justify-between items-start mb-1">
-                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 rounded truncate max-w-[120px]">${escapeHTML(o.cliente)}</span>
-                ${o.childPieces > 0 ? '<span class="text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-1 rounded-full font-bold">+'+o.childPieces+'</span>' : ''}
-            </div>
-            <div class="font-bold text-xs text-slate-800 dark:text-slate-200 mb-0.5 truncate">${escapeHTML(o.estilo)}</div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono mb-2">${escapeHTML(o.codigoContrato)}</div>
-            <div class="flex justify-between items-end border-t border-slate-50 dark:border-slate-600 pt-2">
-                <div class="flex items-center gap-1">
-                    <div class="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[9px] font-bold">${o.designer ? o.designer.substring(0,2).toUpperCase() : '?'}</div>
-                    <span class="text-[10px] text-slate-400 dark:text-slate-500">${formatDate(o.fechaDespacho).slice(0,5)}</span>
-                </div>
-                <div class="font-bold text-xs text-slate-700 dark:text-slate-300">${(Number(o.cantidad) + Number(o.childPieces)).toLocaleString()} pzs</div>
-            </div>`;
-            
-        if(columns[status]) columns[status].appendChild(card);
-    });
-
-    Object.keys(counts).forEach(k => { 
-        const el = document.getElementById(`count-${k}`); 
-        if(el) el.textContent = counts[k]; 
-    });
-    
-    // Aplicar filtro de búsqueda si hay texto escrito
-    filterKanbanCards();
-}
-
-window.filterKanbanCards = () => {
-    const term = document.getElementById('kanbanSearchInput')?.value.toLowerCase().trim() || '';
-    document.querySelectorAll('.kanban-card').forEach(card => {
-        // Búsqueda ultrarrápida usando dataset pre-calculado
-        card.style.display = card.dataset.search.includes(term) ? 'block' : 'none';
-    });
+// --- Navegación de Tabla ---
+window.changePage = (p) => { 
+    if(typeof currentPage !== 'undefined') { currentPage = p; updateTable(); }
 };
 
-function allowDrop(ev) { 
-    ev.preventDefault(); 
-    ev.currentTarget.classList.add('bg-blue-50/50', 'ring-2', 'ring-blue-300'); 
-}
+window.changeRowsPerPage = () => { 
+    const el = document.getElementById('rowsPerPage');
+    if(el) { rowsPerPage = parseInt(el.value); currentPage = 1; updateTable(); }
+};
 
-async function drop(ev) {
-    ev.preventDefault();
-    const zone = ev.currentTarget;
-    zone.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300'); 
-    
-    const orderId = ev.dataTransfer.getData("text");
-    const newStatus = zone.dataset.status;
+// --- Filtros ---
+window.setFilter = (f) => { 
+    currentFilter = f; currentPage = 1; updateTable(); 
+};
 
-    // UI Optimista
-    const card = document.querySelector(`div[data-id="${orderId}"]`);
-    if(card) zone.appendChild(card);
+window.setDateFilter = (f) => {
+    currentDateFilter = f; currentFilter = 'all'; currentPage = 1; updateTable();
+};
 
-    await safeFirestoreOperation(async () => {
-        const batch = db_firestore.batch();
-        const data = { customStatus: newStatus, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION };
-        if (newStatus === 'Completada') data.completedDate = new Date().toISOString();
-        
-        batch.set(db_firestore.collection('assignments').doc(orderId), data, { merge: true });
-        batch.set(db_firestore.collection('history').doc(), { 
-            orderId, 
-            change: `Movido a ${newStatus} (Kanban)`, 
-            user: usuarioActual.displayName, 
-            timestamp: new Date().toISOString() 
-        });
-        
-        await batch.commit();
-    }, 'Moviendo...', null);
-}
-
-function updateKanbanDropdown() {
-    const sel = document.getElementById('kanbanDesignerFilter');
-    if(sel) {
-        sel.innerHTML = '<option value="">Todos los Diseñadores</option>' + 
-        designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+window.sortTable = (k) => { 
+    if(typeof sortConfig !== 'undefined') {
+        sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc'; 
+        sortConfig.key = k; 
+        if(typeof filteredCache !== 'undefined') filteredCache.key = null; 
+        updateTable(); 
     }
-}
+};
 
-// 6.3 HELPERS DE UI (DROPDOWNS, BADGES, PAGINACIÓN)
+window.clearAllFilters = () => { 
+    currentSearch = ''; currentClientFilter = ''; currentStyleFilter = ''; 
+    currentTeamFilter = ''; currentDepartamentoFilter = ''; currentDesignerFilter = ''; 
+    currentCustomStatusFilter = ''; currentFilter = 'all'; currentDateFilter = 'all';
+    currentDateFrom = ''; currentDateTo = '';
+    
+    document.querySelectorAll('.filter-select, .filter-input').forEach(el => el.value = '');
+    const searchInput = document.getElementById('searchInput');
+    if(searchInput) searchInput.value = '';
+    
+    if(typeof filteredCache !== 'undefined') filteredCache.key = null; 
+    currentPage = 1; 
+    updateTable();
+};
 
+// BUG #3 FIX: Llenado de Dropdowns con opción Default para Departamento
 window.populateFilterDropdowns = () => {
     const populate = (id, key) => {
-        const sel = document.getElementById(id); if(!sel) return;
+        const sel = document.getElementById(id);
+        if(!sel) return;
         const currentVal = sel.value;
         const options = [...new Set(allOrders.map(o => o[key]).filter(Boolean))].sort();
         
         let defaultOpt = '<option value="">Todos</option>';
+        // Solución: Agregar opción específica para ver solo Arte si se desea
         if (id === 'departamentoFilter') defaultOpt += '<option value="P_Art">Solo P_Art</option>';
         
         sel.innerHTML = defaultOpt + options.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join('');
         sel.value = currentVal;
     };
-    
     populate('clientFilter', 'cliente');
     populate('styleFilter', 'estilo');
     populate('teamFilter', 'teamName');
     populate('departamentoFilter', 'departamento');
+    if (typeof updateAllDesignerDropdowns === 'function') updateAllDesignerDropdowns();
+}
 
-    // Dropdowns de Diseñadores (Unificados)
-    const allHtml = '<option value="">Todos</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
-    if(document.getElementById('designerFilter')) document.getElementById('designerFilter').innerHTML = allHtml;
+window.updateAllDesignerDropdowns = () => {
+    const html = '<option value="">Todos</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    if(document.getElementById('designerFilter')) document.getElementById('designerFilter').innerHTML = html;
     
-    const assignHtml = '<option value="">Sin asignar</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
-    if(document.getElementById('modalDesigner')) document.getElementById('modalDesigner').innerHTML = assignHtml;
-    if(document.getElementById('multiModalDesigner')) document.getElementById('multiModalDesigner').innerHTML = assignHtml;
+    const modalHtml = '<option value="">Sin asignar</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    if(document.getElementById('modalDesigner')) document.getElementById('modalDesigner').innerHTML = modalHtml;
+    if(document.getElementById('multiModalDesigner')) document.getElementById('multiModalDesigner').innerHTML = modalHtml;
     
     const compareHtml = '<option value="">Seleccionar...</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
     if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
 }
 
+// --- Selección Masiva ---
+window.toggleOrderSelection = (id) => { 
+    if (selectedOrders.has(id)) selectedOrders.delete(id); 
+    else selectedOrders.add(id); 
+    updateTable(); 
+};
+
+window.toggleSelectAll = () => { 
+    const c = document.getElementById('selectAll');
+    if(c && typeof paginatedOrders !== 'undefined') {
+        paginatedOrders.forEach(o => c.checked ? selectedOrders.add(o.orderId) : selectedOrders.delete(o.orderId)); 
+        updateTable(); 
+    }
+};
+
+window.clearSelection = () => { 
+    selectedOrders.clear(); 
+    updateTable(); 
+};
+
+// --- Acciones de UI ---
+window.toggleNotifications = () => { 
+    const drop = document.getElementById('notificationDropdown');
+    if(drop) drop.classList.toggle('hidden'); 
+};
+
+// BUG #8 FIX: Eliminación de Órdenes del Plan Semanal
+window.removeOrderFromPlan = async (planEntryId, orderCode) => {
+    if (userRole !== 'admin') return showCustomAlert('Acceso denegado', 'error');
+    showConfirmModal(`¿Eliminar ${orderCode} del plan?`, async () => {
+        await safeFirestoreOperation(
+            () => db_firestore.collection('weeklyPlan').doc(planEntryId).delete(), 
+            'Eliminando...', 
+            'Orden removida del plan'
+        );
+        // El listener de Firebase actualizará la vista automáticamente
+    });
+};
+
+window.resetApp = () => {
+    if (userRole !== 'admin') {
+        return showCustomAlert('Acceso Denegado: Se requieren permisos de Administrador.', 'error');
+    }
+
+    showConfirmModal("¿Subir nuevo archivo? Se perderán los datos no guardados.", () => {
+        document.getElementById('appMainContainer').style.display = 'none';
+        document.getElementById('mainNavigation').style.display = 'none';
+        document.getElementById('uploadSection').style.display = 'block';
+        
+        allOrders = []; 
+        isExcelLoaded = false;
+        
+        document.getElementById('fileInput').value = ''; 
+        document.getElementById('fileName').textContent = '';
+        
+        desconectarDatosDeFirebase();
+        if(typeof destroyAllCharts === 'function') destroyAllCharts();
+    });
+};
+
+window.showConfirmModal = (msg, cb) => {
+    document.getElementById('confirmModalMessage').textContent = msg;
+    const btn = document.getElementById('confirmModalConfirm');
+    
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    newBtn.addEventListener('click', () => { 
+        cb(); 
+        closeTopModal(); 
+    });
+    
+    openModalById('confirmModal');
+};
+
+// ======================================================
+// ===== 20. MODO OSCURO (LOGIC & PERSISTENCE) =====
+// ======================================================
+
+window.toggleTheme = () => {
+    const html = document.documentElement;
+    if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+    }
+    updateThemeIcon();
+};
+
+function updateThemeIcon() {
+    const icon = document.getElementById('themeIcon');
+    if (icon) {
+        const isDark = document.documentElement.classList.contains('dark');
+        icon.className = isDark ? 'fa-solid fa-sun text-yellow-400' : 'fa-solid fa-moon text-slate-400';
+    }
+}
+
+function initTheme() {
+    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+    updateThemeIcon();
+}
+
+// ======================================================
+// ===== 21. HELPERS VISUALES Y UI (MISSING PARTS) =====
+// ======================================================
+
+// --- Renderizado de Badges (Corrige Bug #9) ---
 function getStatusBadge(order) {
     const base = "px-3 py-1 rounded-full text-xs font-medium inline-flex items-center justify-center shadow-sm whitespace-nowrap";
-    if (order.isVeryLate) return `<div class="flex flex-col items-start gap-1"><span class="${base} bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">MUY ATRASADA</span><span class="text-[10px] font-bold text-red-600 dark:text-red-400 ml-1"><i class="fa-solid fa-clock"></i> ${order.daysLate} días</span></div>`;
-    if (order.isLate) return `<div class="flex flex-col items-start gap-1"><span class="${base} bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800">Atrasada</span><span class="text-[10px] font-bold text-orange-600 dark:text-orange-400 ml-1"><i class="fa-regular fa-clock"></i> ${order.daysLate} días</span></div>`;
-    if (order.isAboutToExpire) return `<span class="${base} bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">Por Vencer</span>`;
+    
+    if (order.isVeryLate) {
+        return `<div class="flex flex-col items-start gap-1"><span class="${base} bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">MUY ATRASADA</span><span class="text-[10px] font-bold text-red-600 dark:text-red-400 ml-1"><i class="fa-solid fa-clock"></i> ${order.daysLate} días</span></div>`;
+    }
+    if (order.isLate) {
+        return `<div class="flex flex-col items-start gap-1"><span class="${base} bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800">Atrasada</span><span class="text-[10px] font-bold text-orange-600 dark:text-orange-400 ml-1"><i class="fa-regular fa-clock"></i> ${order.daysLate} días</span></div>`;
+    }
+    if (order.isAboutToExpire) {
+        return `<span class="${base} bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">Por Vencer</span>`;
+    }
     return `<span class="${base} bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800">A Tiempo</span>`;
 }
 
 function getCustomStatusBadge(status) {
     const base = "px-3 py-1 rounded-full text-xs font-medium border inline-block min-w-[90px] text-center shadow-sm";
-    if (status === 'Completada') return `<span class="${base} bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-600">${status}</span>`;
-    if (status === 'Bandeja') return `<span class="${base} bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800">${status}</span>`;
-    if (status === 'Producción') return `<span class="${base} bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800">${status}</span>`;
-    if (status === 'Auditoría') return `<span class="${base} bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800">${status}</span>`;
-    return `<span class="text-slate-400 text-xs italic pl-2">${status||'Sin estado'}</span>`;
-}
-
-// Atajos para la tabla
-window.changePage = (p) => { currentPage = p; updateTable(); };
-window.changeRowsPerPage = () => { rowsPerPage = parseInt(document.getElementById('rowsPerPage').value); currentPage = 1; updateTable(); };
-window.setFilter = (f) => { currentFilter = f; currentPage = 1; updateTable(); };
-window.sortTable = (k) => { sortConfig.direction = (sortConfig.key === k && sortConfig.direction === 'asc') ? 'desc' : 'asc'; sortConfig.key = k; filteredCache.key = null; updateTable(); };
-window.clearAllFilters = () => { 
-    currentSearch = ''; currentClientFilter = ''; currentStyleFilter = ''; currentTeamFilter = ''; currentDepartamentoFilter = ''; currentDesignerFilter = ''; currentCustomStatusFilter = ''; currentFilter = 'all'; currentDateFrom = ''; currentDateTo = '';
-    document.querySelectorAll('.filter-select, .filter-input').forEach(el => el.value = '');
-    if(document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
-    filteredCache.key = null; currentPage = 1; updateTable();
-};
-window.toggleOrderSelection = (id) => { if (selectedOrders.has(id)) selectedOrders.delete(id); else selectedOrders.add(id); updateTable(); };
-window.toggleSelectAll = () => { const c = document.getElementById('selectAll'); if(c) paginatedOrders.forEach(o => c.checked ? selectedOrders.add(o.orderId) : selectedOrders.delete(o.orderId)); updateTable(); };
-window.clearSelection = () => { selectedOrders.clear(); updateTable(); };
-window.toggleNotifications = () => { document.getElementById('notificationDropdown').classList.toggle('hidden'); };
-
-// 6.4 MÉTRICAS, REPORTES Y GRÁFICOS
-
-function destroyAllCharts() {
-    if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
-    if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
-    if (deptLoadPieChart) { deptLoadPieChart.destroy(); deptLoadPieChart = null; }
-    if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
-    if (compareChart) { compareChart.destroy(); compareChart = null; }
-}
-
-function populateMetricsSidebar() {
-    const list = document.getElementById('metricsSidebarList'); if (!list) return;
-    const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
-    const designers = {};
-    artOrders.forEach(o => {
-        const d = o.designer || 'Sin asignar';
-        if (!designers[d]) designers[d] = { total: 0, pieces: 0 };
-        designers[d].total++;
-        designers[d].pieces += (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0);
-    });
-    list.innerHTML = Object.entries(designers).sort((a, b) => b[1].total - a[1].total).map(([name, data]) => `
-        <button class="filter-btn w-full text-left p-3 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-blue-50 dark:hover:bg-slate-700 hover:border-blue-200 transition-all" data-designer="${escapeHTML(name)}">
-            <div class="flex justify-between items-center"><span class="font-bold text-slate-800 dark:text-white text-sm">${escapeHTML(name)}</span><span class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full text-[10px] font-bold">${data.total}</span></div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">${data.pieces.toLocaleString()} piezas</div>
-        </button>`).join('');
-}
-
-function generateDesignerMetrics(designerName) {
-    const detail = document.getElementById('metricsDetail'); if (!detail) return;
-    const orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART && (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName));
-    const totalPieces = orders.reduce((s, o) => s + (Number(o.cantidad)||0) + (Number(o.childPieces)||0), 0);
-    const currentMonth = new Date().toISOString().slice(0, 7);
-
-    destroyAllCharts();
-
-    detail.innerHTML = `
-        <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 text-white mb-6 shadow-lg">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <div><h2 class="text-2xl font-bold">${escapeHTML(designerName)}</h2><p class="text-blue-100 text-xs">Reporte de Productividad</p></div>
-                <div class="flex items-center gap-2 bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/20">
-                    <input type="month" id="reportMonthSelector" value="${currentMonth}" class="bg-white/90 text-slate-800 text-xs rounded border-0 py-1.5 px-2 focus:ring-2 focus:ring-blue-400">
-                    <button onclick="exportMonthlyReport('${escapeHTML(designerName)}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2"><i class="fa-solid fa-file-excel"></i> Descargar</button>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-white/10"><div class="text-white/70 text-xs uppercase font-bold mb-1">Total Órdenes</div><div class="text-3xl font-bold">${orders.length}</div></div>
-                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-white/10"><div class="text-white/70 text-xs uppercase font-bold mb-1">Total Piezas</div><div class="text-3xl font-bold">${totalPieces.toLocaleString()}</div></div>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700"><h3 class="font-bold text-slate-800 dark:text-white mb-4 text-xs uppercase">Distribución de Estados</h3><div class="relative h-64 w-full"><canvas id="designerDoughnutChart"></canvas></div></div>
-            <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700"><h3 class="font-bold text-slate-800 dark:text-white mb-4 text-xs uppercase">Eficiencia</h3><div class="relative h-64 w-full"><canvas id="designerBarChart"></canvas></div></div>
-        </div>`;
+    const safeStatus = escapeHTML(status || 'Sin estado');
     
-    setTimeout(() => {
-        if (typeof Chart === 'undefined') return;
-        const stats = calculateStats(orders);
-        const statusCounts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0 };
-        orders.forEach(o => { if(statusCounts[o.customStatus] !== undefined) statusCounts[o.customStatus]++; });
-        
-        const isDark = document.documentElement.classList.contains('dark');
-        const textColor = isDark ? '#cbd5e1' : '#666';
-
-        designerDoughnutChart = new Chart(document.getElementById('designerDoughnutChart'), {
-            type: 'doughnut', data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#10b981'], borderColor: isDark ? '#1e293b' : '#fff' }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: textColor, font: { size: 10 }, boxWidth: 12 } } } }
-        });
-        
-        designerBarChart = new Chart(document.getElementById('designerBarChart'), {
-            type: 'bar', data: { labels: ['A Tiempo', 'Atrasadas', 'Muy Atrasadas'], datasets: [{ label: 'Órdenes', data: [stats.onTime, stats.late - stats.veryLate, stats.veryLate], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], borderRadius: 4 }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: isDark ? '#334155' : '#e5e5e5' }, ticks: { color: textColor } }, x: { grid: { display: false }, ticks: { color: textColor } } }, plugins: { legend: { display: false } } }
-        });
-    }, 100);
-}
-
-// Generación de Plan Semanal (Visualización)
-function generateWorkPlan() {
-    const container = document.getElementById('view-workPlanContent');
-    const weekInput = document.getElementById('view-workPlanWeekSelector');
-    if (!weekInput) return;
-    if (!weekInput.value) weekInput.value = getWeekIdentifierString(new Date());
+    if (status === 'Completada') return `<span class="${base} bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-600">${safeStatus}</span>`;
+    if (status === 'Bandeja') return `<span class="${base} bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800">${safeStatus}</span>`;
+    if (status === 'Producción') return `<span class="${base} bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800">${safeStatus}</span>`;
+    if (status === 'Auditoría') return `<span class="${base} bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800">${safeStatus}</span>`;
     
-    container.innerHTML = '<div class="spinner"></div>';
-    setTimeout(() => {
-        const planData = firebaseWeeklyPlanMap.get(weekInput.value) || [];
-        if (planData.length === 0) {
-            container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50"><i class="fa-regular fa-calendar-xmark text-3xl text-slate-300 dark:text-slate-600 mb-2"></i><p class="text-slate-400 font-medium">El plan para la semana ${weekInput.value} está vacío.</p></div>`;
-            return;
-        }
-
-        let totalPzs = 0, doneCount = 0;
-        planData.sort((a, b) => a.isLate ? -1 : 1); // Priorizar atrasadas
-
-        let html = `
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow border border-slate-200 dark:border-slate-700 overflow-hidden"><table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs">
-            <thead class="bg-slate-50 dark:bg-slate-700 font-bold text-slate-500 dark:text-slate-300 uppercase"><tr><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-left">Orden</th><th class="px-4 py-3 text-left">Diseñador</th><th class="px-4 py-3 text-left">Entrega</th><th class="px-4 py-3 text-right">Piezas</th><th class="px-4 py-3"></th></tr></thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">`;
-
-        planData.forEach(item => {
-            const liveOrder = allOrders.find(o => o.orderId === item.orderId);
-            const isCompleted = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
-            const pzs = (item.cantidad || 0) + (item.childPieces || 0);
-            totalPzs += pzs; 
-            if (isCompleted) doneCount++;
-
-            const badge = isCompleted ? `<span class="bg-slate-600 text-white px-2 py-1 rounded font-bold flex items-center gap-1 w-fit shadow-sm"><i class="fa-solid fa-check"></i> LISTO</span>` : item.isLate ? `<span class="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded font-bold border border-red-200 dark:border-red-800">ATRASADA</span>` : `<span class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-bold border border-blue-100 dark:border-blue-800">En Proceso</span>`;
-            const rowClasses = isCompleted ? 'bg-slate-50 dark:bg-slate-900 opacity-60 grayscale' : 'hover:bg-slate-50 dark:hover:bg-slate-700';
-
-            html += `
-            <tr class="${rowClasses} transition-colors">
-                <td class="px-4 py-3">${badge}</td>
-                <td class="px-4 py-3"><div class="font-bold text-slate-800 dark:text-white text-sm">${escapeHTML(item.cliente)}</div><div class="text-slate-500 dark:text-slate-400 text-[11px]">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div></td>
-                <td class="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">${escapeHTML(item.designer || 'Sin asignar')}</td>
-                <td class="px-4 py-3 text-slate-600 dark:text-slate-400">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
-                <td class="px-4 py-3 text-right font-bold text-slate-800 dark:text-white">${pzs.toLocaleString()}</td>
-                <td class="px-4 py-3 text-right"><button class="btn-remove-from-plan text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>`;
-        });
-        
-        html += `</tbody></table></div>`;
-        const progress = planData.length > 0 ? Math.round((doneCount / planData.length) * 100) : 0;
-        
-        container.innerHTML = `
-        <div class="mb-6 bg-white dark:bg-slate-800 border border-blue-100 dark:border-slate-700 p-4 rounded-xl shadow-sm flex items-center justify-between gap-6">
-            <div class="flex-1"><div class="flex justify-between mb-2"><span class="font-bold text-slate-700 dark:text-slate-300 text-xs uppercase">Progreso Semanal</span><span class="font-bold text-blue-600 dark:text-blue-400 text-xs">${progress}%</span></div><div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden"><div class="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500" style="width: ${progress}%"></div></div></div>
-            <div class="text-right border-l border-slate-100 dark:border-slate-700 pl-6"><div class="text-2xl font-bold text-slate-800 dark:text-white">${doneCount} <span class="text-slate-400 text-sm font-normal">/ ${planData.length}</span></div><div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wide">Órdenes Listas</div></div>
-        </div> ${html}`;
-    }, 100);
+    return `<span class="text-slate-400 text-xs italic pl-2">${safeStatus}</span>`;
 }
 
-// Exportación Excel (Reporte Mensual)
-window.exportMonthlyReport = (designerName) => {
-    const monthInput = document.getElementById('reportMonthSelector').value; 
-    if (!monthInput) return showCustomAlert('Selecciona un mes válido', 'error');
+// --- Paginación (Corrige Bug #7) ---
+function renderPagination() {
+    const totalPages = Math.ceil(getFilteredOrders().length / rowsPerPage);
+    const c = document.getElementById('paginationControls');
+    if (!c) return;
+    
+    let h = `<button onclick="changePage(${currentPage-1})" ${currentPage===1?'disabled':''} class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-600 dark:text-slate-300 transition-colors"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>`;
+    
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + 4);
+    if (end - start < 4) start = Math.max(1, end - 4);
+    
+    for (let i = start; i <= end; i++) {
+        h += `<button onclick="changePage(${i})" class="w-8 h-8 flex items-center justify-center border rounded-lg text-xs font-medium transition-colors ${i === currentPage ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900 border-slate-800 dark:border-white shadow-sm' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}">${i}</button>`;
+    }
+    
+    h += `<button onclick="changePage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''} class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-600 dark:text-slate-300 transition-colors"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>`;
+    c.innerHTML = h;
+}
 
-    const getWeekNumber = (d) => { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7)); var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1)); return Math.ceil((((d - yearStart) / 86400000) + 1)/7); };
+// --- Dropdowns Dinámicos (Corrige Bug #9) ---
+function populateFilterDropdowns() {
+    const populate = (id, key) => {
+        const sel = document.getElementById(id);
+        if(!sel) return;
+        const currentVal = sel.value;
+        const options = [...new Set(allOrders.map(o => o[key]).filter(Boolean))].sort();
+        sel.innerHTML = '<option value="">Todos</option>' + options.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join('');
+        sel.value = currentVal;
+    };
+    populate('clientFilter', 'cliente');
+    populate('styleFilter', 'estilo');
+    populate('teamFilter', 'teamName');
+    populate('departamentoFilter', 'departamento');
+    updateAllDesignerDropdowns();
+}
 
-    const reportData = allOrders.filter(o => {
-        const matchDesigner = (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName);
-        if (!matchDesigner || !o.receivedDate) return false;
-        return o.receivedDate.startsWith(monthInput);
-    });
-
-    if (reportData.length === 0) return showCustomAlert('No hay datos para este mes', 'info');
-
-    const excelData = reportData.map(o => {
-        const dateObj = new Date(o.receivedDate + "T12:00:00");
-        return {
-            "SEMANA #-": getWeekNumber(dateObj), "DIA": dateObj.toLocaleDateString('es-ES', { weekday: 'long' }).toUpperCase(),
-            "FECHA DE LLEGADA": o.receivedDate || '-', "FECHA DE DESPACHO": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '-',
-            "CLIENTE": o.cliente, "#- DE ORDEN": o.codigoContrato, "CANT. PIEZAS": (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0),
-            "CANT. MONTADA": "", "PROOF": "", "APROBACION": "", "PRODUCCION": o.completedDate ? new Date(o.completedDate).toLocaleDateString() : ''
-        };
-    });
-
-    if (typeof XLSX === 'undefined') return showCustomAlert('Librería Excel no cargada', 'error');
-    const ws = XLSX.utils.json_to_sheet(excelData); const wb = XLSX.utils.book_new();
-    ws['!cols'] = [{wch: 10}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 15}, {wch: 12}, {wch: 12}, {wch: 10}, {wch: 15}, {wch: 15}];
-    XLSX.utils.book_append_sheet(wb, ws, "Reporte Mensual");
-    XLSX.writeFile(wb, `REPORTE_ARTE_${monthInput}_${designerName.toUpperCase().replace(/\s+/g, '_')}.xlsx`);
-    showCustomAlert('Reporte descargado', 'success');
-};
-
-window.exportTableToExcel = () => {
-    if (allOrders.length === 0) return showCustomAlert('No hay datos', 'error');
-    const data = getFilteredOrders().map(o => ({
-        "Cliente": o.cliente, "Código": o.codigoContrato, "Estilo": o.estilo, "Departamento": o.departamento,
-        "Fecha Despacho": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
-        "Diseñador": o.designer, "Estado Interno": o.customStatus, "Piezas": o.cantidad, "Total Piezas": o.cantidad + o.childPieces
-    }));
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Reporte");
-    XLSX.writeFile(wb, `Reporte_Panel_${new Date().toISOString().slice(0,10)}.xlsx`);
-};
-
-
+function updateAllDesignerDropdowns() {
+    const html = '<option value="">Todos</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    if(document.getElementById('designerFilter')) document.getElementById('designerFilter').innerHTML = html;
+    
+    const modalHtml = '<option value="">Sin asignar</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    if(document.getElementById('modalDesigner')) document.getElementById('modalDesigner').innerHTML = modalHtml;
+    if(document.getElementById('multiModalDesigner')) document.getElementById('multiModalDesigner').innerHTML = modalHtml;
+    
+    const compareHtml = '<option value="">Seleccionar...</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
+}
