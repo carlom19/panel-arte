@@ -2205,7 +2205,7 @@ function updateKanbanDropdown() {
 // ===== 18. SISTEMA DE CHAT Y MENCIONES (COLLAB) =====
 // ======================================================
 
-let unsubscribeChat = null; 
+// NOTA: Se eliminó 'let unsubscribeChat = null;' aquí porque ya está declarada arriba.
 
 // 1. Cargar comentarios de una orden
 function loadOrderComments(orderId) {
@@ -2214,7 +2214,11 @@ function loadOrderComments(orderId) {
     
     chatContainer.innerHTML = '<div class="flex justify-center pt-4"><div class="spinner"></div></div>';
     
-    if (unsubscribeChat) unsubscribeChat();
+    // CRÍTICO: Desconectar listener anterior
+    if (unsubscribeChat) {
+        unsubscribeChat();
+        unsubscribeChat = null;
+    }
 
     // Escuchar subcolección 'comments' de la orden
     const commentsRef = db_firestore.collection('assignments').doc(orderId).collection('comments').orderBy('timestamp', 'asc');
