@@ -1,5 +1,5 @@
 /* ====================================================== */
-/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) v7.3 ===== */
+/* ===== ESTILOS CSS - Estilo Salient (SaaS Moderno) v7.4 ===== */
 /* ====================================================== */
 
 /* --- 1. Escala Global --- */
@@ -62,10 +62,7 @@ body.modal-open { overflow: hidden; }
 body:has(.main-content-shifted) .multi-select-bar { left: calc(50% + 8rem); }
 .multi-select-bar.active { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
 
-/* ====================================================== */
-/* ===== 6. ESTILO DE TABLA (AJUSTE PANTALLA COMPLETA) ===== */
-/* ====================================================== */
-
+/* --- 6. Tablas --- */
 .table-responsive, .table-container {
     width: 100%;
     overflow-x: auto;
@@ -76,80 +73,18 @@ body:has(.main-content-shifted) .multi-select-bar { left: calc(50% + 8rem); }
     background: white;
 }
 
-table.data-table {
-    border-collapse: collapse; 
-    width: 100%;
-    font-family: 'Inter', sans-serif;
-    table-layout: auto; /* Ajuste automático */
-}
+table.data-table { border-collapse: collapse; width: 100%; font-family: 'Inter', sans-serif; table-layout: auto; }
+table.data-table th { background-color: #F9FAFB; color: #6366F1; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB; white-space: nowrap; padding: 0.75rem 0.5rem; position: sticky; top: 0; z-index: 10; text-align: left; }
+table.data-table td { border-bottom: 1px solid #E5E7EB; vertical-align: middle; color: #111827; font-size: 0.8rem; white-space: normal; word-wrap: break-word; padding: 0.6rem 0.5rem; }
+table.data-table td:nth-child(4), table.data-table td:nth-child(6), table.data-table td:nth-child(7) { max-width: 140px; line-height: 1.2; }
+table.data-table td:nth-child(2), table.data-table td:nth-child(3), table.data-table td:nth-child(5), table.data-table td:last-child { white-space: nowrap; }
+table.data-table tr:hover td { background-color: #F3F4F6; }
+table.data-table th:first-child, table.data-table td:first-child { padding-left: 0.75rem; padding-right: 0.25rem; width: 2.5rem; text-align: center; }
 
-/* ENCABEZADO DE TABLA */
-table.data-table th {
-    background-color: #F9FAFB; 
-    color: #6366F1; 
-    font-weight: 600; 
-    text-transform: uppercase;
-    font-size: 0.7rem; 
-    letter-spacing: 0.05em; 
-    border-bottom: 1px solid #E5E7EB; 
-    
-    white-space: nowrap; 
-    padding: 0.75rem 0.5rem; /* Padding reducido para ajustar */
-    
-    position: sticky; 
-    top: 0; 
-    z-index: 10;
-    text-align: left;
-}
-
-/* CUERPO DE TABLA */
-table.data-table td {
-    border-bottom: 1px solid #E5E7EB; 
-    vertical-align: middle;
-    color: #111827; 
-    font-size: 0.8rem;
-    
-    /* CLAVE: Permitir salto de línea */
-    white-space: normal; 
-    word-wrap: break-word;
-    
-    padding: 0.6rem 0.5rem; /* Padding reducido */
-}
-
-/* Restricciones de ancho para columnas de texto largo */
-table.data-table td:nth-child(4), /* Cliente */
-table.data-table td:nth-child(6), /* Estilo */
-table.data-table td:nth-child(7)  /* Team */ {
-    max-width: 140px; /* Forzar salto de línea antes */
-    line-height: 1.2;
-}
-
-/* Columnas que no deben romperse */
-table.data-table td:nth-child(2), /* Estado */
-table.data-table td:nth-child(3), /* Fecha */
-table.data-table td:nth-child(5), /* Código */
-table.data-table td:last-child    /* Botones */ {
-    white-space: nowrap;
-}
-
-/* HOVER */
-table.data-table tr:hover td {
-    background-color: #F3F4F6; 
-}
-
-/* Resaltado de filas */
+/* Resaltado de filas (Light Mode Defaults) */
 tr.very-late td { background-color: #FEF2F2 !important; border-left: 3px solid #EF4444; } 
 tr.late td { background-color: #FFF7ED !important; } 
 tr.expiring td { background-color: #FEFCE8 !important; } 
-
-/* Checkbox Column */
-table.data-table th:first-child,
-table.data-table td:first-child {
-    padding-left: 0.75rem;
-    padding-right: 0.25rem;
-    width: 2.5rem;
-    text-align: center;
-}
 
 /* --- 7. Utilerías --- */
 .spinner { border: 3px solid #E2E8F0; border-top: 3px solid #2563EB; border-radius: 50%; width: 28px; height: 28px; animation: spin 0.8s linear infinite; margin: 0 auto; }
@@ -172,13 +107,12 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
     table.data-table tr { display: block; border: 1px solid #eee; margin-bottom: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 }
 
-/* --- 9. Kanban --- */
+/* --- 9. Kanban & Chat --- */
 #kanbanView { height: 100vh; overflow-y: auto; overflow-x: auto; display: flex; flex-direction: column; }
 .kanban-column { height: auto; min-height: 200px; display: flex; flex-direction: column; min-width: 300px; margin-bottom: 2rem; }
 .kanban-dropzone { min-height: 150px; height: auto; flex-grow: 1; transition: background-color 0.2s; }
 .kanban-dropzone.drag-over { background-color: rgba(59, 130, 246, 0.1) !important; border: 2px dashed #3B82F6; border-radius: 0.75rem; }
 
-/* --- 10. Chat --- */
 .chat-bubble { max-width: 85%; padding: 8px 12px; border-radius: 12px; position: relative; font-size: 0.75rem; line-height: 1.4; word-wrap: break-word; }
 .chat-bubble.me { align-self: flex-end; background-color: #EFF6FF; color: #1E3A8A; border-bottom-right-radius: 2px; border: 1px solid #DBEAFE; }
 .chat-bubble.other { align-self: flex-start; background-color: #FFFFFF; color: #334155; border-bottom-left-radius: 2px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
@@ -189,7 +123,6 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
 .mention-item:hover { background-color: #F8FAFC; color: #2563EB; font-weight: 600; }
 #chatHistory { scroll-behavior: smooth; }
 
-/* --- 11. Animaciones --- */
 @keyframes pulse-notification {
     0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
     70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
@@ -198,112 +131,44 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
 #notificationBadge { animation: pulse-notification 2s infinite; }
 
 /* ====================================================== */
-/* ===== DARK MODE OVERRIDES ===== */
+/* ===== DARK MODE: CONFIGURACIÓN UNIFICADA ===== */
 /* ====================================================== */
 
-/* Fondo Global y Texto */
-html.dark body {
-    background-color: #0f172a; /* Slate 900 */
-    color: #f8fafc; /* Slate 50 */
-}
+/* 1. Fondo Global y Texto */
+html.dark body { background-color: #0f172a; color: #f8fafc; }
+html.dark .main-content-shifted, html.dark #appMainContainer { background-color: #0f172a; }
 
-html.dark .main-content-shifted,
-html.dark #appMainContainer {
-    background-color: #0f172a;
-}
+/* 2. Forzado de Contenedores Blancos a Oscuros */
+html.dark .bg-white { background-color: #1e293b !important; border-color: #334155 !important; color: #f1f5f9 !important; }
+html.dark .bg-slate-50, html.dark .bg-slate-100, html.dark .hover\:bg-slate-50:hover { background-color: #0f172a !important; color: #cbd5e1 !important; border-color: #334155 !important; }
 
-/* Tablas Personalizadas en Dark Mode */
-html.dark .table-responsive, 
-html.dark .table-container {
-    background-color: #1e293b; /* Fondo de contenedor de tabla oscuro */
-    border-color: #334155;
-    box-shadow: none;
-}
+/* 3. Contraste de Texto */
+html.dark .text-slate-500, html.dark .text-slate-600, html.dark .text-slate-700, html.dark .text-gray-500, html.dark .text-gray-600, html.dark .text-gray-700 { color: #94a3b8 !important; }
+html.dark .text-slate-800, html.dark .text-slate-900, html.dark .text-gray-800, html.dark .text-gray-900 { color: #f1f5f9 !important; }
+html.dark button .text-slate-400 { color: #cbd5e1 !important; }
+html.dark button:hover .text-slate-400 { color: #ffffff !important; }
 
-html.dark table.data-table th {
-    background-color: #1e293b; /* Slate 800 */
-    color: #94a3b8; /* Slate 400 */
-    border-bottom-color: #334155;
-}
+/* 4. Tablas */
+html.dark .table-responsive, html.dark .table-container { background-color: #1e293b; border-color: #334155; box-shadow: none; }
+html.dark table.data-table th { background-color: #1e293b; color: #94a3b8; border-bottom-color: #334155; }
+html.dark table.data-table td { color: #cbd5e1; border-bottom-color: #334155; background-color: #1e293b; }
+html.dark table.data-table tr:hover td { background-color: #334155 !important; }
+html.dark table, html.dark th, html.dark td { border-color: #334155 !important; }
 
-html.dark table.data-table td {
-    color: #cbd5e1; /* Slate 300 */
-    border-bottom-color: #334155;
-    background-color: #1e293b; /* Fondo base de celda */
-}
-
-html.dark table.data-table tr:hover td {
-    background-color: #334155 !important; /* Hover más claro que el fondo base */
-}
-
-/* Estados de fila en Dark Mode (Más sutiles) */
+/* 5. Alertas de Tabla (Colores más sutiles) */
 html.dark tr.very-late td { background-color: #450a0a !important; color: #fecaca; border-left-color: #ef4444; } 
 html.dark tr.late td { background-color: #431407 !important; color: #fed7aa; } 
 html.dark tr.expiring td { background-color: #422006 !important; color: #fde047; } 
 
-/* Modales */
-html.dark .modal-content {
-    background-color: #1e293b;
-    border-color: #334155;
-    color: #f1f5f9;
-}
+/* 6. Inputs y Modales */
+html.dark .modal-content { background-color: #1e293b; border-color: #334155; color: #f1f5f9; }
+html.dark input, html.dark select, html.dark textarea { background-color: #0f172a; border-color: #334155; color: #f1f5f9; }
+html.dark input::placeholder, html.dark textarea::placeholder { color: #475569; }
 
-/* Inputs y Selects */
-html.dark input, 
-html.dark select, 
-html.dark textarea {
-    background-color: #0f172a;
-    border-color: #334155;
-    color: #f1f5f9;
-}
-
-html.dark input::placeholder,
-html.dark textarea::placeholder {
-    color: #475569;
-}
-
-/* Scrollbar oscuro */
+/* 7. Chat y Utilerías */
 html.dark ::-webkit-scrollbar-track { background: #0f172a; }
 html.dark ::-webkit-scrollbar-thumb { background: #475569; }
 html.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
-/* Chat Bubbles Dark Mode */
-html.dark .chat-bubble.other {
-    background-color: #334155;
-    color: #e2e8f0;
-    border-color: #475569;
-}
-html.dark .chat-bubble.me {
-    background-color: #1e40af; /* Blue 800 */
-    color: #dbeafe;
-    border-color: #1e3a8a;
-}
-
-/* ====================================================== */
-/* ===== DARK MODE TEXT CONTRAST FIX (NUEVO) ===== */
-/* ====================================================== */
-
-/* Forzar que el texto oscuro se vuelva claro en modo oscuro */
-html.dark .text-slate-500, 
-html.dark .text-slate-600, 
-html.dark .text-slate-700, 
-html.dark .text-gray-500, 
-html.dark .text-gray-600 {
-    color: #94a3b8 !important; /* Slate 400 (Gris claro) */
-}
-
-html.dark .text-slate-800, 
-html.dark .text-slate-900,
-html.dark .text-gray-700,
-html.dark .text-gray-800,
-html.dark .text-gray-900 {
-    color: #f1f5f9 !important; /* Slate 100 (Casi blanco) */
-}
-
-/* Asegurar que los iconos de botones no desaparezcan */
-html.dark button .text-slate-400 {
-    color: #cbd5e1 !important; /* Slate 300 */
-}
-html.dark button:hover .text-slate-400 {
-    color: #ffffff !important;
-}
+html.dark .chat-bubble.other { background-color: #334155; color: #e2e8f0; border-color: #475569; }
+html.dark .chat-bubble.me { background-color: #1e40af; color: #dbeafe; border-color: #1e3a8a; }
+html.dark .shadow, html.dark .shadow-sm, html.dark .shadow-lg { box-shadow: none !important; border: 1px solid #334155; }

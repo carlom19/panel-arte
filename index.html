@@ -20,11 +20,11 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-    <link rel="stylesheet" href="estilos.css">
+    <link rel="stylesheet" href="estilos.css?v=7.2">
     
     <script>
         tailwind.config = {
-            darkMode: 'class', /* Activación manual del modo oscuro */
+            darkMode: 'class', 
             theme: {
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
@@ -105,7 +105,6 @@
         </div>
     </nav>
 
-
     <div id="loginSection" class="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-50 dark:bg-slate-900 z-50 relative">
         <div class="sm:mx-auto sm:w-full sm:max-w-md text-center">
             <div class="mx-auto h-14 w-14 bg-blue-600 text-white rounded-xl flex items-center justify-center text-2xl shadow-xl shadow-blue-900/20">
@@ -140,7 +139,6 @@
             <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
         </div>
     </div>
-
 
     <div id="appMainContainer" class="transition-all duration-300 min-h-screen bg-slate-50 dark:bg-slate-900">
 
@@ -186,6 +184,7 @@
                 <div class="w-full space-y-6">
                     
                     <div id="summaryBox" class="hidden"></div> 
+                    
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-blue-200 transition-all">
                             <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total P_Art</p><i class="fa-solid fa-box-open text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors"></i></div>
@@ -364,7 +363,6 @@
             
             <div class="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-slate-50/50 dark:bg-slate-900/50">
                 <div class="flex h-full gap-6 min-w-max">
-                    
                     <div class="kanban-column flex flex-col w-80 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 h-full max-h-full shadow-sm">
                         <div class="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-200/50 dark:bg-slate-700/50 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0">
                             <h3 class="font-bold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-2">
@@ -372,8 +370,7 @@
                             </h3>
                             <span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-600 dark:text-slate-200 border border-slate-300 dark:border-slate-500" id="count-Bandeja">0</span>
                         </div>
-                        <div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Bandeja" ondragover="allowDrop(event)" ondrop="drop(event)">
-                            </div>
+                        <div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Bandeja" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
                     </div>
         
                     <div class="kanban-column flex flex-col w-80 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 h-full max-h-full shadow-sm">
@@ -405,7 +402,6 @@
                         </div>
                         <div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Completada" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
                     </div>
-        
                 </div>
             </div>
         </div>
@@ -718,6 +714,6 @@
         }
     </style>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=7.2"></script>
 </body>
 </html>
