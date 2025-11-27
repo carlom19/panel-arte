@@ -194,8 +194,8 @@ function showCustomAlert(message, type = 'info') {
     let borderClass = type === 'error' ? 'border-l-4 border-red-500' : type === 'success' ? 'border-l-4 border-green-500' : 'border-l-4 border-blue-500';
     let icon = type === 'error' ? 'fa-circle-xmark text-red-500' : type === 'success' ? 'fa-circle-check text-green-500' : 'fa-circle-info text-blue-500';
     
-    alertDiv.className = `fixed top-5 right-5 z-[3000] max-w-sm w-full bg-white shadow-2xl rounded-xl pointer-events-auto transform transition-all duration-300 ring-1 ring-black/5 overflow-hidden ${borderClass}`;
-    alertDiv.innerHTML = `<div class="p-4 flex items-start"><div class="flex-shrink-0"><i class="fa-solid ${icon} text-xl"></i></div><div class="ml-3 w-0 flex-1 pt-0.5"><p class="text-sm font-medium text-slate-900">${type.toUpperCase()}</p><p class="mt-1 text-xs text-slate-500">${escapeHTML(message)}</p></div><div class="ml-4 flex flex-shrink-0"><button onclick="document.getElementById('customAlert').style.display='none'" class="text-slate-400 hover:text-slate-500"><i class="fa-solid fa-xmark"></i></button></div></div>`;
+    alertDiv.className = `fixed top-5 right-5 z-[3000] max-w-sm w-full bg-white dark:bg-slate-800 shadow-2xl rounded-xl pointer-events-auto transform transition-all duration-300 ring-1 ring-black/5 overflow-hidden ${borderClass}`;
+    alertDiv.innerHTML = `<div class="p-4 flex items-start"><div class="flex-shrink-0"><i class="fa-solid ${icon} text-xl"></i></div><div class="ml-3 w-0 flex-1 pt-0.5"><p class="text-sm font-medium text-slate-900 dark:text-white">${type.toUpperCase()}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">${escapeHTML(message)}</p></div><div class="ml-4 flex flex-shrink-0"><button onclick="document.getElementById('customAlert').style.display='none'" class="text-slate-400 hover:text-slate-500"><i class="fa-solid fa-xmark"></i></button></div></div>`;
     alertDiv.style.display = 'block';
     if (window.alertTimeout) clearTimeout(window.alertTimeout);
     window.alertTimeout = setTimeout(() => { alertDiv.style.display = 'none'; }, 4000);
@@ -225,6 +225,7 @@ function getWeekIdentifierString(d) {
 }
 
 // --- NUEVO: HELPER DE NOTIFICACIONES ---
+// Esta función es vital para que funcionen las alertas de asignación y mención
 async function createNotification(recipientEmail, type, title, message, orderId) {
     try {
         await db_firestore.collection('notifications').add({
@@ -236,6 +237,7 @@ async function createNotification(recipientEmail, type, title, message, orderId)
             read: false,
             timestamp: new Date().toISOString()
         });
+        console.log(`Notificación enviada a ${recipientEmail}`);
     } catch (e) {
         console.error("Error creando notificación interna:", e);
     }
@@ -643,55 +645,74 @@ function recalculateChildPieces() {
     allOrders.forEach(o => o.childPieces = cache.get(o.orderId) || 0);
     needsRecalculation = false;
 }
+
 // ======================================================
-// ===== 6. PARSER EXCEL (CORE) - SOLUCIÓN COMPLETA =====
+// ===== 6. PARSER EXCEL (ROBUST / BLINDADO) =====
 // ======================================================
 
-// 1. ESTA ES LA FUNCIÓN QUE FALTABA (handleFiles)
+// 1. ESTA ES LA FUNCIÓN DE MANEJO DE ARCHIVOS
 function handleFiles(files) {
     if (files.length > 0) {
-        // Actualizar nombre del archivo en la UI
         const fileNameElement = document.getElementById('fileName');
         if (fileNameElement) fileNameElement.textContent = files[0].name;
-        
-        // Llamar al procesador principal
         processFile(files[0]);
     }
 }
 
-// 2. ESTA ES LA FUNCIÓN DE PROCESAMIENTO (CORREGIDA PARA SINCRONIZAR CON APP2)
+// 2. PROCESAMIENTO CON VALIDACIÓN DE ERRORES
 async function processFile(file) {
-    showLoading('Procesando Excel...');
+    showLoading('Analizando estructura del archivo...');
+    
     try {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
-        const sheetName = workbook.SheetNames.find(n => /working\s*pro[c]{1,2}ess/i.test(n));
         
-        if (!sheetName) throw new Error('No se encontró "Working Process"');
+        // 1. Búsqueda flexible de la hoja "Working Process"
+        const sheetName = workbook.SheetNames.find(n => /working\s*pro[c]{1,2}ess/i.test(n));
+        if (!sheetName) {
+            throw new Error('No se encontró la hoja "Working Process". Verifica el nombre de la pestaña en el Excel.');
+        }
         
         const arr = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
         let hIdx = -1;
 
-        // Búsqueda inteligente de encabezados
-        for (let i = 0; i < Math.min(arr.length, 15); i++) {
-            const r = arr[i].map(c => String(c).toLowerCase());
-            if (r.some(c => c.includes('fecha')) && r.some(c => c.includes('cliente'))) { hIdx = i; break; }
+        // 2. Escaneo inteligente de encabezados (Busca en las primeras 20 filas)
+        for (let i = 0; i < Math.min(arr.length, 20); i++) {
+            const r = arr[i].map(c => String(c).toLowerCase().trim());
+            // Condición mínima: Debe tener Fecha y Cliente en la misma fila
+            if (r.some(c => c.includes('fecha')) && r.some(c => c.includes('cliente'))) { 
+                hIdx = i; 
+                break; 
+            }
         }
-        if (hIdx === -1) throw new Error('Encabezados no encontrados');
+
+        if (hIdx === -1) {
+            throw new Error('No se encontraron los encabezados clave ("Fecha", "Cliente"). Verifica que el archivo no tenga filas vacías al inicio.');
+        }
         
-        // Limpieza de encabezados igual que app2.js
-        const headers = arr[hIdx].map(h => String(h).trim().replace(/,/g, '').toLowerCase());
-        const rows = arr.slice(hIdx + 1);
+        // 3. Mapeo y Validación de Columnas Requeridas
+        const rawHeaders = arr[hIdx].map(h => String(h).trim().replace(/,/g, '').toLowerCase());
         
-        // Mapeo dinámico de columnas
         const cols = {
-            fecha: headers.findIndex(h => h.includes('fecha')),
-            cliente: headers.findIndex(h => h.includes('cliente')),
-            codigo: headers.findIndex(h => h.includes('codigo') || h.includes('contrato')),
-            estilo: headers.findIndex(h => h.includes('estilo')),
-            team: headers.findIndex(h => h.includes('team'))
+            fecha: rawHeaders.findIndex(h => h.includes('fecha')),
+            cliente: rawHeaders.findIndex(h => h.includes('cliente')),
+            codigo: rawHeaders.findIndex(h => h.includes('codigo') || h.includes('contrato') || h.includes('po')),
+            estilo: rawHeaders.findIndex(h => h.includes('estilo')),
+            team: rawHeaders.findIndex(h => h.includes('team'))
         };
 
+        // Reporte de columnas faltantes
+        const missing = [];
+        if (cols.fecha === -1) missing.push('Fecha');
+        if (cols.cliente === -1) missing.push('Cliente');
+        if (cols.codigo === -1) missing.push('Código/Contrato');
+        if (cols.estilo === -1) missing.push('Estilo');
+
+        if (missing.length > 0) {
+            throw new Error(`El archivo no es válido. Faltan las columnas: ${missing.join(', ')}.`);
+        }
+
+        // 4. Mapeo de Departamentos (Dinámico)
         const depts = [
             { p: /p[_\s]*art/i, n: CONFIG.DEPARTMENTS.ART }, 
             { p: /p[_\s]*sew/i, n: CONFIG.DEPARTMENTS.SEW },
@@ -702,13 +723,22 @@ async function processFile(file) {
         ];
         
         const deptCols = [];
-        headers.forEach((h, i) => { 
+        rawHeaders.forEach((h, i) => { 
             const m = depts.find(d => d.p.test(h)); 
             if (m) deptCols.push({ idx: i, name: m.n }); 
         });
 
+        // Aviso si no encuentra Arte (Fundamental para esta app)
+        if (!deptCols.some(d => d.name === CONFIG.DEPARTMENTS.ART)) {
+            showCustomAlert('Advertencia: No se encontró la columna "P_Art". El dashboard podría estar vacío.', 'info');
+        }
+
+        // 5. Procesamiento de Datos
+        showLoading('Procesando datos...');
+        const rows = arr.slice(hIdx + 1);
         let processed = [];
-        // Variables para mantener contexto (Logic App2)
+        
+        // Contexto para celdas fusionadas o vacías (Fill Down)
         let currentClient = ""; 
         let currentContrato = ""; 
         let currentStyle = ""; 
@@ -718,26 +748,30 @@ async function processFile(file) {
         for (const r of rows) {
             if (!r || r.every(c => !c)) continue;
             
-            // Ignorar filas de totales
-            const rStr = r.slice(0, 4).map(c => String(c).toLowerCase());
+            // Ignorar filas de totales/subtotales
+            const rStr = r.slice(0, 5).map(c => String(c).toLowerCase());
             if (rStr.some(c => c.includes('total') || c.includes('subtotal'))) continue;
 
-            // --- CORRECCIÓN FECHA (UTC como app2.js) ---
+            // Parseo de Fecha (Robusto)
             if (cols.fecha >= 0 && r[cols.fecha]) { 
                 const v = r[cols.fecha]; 
                 let dObj = null;
                 if (typeof v === 'number') {
+                    // Excel serial date
                     dObj = new Date((v - 25569) * 86400 * 1000);
                 } else {
+                    // String date
                     const parsed = new Date(v);
-                    if (!isNaN(parsed)) dObj = parsed;
+                    if (!isNaN(parsed.getTime())) dObj = parsed;
                 }
+                
                 if (dObj) {
+                    // Normalizar a UTC para evitar problemas de zona horaria
                     currentDate = new Date(Date.UTC(dObj.getFullYear(), dObj.getMonth(), dObj.getDate()));
                 }
             }
             
-            // Persistencia de datos
+            // Persistencia de datos (Fill Down Logic)
             if (cols.cliente >= 0 && r[cols.cliente]) currentClient = String(r[cols.cliente]).trim();
             if (cols.codigo >= 0 && r[cols.codigo]) currentContrato = String(r[cols.codigo]).trim();
             if (cols.estilo >= 0 && r[cols.estilo]) currentStyle = String(r[cols.estilo]).trim();
@@ -745,24 +779,24 @@ async function processFile(file) {
 
             if (!currentClient || !currentContrato) continue;
 
-            // Determinar departamento y cantidad
+            // Extraer cantidad y departamento activo en esta fila
             let qty = 0, dept = CONFIG.DEPARTMENTS.NONE;
             for (let i = deptCols.length - 1; i >= 0; i--) {
                 const val = r[deptCols[i].idx];
                 if (val) { 
-                    const n = Number(String(val).replace(/,|\s/g, '')); 
-                    if (n > 0) { qty = n; dept = deptCols[i].name; break; } 
+                    const n = Number(String(val).replace(/[^0-9.-]+/g,"")); // Limpieza de caracteres no numéricos
+                    if (!isNaN(n) && n > 0) { qty = n; dept = deptCols[i].name; break; } 
                 }
             }
 
-            // --- CORRECCIÓN ID (Sin regex replace, como app2.js) ---
+            // Generar ID único (Composite Key)
             const timePart = currentDate ? currentDate.getTime() : 'nodate';
             const oid = `${currentClient}_${currentContrato}_${timePart}_${currentStyle}`;
 
-            // Recuperar datos de Firebase
+            // Recuperar datos existentes de Firebase (Asignaciones, notas, etc.)
             const fb = firebaseAssignmentsMap.get(oid); 
 
-            // Cálculos de alertas usando fecha local para visualización
+            // Cálculos de fechas
             const today = new Date(); today.setHours(0,0,0,0);
             const fdLocal = currentDate ? new Date(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()) : null;
             
@@ -777,12 +811,15 @@ async function processFile(file) {
                 teamName: currentTeam,
                 departamento: dept, 
                 cantidad: qty, 
-                childPieces: 0,
+                childPieces: 0, // Se calculará en mergeYActualizar
+                
+                // Banderas de estado (Frontend Logic)
                 isLate: fdLocal && fdLocal < today, 
                 isVeryLate: dl > 7, 
                 isAboutToExpire: fdLocal && !dl && ((fdLocal - today) / 86400000) <= 2,
+                daysLate: dl,
                 
-                // Mapeo
+                // Datos de Firebase
                 designer: fb ? fb.designer : '', 
                 customStatus: fb ? fb.customStatus : '', 
                 receivedDate: fb ? fb.receivedDate : '', 
@@ -791,6 +828,11 @@ async function processFile(file) {
             });
         }
 
+        if (processed.length === 0) {
+            throw new Error('El archivo parece válido pero no se extrajeron órdenes. Verifica que haya cantidades en las columnas de departamentos (P_Art, P_Sew, etc).');
+        }
+
+        // Éxito
         allOrders = processed; 
         isExcelLoaded = true; 
         needsRecalculation = true;
@@ -798,19 +840,24 @@ async function processFile(file) {
         recalculateChildPieces();
         mergeYActualizar(); 
 
-        // UI Reset
+        // Transición de UI
         document.getElementById('uploadSection').style.display = 'none';
         document.getElementById('appMainContainer').style.display = 'block';
         document.getElementById('appMainContainer').classList.add('main-content-shifted');
         document.getElementById('mainNavigation').style.display = 'flex';
-        document.getElementById('mainNavigation').style.transform = 'translateX(0)';
+        setTimeout(() => {
+            document.getElementById('mainNavigation').style.transform = 'translateX(0)';
+        }, 50);
         
         navigateTo('dashboard');
-        updateDashboard();
+        showCustomAlert(`Se cargaron ${allOrders.length} registros correctamente.`, 'success');
 
     } catch (e) { 
-        showCustomAlert('Error: ' + e.message, 'error'); 
-        console.error(e); 
+        showCustomAlert(e.message, 'error'); 
+        console.error("Error procesando Excel:", e);
+        // Reset UI en caso de error grave
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileName').textContent = '';
     } finally { 
         hideLoading(); 
     }
@@ -1113,22 +1160,22 @@ function updateAlerts(stats) {
     // Alerta Roja: Muy Atrasadas
     if (stats.veryLate > 0) {
         html += `
-        <div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 cursor-pointer border-b border-slate-50 group transition flex gap-3 items-start">
+        <div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start">
             <div class="mt-1 text-red-500"><i class="fa-solid fa-circle-exclamation"></i></div>
             <div>
-                <p class="text-xs font-bold text-slate-700 group-hover:text-red-600">Muy Atrasadas (>7 días)</p>
-                <p class="text-[10px] text-slate-500">${stats.veryLate} órdenes requieren atención inmediata</p>
+                <p class="text-xs font-bold text-slate-700 dark:text-red-200 group-hover:text-red-600">Muy Atrasadas (>7 días)</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">${stats.veryLate} órdenes requieren atención inmediata</p>
             </div>
         </div>`;
     }
     // Alerta Amarilla: Por Vencer
     if (stats.aboutToExpire > 0) {
         html += `
-        <div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 cursor-pointer border-b border-slate-50 group transition flex gap-3 items-start">
+        <div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start">
             <div class="mt-1 text-yellow-500"><i class="fa-solid fa-stopwatch"></i></div>
             <div>
-                <p class="text-xs font-bold text-slate-700 group-hover:text-yellow-600">Por Vencer (≤2 días)</p>
-                <p class="text-[10px] text-slate-500">${stats.aboutToExpire} órdenes próximas a vencer</p>
+                <p class="text-xs font-bold text-slate-700 dark:text-yellow-200 group-hover:text-yellow-600">Por Vencer (≤2 días)</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">${stats.aboutToExpire} órdenes próximas a vencer</p>
             </div>
         </div>`;
     }
@@ -1148,9 +1195,9 @@ function updateWidgets(artOrders) {
     const clientReport = document.getElementById('clientReport');
     if (clientReport) {
         clientReport.innerHTML = topClients.map(([c, n], i) => `
-            <div class="flex justify-between py-2 border-b border-slate-50 last:border-0 text-xs hover:bg-slate-50 px-2 rounded transition">
-                <span class="text-slate-600 truncate w-40 font-medium" title="${c}">${i+1}. ${c}</span>
-                <span class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${n}</span>
+            <div class="flex justify-between py-2 border-b border-slate-50 dark:border-slate-700 last:border-0 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-2 rounded transition">
+                <span class="text-slate-600 dark:text-slate-300 truncate w-40 font-medium" title="${c}">${i+1}. ${c}</span>
+                <span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">${n}</span>
             </div>`).join('');
     }
 
@@ -1176,10 +1223,10 @@ function updateWidgets(artOrders) {
                 return `
                 <div class="mb-3">
                     <div class="flex justify-between text-xs mb-1">
-                        <span class="text-slate-700 font-bold truncate w-32">${designer}</span>
-                        <span class="text-slate-500">${pieces.toLocaleString()} (${pct}%)</span>
+                        <span class="text-slate-700 dark:text-slate-300 font-bold truncate w-32">${designer}</span>
+                        <span class="text-slate-500 dark:text-slate-400">${pieces.toLocaleString()} (${pct}%)</span>
                     </div>
-                    <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                         <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full" style="width: ${designer === CONFIG.EXCLUDED_DESIGNER ? 0 : pct}%"></div>
                     </div>
                 </div>`;
@@ -1188,7 +1235,7 @@ function updateWidgets(artOrders) {
 }
 
 function updateTable() {
-    // Obtener datos filtrados (Requiere que Módulo 7 esté cargado)
+    // Obtener datos filtrados
     if (typeof getFilteredOrders !== 'function') return;
     
     const filtered = getFilteredOrders();
@@ -1214,7 +1261,7 @@ function updateTable() {
             const internalBadge = getCustomStatusBadge(order.customStatus);
             
             // Indicador de hijas
-            const hasChild = order.childPieces > 0 ? `<span class="ml-1 text-[9px] bg-blue-100 text-blue-700 px-1.5 rounded-full font-bold border border-blue-200">+${order.childPieces}</span>` : '';
+            const hasChild = order.childPieces > 0 ? `<span class="ml-1 text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 rounded-full font-bold border border-blue-200 dark:border-blue-800">+${order.childPieces}</span>` : '';
             
             const isArt = order.departamento === CONFIG.DEPARTMENTS.ART;
 
@@ -1224,29 +1271,29 @@ function updateTable() {
             let deptBadge = '-';
             if (order.departamento) {
                 const isPArt = order.departamento === CONFIG.DEPARTMENTS.ART;
-                const deptClass = isPArt ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200';
+                const deptClass = isPArt ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
                 deptBadge = `<span class="${pillBase} ${deptClass}">${escapeHTML(order.departamento)}</span>`;
             }
 
             let designerBadge = '<span class="text-slate-400 text-xs italic">--</span>';
             if (order.designer) {
-                designerBadge = `<span class="${pillBase} bg-indigo-50 text-indigo-700 border-indigo-200">${escapeHTML(order.designer)}</span>`;
+                designerBadge = `<span class="${pillBase} bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">${escapeHTML(order.designer)}</span>`;
             }
 
-            // --- RENDERIZADO DE FILA (SIN COLUMNA DE NOTAS) ---
+            // --- RENDERIZADO DE FILA (CON CORRECCIONES DE COLOR) ---
             return `
-            <tr class="${rowClass} hover:bg-blue-50 transition-colors cursor-pointer border-b border-slate-50 last:border-b-0" onclick="openAssignModal('${order.orderId}')">
+            <tr class="${rowClass} hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer border-b border-slate-50 dark:border-slate-700 last:border-b-0" onclick="openAssignModal('${order.orderId}')">
                 <td class="px-3 py-2.5 text-center" onclick="event.stopPropagation()">
-                    ${isArt ? `<input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId) ? 'checked' : ''}>` : ''}
+                    ${isArt ? `<input type="checkbox" class="rounded border-slate-300 dark:border-slate-500 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId) ? 'checked' : ''}>` : ''}
                 </td>
                 
                 <td class="px-3 py-2.5" data-label="Estado">${statusBadge}</td>
-                <td class="px-3 py-2.5 font-medium text-slate-700 whitespace-nowrap" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
-                <td class="px-3 py-2.5 font-medium text-slate-900 truncate max-w-[160px]" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
-                <td class="px-3 py-2.5 text-slate-500 font-mono text-xs whitespace-nowrap">${escapeHTML(order.codigoContrato)}</td>
-                <td class="px-3 py-2.5 text-slate-600 truncate max-w-[160px]" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                <td class="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
+                <td class="px-3 py-2.5 font-medium text-slate-900 dark:text-white truncate max-w-[160px]" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
+                <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">${escapeHTML(order.codigoContrato)}</td>
+                <td class="px-3 py-2.5 text-slate-600 dark:text-slate-300 truncate max-w-[160px]" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
                 
-                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 text-[11px] max-w-[160px] truncate" title="${escapeHTML(order.teamName)}">${escapeHTML(order.teamName)}</td>
+                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 dark:text-slate-400 text-[11px] max-w-[160px] truncate" title="${escapeHTML(order.teamName)}">${escapeHTML(order.teamName)}</td>
                 
                 <td class="px-3 py-2.5 hidden md:table-cell">${deptBadge}</td>
                 
@@ -1254,23 +1301,22 @@ function updateTable() {
                 
                 <td class="px-3 py-2.5">${internalBadge}</td>
                 
-                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 text-xs whitespace-nowrap">${order.receivedDate ? formatDate(new Date(order.receivedDate + 'T00:00:00')) : '-'}</td>
+                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">${order.receivedDate ? formatDate(new Date(order.receivedDate + 'T00:00:00')) : '-'}</td>
                 
                 <td class="px-3 py-2.5 text-right">
-                    <div class="flex items-center justify-end gap-1 font-bold text-slate-700">
+                    <div class="flex items-center justify-end gap-1 font-bold text-slate-700 dark:text-slate-200">
                         ${order.cantidad.toLocaleString()} 
                         ${hasChild}
                     </div>
                 </td>
                 
                 <td class="px-3 py-2.5 text-right">
-                    <i class="fa-solid fa-chevron-right text-slate-300 text-[10px]"></i>
+                    <i class="fa-solid fa-chevron-right text-slate-300 dark:text-slate-600 text-[10px]"></i>
                 </td>
             </tr>`;
         }).join('');
     }
     
-    // Actualizar checkbox maestro
     const sa = document.getElementById('selectAll');
     if (sa) {
         const allChecked = paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrders.has(o.orderId));
@@ -1278,7 +1324,6 @@ function updateTable() {
         sa.indeterminate = !allChecked && paginatedOrders.some(o => selectedOrders.has(o.orderId));
     }
     
-    // Actualizar barra flotante
     const bar = document.getElementById('multiSelectBar');
     if (selectedOrders.size > 0) {
         bar.classList.add('active');
@@ -1295,17 +1340,17 @@ function renderPagination() {
     const c = document.getElementById('paginationControls');
     if (!c) return;
     
-    let h = `<button onclick="changePage(${currentPage-1})" ${currentPage===1?'disabled':''} class="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600 transition-colors"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>`;
+    let h = `<button onclick="changePage(${currentPage-1})" ${currentPage===1?'disabled':''} class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-600 dark:text-slate-300 transition-colors"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>`;
     
     let start = Math.max(1, currentPage - 2);
     let end = Math.min(totalPages, start + 4);
     if (end - start < 4) start = Math.max(1, end - 4);
     
     for (let i = start; i <= end; i++) {
-        h += `<button onclick="changePage(${i})" class="w-8 h-8 flex items-center justify-center border rounded-lg text-xs font-medium transition-colors ${i === currentPage ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}">${i}</button>`;
+        h += `<button onclick="changePage(${i})" class="w-8 h-8 flex items-center justify-center border rounded-lg text-xs font-medium transition-colors ${i === currentPage ? 'bg-slate-800 text-white border-slate-800 dark:bg-slate-600 dark:border-slate-500 shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'}">${i}</button>`;
     }
     
-    h += `<button onclick="changePage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''} class="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600 transition-colors"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>`;
+    h += `<button onclick="changePage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''} class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-600 dark:text-slate-300 transition-colors"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>`;
     c.innerHTML = h;
 }
 
@@ -1316,24 +1361,24 @@ function getStatusBadge(order) {
     
     if (order.isVeryLate) {
         return `<div class="flex flex-col items-start gap-1">
-                    <span class="${base} bg-red-100 text-red-800 border border-red-200">MUY ATRASADA</span>
-                    <span class="text-[10px] font-bold text-red-600 flex items-center gap-1 ml-1">
+                    <span class="${base} bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/40 dark:text-red-200 dark:border-red-800">MUY ATRASADA</span>
+                    <span class="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-1 ml-1">
                         <i class="fa-solid fa-clock"></i> ${order.daysLate || 0} días
                     </span>
                 </div>`;
     }
     if (order.isLate) {
         return `<div class="flex flex-col items-start gap-1">
-                    <span class="${base} bg-orange-100 text-orange-800 border border-orange-200">Atrasada</span>
-                    <span class="text-[10px] font-bold text-orange-600 flex items-center gap-1 ml-1">
+                    <span class="${base} bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-800">Atrasada</span>
+                    <span class="text-[10px] font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1 ml-1">
                         <i class="fa-regular fa-clock"></i> ${order.daysLate || 0} días
                     </span>
                 </div>`;
     }
     if (order.isAboutToExpire) {
-        return `<span class="${base} bg-yellow-100 text-yellow-800 border border-yellow-200">Por Vencer</span>`;
+        return `<span class="${base} bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-800">Por Vencer</span>`;
     }
-    return `<span class="${base} bg-green-100 text-green-800 border border-green-200">A Tiempo</span>`;
+    return `<span class="${base} bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/40 dark:text-green-200 dark:border-green-800">A Tiempo</span>`;
 }
 
 function getCustomStatusBadge(status) {
@@ -1342,12 +1387,12 @@ function getCustomStatusBadge(status) {
     if (!status) return `<span class="text-slate-400 text-xs italic pl-2">Sin estado</span>`;
     
     const safeStatus = escapeHTML(status);
-    if (status === 'Completada') return `<span class="${base} bg-gray-100 text-gray-600 border-gray-200">${safeStatus}</span>`;
-    if (status === 'Bandeja') return `<span class="${base} bg-yellow-50 text-yellow-700 border-yellow-200">${safeStatus}</span>`;
-    if (status === 'Producción') return `<span class="${base} bg-purple-50 text-purple-700 border-purple-200">${safeStatus}</span>`;
-    if (status === 'Auditoría') return `<span class="${base} bg-blue-50 text-blue-700 border-blue-200">${safeStatus}</span>`;
+    if (status === 'Completada') return `<span class="${base} bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">${safeStatus}</span>`;
+    if (status === 'Bandeja') return `<span class="${base} bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800">${safeStatus}</span>`;
+    if (status === 'Producción') return `<span class="${base} bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800">${safeStatus}</span>`;
+    if (status === 'Auditoría') return `<span class="${base} bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">${safeStatus}</span>`;
     
-    return `<span class="${base} bg-slate-50 text-slate-600 border-slate-200">${safeStatus}</span>`;
+    return `<span class="${base} bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600">${safeStatus}</span>`;
 }
 
 function populateFilterDropdowns() {
@@ -1377,6 +1422,7 @@ function updateAllDesignerDropdowns() {
     const compareHtml = '<option value="">Seleccionar...</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
     if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
 }
+
 // ======================================================
 // ===== 11. MODALES Y ACCIONES (CORREGIDO + RBAC + DARK MODE) =====
 // ======================================================
@@ -1445,11 +1491,11 @@ window.openAssignModal = async (id) => {
     const h = firebaseHistoryMap.get(id) || [];
     document.getElementById('modalHistory').innerHTML = h.length ? h.reverse().map(x => `
         <div class="border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 mb-2">
-            <div class="flex justify-between items-center text-[10px] text-slate-400 mb-0.5">
+            <div class="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">
                 <span>${new Date(x.timestamp).toLocaleString()}</span>
-                <span>${escapeHTML(x.user)}</span>
+                <span class="text-slate-500 dark:text-slate-300">${escapeHTML(x.user)}</span>
             </div>
-            <div class="text-xs text-slate-600 dark:text-slate-300">${escapeHTML(x.change)}</div>
+            <div class="text-xs text-slate-600 dark:text-slate-400">${escapeHTML(x.change)}</div>
         </div>`).join('') : '<p class="text-slate-400 italic text-xs text-center py-4">Sin historial.</p>';
 
     if (typeof loadOrderComments === 'function') loadOrderComments(id);
@@ -1704,6 +1750,7 @@ window.deleteDesigner = (id, name) => {
         // La lista se actualiza sola gracias al listener en tiempo real
     });
 };
+
 // ======================================================
 // ===== 12. MÉTRICAS DE DISEÑADORES (CORREGIDO) =====
 // ======================================================
@@ -2440,7 +2487,7 @@ console.log('   - generateDepartmentMetrics()');
 console.log('   - Verificaciones de librerías externas');
 console.log('   - Gestión de gráficos mejorada');
 
-/// ======================================================
+// ======================================================
 // ===== 17. LÓGICA KANBAN (NEXT LEVEL) =====
 // ======================================================
 
@@ -2521,7 +2568,7 @@ function updateKanban() {
                     <div class="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[9px] font-bold" title="${escapeHTML(o.designer)}">
                         ${o.designer ? o.designer.substring(0,2).toUpperCase() : '?'}
                     </div>
-                    <span class="text-[10px] text-slate-400">${formatDate(o.fechaDespacho).slice(0,5)}</span>
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500">${formatDate(o.fechaDespacho).slice(0,5)}</span>
                 </div>
                 <div class="font-bold text-xs text-slate-700 dark:text-slate-300">${(o.cantidad + o.childPieces).toLocaleString()} pzs</div>
             </div>
@@ -2629,6 +2676,7 @@ function updateKanbanDropdown() {
         designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
     }
 }
+
 // ======================================================
 // ===== 18. SISTEMA DE CHAT Y MENCIONES (COLLAB) =====
 // ======================================================
@@ -2656,7 +2704,7 @@ function loadOrderComments(orderId) {
             if(order && order.notes) {
                 renderSystemMessage(`Nota del Excel: "${order.notes}"`);
             } else {
-                chatContainer.innerHTML = '<p class="text-center text-slate-300 text-xs mt-4 italic">No hay comentarios aún. ¡Inicia la conversación!</p>';
+                chatContainer.innerHTML = '<p class="text-center text-slate-300 italic text-xs mt-4">No hay comentarios aún. ¡Inicia la conversación!</p>';
             }
             return;
         }
@@ -2682,7 +2730,7 @@ function renderMessage(data, isMe, container) {
     formattedText = formattedText.replace(/\n/g, '<br>');
 
     div.innerHTML = `
-        ${!isMe ? `<div class="font-bold text-[10px] text-blue-600 mb-0.5">${escapeHTML(data.userName)}</div>` : ''}
+        ${!isMe ? `<div class="font-bold text-[10px] text-blue-600 dark:text-blue-400 mb-0.5">${escapeHTML(data.userName)}</div>` : ''}
         <div class="text-sm">${formattedText}</div>
         <div class="chat-meta">
             <span>${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
@@ -2694,7 +2742,7 @@ function renderMessage(data, isMe, container) {
 
 function renderSystemMessage(text) {
     const div = document.createElement('div');
-    div.className = "text-center text-[10px] text-slate-500 bg-slate-100 rounded py-1 px-2 mx-auto w-fit mb-3 border border-slate-200";
+    div.className = "text-center text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 rounded py-1 px-2 mx-auto w-fit mb-3 border border-slate-200 dark:border-slate-600";
     div.textContent = text;
     document.getElementById('chatHistory').appendChild(div);
 }
@@ -2727,26 +2775,30 @@ async function sendComment() {
         });
 
         // --- DETECCIÓN DE MENCIONES ---
+        // Regex mejorada para capturar nombres compuestos simples
         const mentionRegex = /@([a-zA-Z0-9\s]+?)(?=\s|$)/g;
         const mentions = text.match(mentionRegex);
 
         if (mentions) {
             mentions.forEach(m => {
-                const name = m.substring(1).trim(); // Quitar el @
+                const nameMentioned = m.substring(1).trim(); // Quitar el @
                 
                 let targetEmail = null;
-                // Buscar email del diseñador mencionado
+                // Buscar email del diseñador mencionado en el mapa de memoria
                 firebaseDesignersMap.forEach(dData => {
-                    if (dData.name.toLowerCase().includes(name.toLowerCase())) targetEmail = dData.email;
+                    // Comparamos ignorando mayúsculas/minúsculas
+                    if (dData.name.toLowerCase().includes(nameMentioned.toLowerCase())) {
+                        targetEmail = dData.email;
+                    }
                 });
 
                 // Si encontramos email y no soy yo mismo, notificar
-                if (targetEmail && targetEmail !== usuarioActual.email) {
+                if (targetEmail && targetEmail.toLowerCase() !== usuarioActual.email.toLowerCase()) {
                     createNotification(
                         targetEmail,
                         'mention',
                         'Te mencionaron',
-                        `${usuarioActual.displayName} en la orden...`,
+                        `${usuarioActual.displayName} te mencionó en una orden`,
                         currentEditingOrderId
                     );
                 }
@@ -2774,11 +2826,12 @@ function handleChatInput(textarea) {
     const dropdown = document.getElementById('mentionDropdown');
 
     if (lastAt !== -1) {
-        // Verificar si estamos escribiendo una mención
+        // Verificar texto después del @
         const query = textBeforeCursor.substring(lastAt + 1).toLowerCase();
         
-        // Si hay un espacio, asumimos que terminó la mención (simple)
-        if (!query.includes(' ')) {
+        // Si hay un espacio y el query es corto, quizás ya terminó la mención
+        // Pero permitimos espacios para nombres como "Ana Maria"
+        if (query.length < 20) {
             const matches = designerList.filter(d => d.toLowerCase().includes(query));
 
             if (matches.length > 0) {
@@ -2798,7 +2851,7 @@ function showMentionDropdown(matches, atIndex) {
     
     matches.forEach(name => {
         const item = document.createElement('div');
-        item.className = 'mention-item';
+        item.className = 'mention-item p-2 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer text-xs border-b border-slate-50 dark:border-slate-600 last:border-0 dark:text-slate-200';
         item.textContent = name;
         item.onclick = () => selectMention(name, atIndex);
         dropdown.appendChild(item);
@@ -2812,7 +2865,7 @@ function selectMention(name, atIndex) {
     const val = textarea.value;
     const before = val.substring(0, atIndex);
     
-    // Reemplazar lo que se estaba escribiendo con el nombre completo
+    // Reemplazar lo que se estaba escribiendo con el nombre completo + espacio
     textarea.value = `${before}@${name} `;
     
     document.getElementById('mentionDropdown').classList.add('hidden');
@@ -2832,10 +2885,10 @@ document.getElementById('chatInput')?.addEventListener('keydown', function(e) {
         sendComment();
     }
 });
+
 // ======================================================
 // ===== 19. FUNCIONES GLOBALES (EXPOSED TO WINDOW) =====
 // ======================================================
-// Pegar esto al FINAL de app.js para asegurar que el HTML las encuentre
 
 window.changePage = (p) => { 
     if(typeof currentPage !== 'undefined') { currentPage = p; updateTable(); }
@@ -2902,6 +2955,43 @@ window.toggleNotifications = () => {
     if(drop) drop.classList.toggle('hidden'); 
 };
 
+window.resetApp = () => {
+    // Protección Admin
+    if (userRole !== 'admin') {
+        return showCustomAlert('Acceso Denegado: Se requieren permisos de Administrador.', 'error');
+    }
+
+    showConfirmModal("¿Subir nuevo archivo? Se perderán los datos no guardados.", () => {
+        document.getElementById('appMainContainer').style.display = 'none';
+        document.getElementById('mainNavigation').style.display = 'none';
+        document.getElementById('uploadSection').style.display = 'block';
+        
+        allOrders = []; 
+        isExcelLoaded = false;
+        
+        document.getElementById('fileInput').value = ''; 
+        document.getElementById('fileName').textContent = '';
+        
+        desconectarDatosDeFirebase();
+        if(typeof destroyAllCharts === 'function') destroyAllCharts();
+    });
+};
+
+window.showConfirmModal = (msg, cb) => {
+    document.getElementById('confirmModalMessage').textContent = msg;
+    const btn = document.getElementById('confirmModalConfirm');
+    
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    newBtn.addEventListener('click', () => { 
+        cb(); 
+        closeTopModal(); 
+    });
+    
+    openModalById('confirmModal');
+};
+
 // ======================================================
 // ===== 20. MODO OSCURO (LOGIC & PERSISTENCE) =====
 // ======================================================
@@ -2922,18 +3012,15 @@ function updateThemeIcon() {
     const icon = document.getElementById('themeIcon');
     if (icon) {
         const isDark = document.documentElement.classList.contains('dark');
-        // Cambiamos el icono: Sol amarillo si es oscuro, Luna gris si es claro
         icon.className = isDark ? 'fa-solid fa-sun text-yellow-400' : 'fa-solid fa-moon text-slate-400';
     }
 }
 
 function initTheme() {
-    // 1. Revisar si el usuario ya guardó una preferencia
     if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
     } else {
         document.documentElement.classList.remove('dark');
     }
-    // 2. Actualizar el icono acorde al tema cargado
     updateThemeIcon();
 }

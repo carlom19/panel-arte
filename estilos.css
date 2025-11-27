@@ -278,3 +278,32 @@ html.dark .chat-bubble.me {
     color: #dbeafe;
     border-color: #1e3a8a;
 }
+
+/* ====================================================== */
+/* ===== DARK MODE TEXT CONTRAST FIX (NUEVO) ===== */
+/* ====================================================== */
+
+/* Forzar que el texto oscuro se vuelva claro en modo oscuro */
+html.dark .text-slate-500, 
+html.dark .text-slate-600, 
+html.dark .text-slate-700, 
+html.dark .text-gray-500, 
+html.dark .text-gray-600 {
+    color: #94a3b8 !important; /* Slate 400 (Gris claro) */
+}
+
+html.dark .text-slate-800, 
+html.dark .text-slate-900,
+html.dark .text-gray-700,
+html.dark .text-gray-800,
+html.dark .text-gray-900 {
+    color: #f1f5f9 !important; /* Slate 100 (Casi blanco) */
+}
+
+/* Asegurar que los iconos de botones no desaparezcan */
+html.dark button .text-slate-400 {
+    color: #cbd5e1 !important; /* Slate 300 */
+}
+html.dark button:hover .text-slate-400 {
+    color: #ffffff !important;
+}
