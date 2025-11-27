@@ -1310,35 +1310,58 @@ window.openAssignModal = async (id) => {
     document.getElementById('modalReceivedDate').value = o.receivedDate || new Date().toISOString().split('T')[0];
     if(document.getElementById('modalComplexity')) document.getElementById('modalComplexity').value = o.complexity || 'Media';
 
-    // Auto-Asignación UI
+    // ============================================================
+    // CORRECCIÓN: Lógica de permisos de edición (Auto-Asignación)
+    // ============================================================
     const designerSelect = document.getElementById('modalDesigner');
     const container = designerSelect.parentNode;
+    
+    // 1. Limpieza previa: Eliminar botones antiguos si existen
     if(document.getElementById('btn-self-assign')) document.getElementById('btn-self-assign').remove();
     
+    // 2. Estado Base: Mostrar SIEMPRE el select primero y habilitado
     designerSelect.style.display = 'block';
+    designerSelect.disabled = false;
     designerSelect.value = o.designer || '';
 
+    // 3. Aplicar restricción SOLO si es diseñador Y NO es admin
     if (currentDesignerName && userRole !== 'admin') {
-        designerSelect.style.display = 'none';
-        const btn = document.createElement('button');
-        btn.id = 'btn-self-assign';
-        btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1';
         
-        if (o.designer === currentDesignerName) {
-            btn.classList.add('bg-red-50', 'text-red-600', 'border-red-200', 'hover:bg-red-100', 'dark:bg-red-900/30', 'dark:text-red-400', 'dark:border-red-800');
+        // A. Si la orden ya tiene dueño y no soy yo (BLOQUEADO)
+        if (o.designer && o.designer !== 'Sin asignar' && o.designer !== currentDesignerName) {
+            designerSelect.style.display = 'none';
+            
+            const btn = document.createElement('button');
+            btn.id = 'btn-self-assign';
+            btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600';
+            btn.innerHTML = `<i class="fa-solid fa-lock"></i> Asignado a: ${o.designer}`;
+            btn.disabled = true;
+            container.appendChild(btn);
+        } 
+        // B. Si la orden es mía (LIBERAR)
+        else if (o.designer === currentDesignerName) {
+            designerSelect.style.display = 'none';
+            
+            const btn = document.createElement('button');
+            btn.id = 'btn-self-assign';
+            btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
             btn.innerHTML = `<i class="fa-solid fa-user-xmark"></i> Liberar (Es mía)`;
             btn.onclick = () => { designerSelect.value = ''; saveAssignment(); };
-        } else if (!o.designer || o.designer === 'Sin asignar') {
-            btn.classList.add('bg-green-50', 'text-green-600', 'border-green-200', 'hover:bg-green-100', 'dark:bg-green-900/30', 'dark:text-green-400', 'dark:border-green-800');
+            container.appendChild(btn);
+        }
+        // C. Si está libre (TOMAR)
+        else {
+            designerSelect.style.display = 'none';
+            
+            const btn = document.createElement('button');
+            btn.id = 'btn-self-assign';
+            btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-green-50 text-green-600 border-green-200 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
             btn.innerHTML = `<i class="fa-solid fa-hand-point-up"></i> Tomar Orden`;
             btn.onclick = () => { designerSelect.value = currentDesignerName; saveAssignment(); };
-        } else {
-            btn.classList.add('bg-slate-100', 'text-slate-500', 'border-slate-200', 'cursor-not-allowed', 'dark:bg-slate-700', 'dark:text-slate-400', 'dark:border-slate-600');
-            btn.innerHTML = `<i class="fa-solid fa-lock"></i> De: ${o.designer}`;
-            btn.disabled = true;
+            container.appendChild(btn);
         }
-        container.appendChild(btn);
     }
+    // Si soy ADMIN, se salta el bloque if anterior y muestra el select libremente.
     
     // Historial
     const h = firebaseHistoryMap.get(id) || [];
