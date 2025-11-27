@@ -303,100 +303,288 @@ function iniciarLoginConGoogle() { firebase.auth().signInWithPopup(new firebase.
 function iniciarLogout() { firebase.auth().signOut().then(() => { document.getElementById('mainNavigation').style.transform = 'translateX(-100%)'; document.getElementById('appMainContainer').classList.remove('main-content-shifted'); }); }
 
 // ======================================================
-// ===== 5. LÓGICA DE DATOS (FIXED MEMORY LEAKS) =====
+// ===== 5. LÓGICA DE DATOS (FIREBASE LISTENERS & SYNC) =====
 // ======================================================
 
 function conectarDatosDeFirebase() {
     if (!usuarioActual) return;
     const navDbStatus = document.getElementById('navDbStatus'); 
-    const setStatus = (c) => { if(navDbStatus) navDbStatus.innerHTML = c ? `<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Conectado` : `<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> Sincronizando...`; };
+
+    const setStatus = (connected) => {
+        if(navDbStatus) {
+            navDbStatus.innerHTML = connected 
+            ? `<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Conectado`
+            : `<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> Sincronizando...`;
+        }
+    };
+
     setStatus(false);
-    loadMasterOrders().then(() => { console.log("Datos maestros listos."); setupRealtimeListeners(setStatus); });
+    
+    // ESTRATEGIA HÍBRIDA: Carga única de maestros + Realtime de cambios
+    loadMasterOrders().then(() => {
+        console.log("Datos maestros listos.");
+        setupRealtimeListeners(setStatus);
+    });
 }
 
+// A. CARGA DE DATOS MAESTROS (Excel subido previamente)
 async function loadMasterOrders() {
     try {
         const snapshot = await db_firestore.collection('master_orders').get();
+        
         masterOrdersMap.clear();
-        snapshot.forEach(doc => masterOrdersMap.set(doc.id, doc.data()));
+        snapshot.forEach(doc => {
+            masterOrdersMap.set(doc.id, doc.data());
+        });
+        
         masterOrdersLoaded = true;
         isExcelLoaded = masterOrdersMap.size > 0; 
+        
+        // Si hay datos en la nube, reconstruimos la memoria local
         if (masterOrdersMap.size > 0) {
-            rebuildAllOrders();
+            rebuildAllOrders(); // <--- Esta función ahora está definida más abajo
+            
+            // Transiciones de UI
             document.getElementById('uploadSection').style.display = 'none';
             document.getElementById('appMainContainer').style.display = 'block';
             document.getElementById('appMainContainer').classList.add('main-content-shifted');
             document.getElementById('mainNavigation').style.display = 'flex';
             setTimeout(() => document.getElementById('mainNavigation').style.transform = 'translateX(0)', 50);
-            navigateTo('dashboard');
+            
+            // Ir al Dashboard por defecto
+            if (typeof navigateTo === 'function') navigateTo('dashboard');
         }
-    } catch (e) { console.error("Error master:", e); showCustomAlert("Error cargando base de datos.", "error"); }
+        
+    } catch (e) {
+        console.error("Error cargando master_orders:", e);
+        showCustomAlert("Error cargando base de datos maestra.", "error");
+    }
 }
 
+// B. LISTENERS REALTIME
 function setupRealtimeListeners(statusCallback) {
+    
+    // 1. Asignaciones (Cambios de estado, diseñador, notas)
     unsubscribeAssignments = db_firestore.collection('assignments').onSnapshot(s => {
-        firebaseAssignmentsMap.clear(); s.forEach(d => firebaseAssignmentsMap.set(d.id, d.data()));
+        firebaseAssignmentsMap.clear();
+        s.forEach(d => firebaseAssignmentsMap.set(d.id, d.data()));
+        
         if(masterOrdersLoaded) mergeYActualizar(); 
         statusCallback(true);
     });
-    unsubscribeHistory = db_firestore.collection('history').orderBy('timestamp', 'desc').limit(100).onSnapshot(s => {
-        firebaseHistoryMap.clear(); s.forEach(d => { const v = d.data(); if(!firebaseHistoryMap.has(v.orderId)) firebaseHistoryMap.set(v.orderId, []); firebaseHistoryMap.get(v.orderId).push(v); });
-    });
+
+    // 2. Historial
+    unsubscribeHistory = db_firestore.collection('history')
+        .orderBy('timestamp', 'desc').limit(100) 
+        .onSnapshot(s => {
+            firebaseHistoryMap.clear();
+            s.forEach(d => { 
+                const v = d.data(); 
+                if(!firebaseHistoryMap.has(v.orderId)) firebaseHistoryMap.set(v.orderId, []); 
+                firebaseHistoryMap.get(v.orderId).push(v); 
+            });
+        });
+
+    // 3. Órdenes Hijas
     unsubscribeChildOrders = db_firestore.collection('childOrders').onSnapshot(s => {
-        firebaseChildOrdersMap.clear(); s.forEach(d => { const v = d.data(); if(!firebaseChildOrdersMap.has(v.parentOrderId)) firebaseChildOrdersMap.set(v.parentOrderId, []); firebaseChildOrdersMap.get(v.parentOrderId).push(v); });
-        needsRecalculation = true; if(masterOrdersLoaded) mergeYActualizar();
+        firebaseChildOrdersMap.clear();
+        s.forEach(d => { 
+            const v = d.data(); 
+            if(!firebaseChildOrdersMap.has(v.parentOrderId)) firebaseChildOrdersMap.set(v.parentOrderId, []); 
+            firebaseChildOrdersMap.get(v.parentOrderId).push(v); 
+        });
+        needsRecalculation = true; 
+        if(masterOrdersLoaded) mergeYActualizar();
     });
+    
+    // 4. Diseñadores
     unsubscribeDesigners = db_firestore.collection('designers').orderBy('name').onSnapshot(s => {
-        firebaseDesignersMap.clear(); let newDesignerList = [];
-        s.forEach(d => { const v = d.data(); firebaseDesignersMap.set(d.id, v); newDesignerList.push(v.name); if (usuarioActual && v.email && v.email.toLowerCase() === usuarioActual.email.toLowerCase()) currentDesignerName = v.name; });
-        designerList = newDesignerList; updateAllDesignerDropdowns(); populateDesignerManagerModal(); if(document.getElementById('dashboard').style.display === 'block') updateDashboard();
+        firebaseDesignersMap.clear(); 
+        let newDesignerList = [];
+        
+        s.forEach(d => { 
+            const v = d.data(); 
+            firebaseDesignersMap.set(d.id, v); 
+            newDesignerList.push(v.name); 
+            
+            // Detectar identidad
+            if (usuarioActual && v.email && v.email.toLowerCase() === usuarioActual.email.toLowerCase()) {
+                currentDesignerName = v.name;
+            }
+        });
+        
+        designerList = newDesignerList;
+        if(typeof updateAllDesignerDropdowns === 'function') updateAllDesignerDropdowns(); 
+        if(typeof populateDesignerManagerModal === 'function') populateDesignerManagerModal(); 
+        if(document.getElementById('dashboard').style.display === 'block') updateDashboard();
     });
+
+    // 5. Plan Semanal
     unsubscribeWeeklyPlan = db_firestore.collection('weeklyPlan').onSnapshot(s => {
-        firebaseWeeklyPlanMap.clear(); s.forEach(d => { const v = d.data(); if(!firebaseWeeklyPlanMap.has(v.weekIdentifier)) firebaseWeeklyPlanMap.set(v.weekIdentifier, []); firebaseWeeklyPlanMap.get(v.weekIdentifier).push(v); });
-        if(document.getElementById('workPlanView').style.display === 'block') generateWorkPlan();
+        firebaseWeeklyPlanMap.clear();
+        s.forEach(d => { 
+            const v = d.data(); 
+            if(!firebaseWeeklyPlanMap.has(v.weekIdentifier)) firebaseWeeklyPlanMap.set(v.weekIdentifier, []); 
+            firebaseWeeklyPlanMap.get(v.weekIdentifier).push(v); 
+        });
+        if(document.getElementById('workPlanView').style.display === 'block' && typeof generateWorkPlan === 'function') generateWorkPlan();
     });
-    listenToMyNotifications();
+
+    // 6. Notificaciones
+    listenToMyNotifications(); // <--- Ahora definida abajo
 }
 
 function desconectarDatosDeFirebase() {
-    if(unsubscribeAssignments) unsubscribeAssignments(); if(unsubscribeHistory) unsubscribeHistory();
-    if(unsubscribeChildOrders) unsubscribeChildOrders(); if(unsubscribeDesigners) unsubscribeDesigners();
-    if(unsubscribeWeeklyPlan) unsubscribeWeeklyPlan(); if(unsubscribeNotifications) unsubscribeNotifications(); 
-    // BUG #4 FIX: Limpiar chat listener también
-    if(unsubscribeChat) unsubscribeChat();
-    autoCompletedOrderIds.clear(); masterOrdersLoaded = false;
+    if(unsubscribeAssignments) unsubscribeAssignments();
+    if(unsubscribeHistory) unsubscribeHistory();
+    if(unsubscribeChildOrders) unsubscribeChildOrders();
+    if(unsubscribeDesigners) unsubscribeDesigners();
+    if(unsubscribeWeeklyPlan) unsubscribeWeeklyPlan();
+    if(unsubscribeNotifications) unsubscribeNotifications();
+    if(unsubscribeChat) unsubscribeChat(); // Limpieza del chat
+    
+    autoCompletedOrderIds.clear();
+    masterOrdersLoaded = false;
 }
 
-// ... (Resto de Notificaciones y RebuildAllOrders igual) ...
+// --- C. NOTIFICACIONES (LÓGICA INTERNA) ---
+function listenToMyNotifications() {
+    if (!usuarioActual) return;
+    const myEmail = usuarioActual.email.toLowerCase();
+    
+    if (unsubscribeNotifications) unsubscribeNotifications();
+
+    unsubscribeNotifications = db_firestore.collection('notifications')
+        .where('recipientEmail', '==', myEmail)
+        .where('read', '==', false)
+        .orderBy('timestamp', 'desc')
+        .limit(20)
+        .onSnapshot(snapshot => { 
+            updateNotificationUI(snapshot.docs); 
+        }, error => {
+            console.log("Info notificaciones:", error.code); // Ignoramos error de permisos iniciales
+        });
+}
+
+function updateNotificationUI(docs) {
+    const container = document.getElementById('notif-personal'); 
+    if (!container) return;
+    
+    if (docs.length === 0) { 
+        container.innerHTML = ''; 
+        updateTotalBadge();
+        return; 
+    }
+
+    let html = '';
+    docs.forEach(doc => {
+        const data = doc.data();
+        let iconClass = data.type === 'mention' ? 'fa-at text-purple-500' : 'fa-user-tag text-blue-500';
+        
+        html += `
+        <div onclick="handleNotificationClick('${doc.id}', '${data.orderId}')" class="p-3 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 transition relative group bg-white dark:bg-slate-800">
+            <div class="flex gap-3">
+                <div class="mt-1"><i class="fa-solid ${iconClass}"></i></div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800 dark:text-white">${escapeHTML(data.title)}</p>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2">${escapeHTML(data.message)}</p>
+                    <p class="text-[9px] text-slate-300 mt-1">${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                </div>
+            </div>
+            <div class="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full" title="No leído"></div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+    updateTotalBadge();
+}
+
+function updateTotalBadge() {
+    const pCount = document.getElementById('notif-personal')?.children.length || 0;
+    const sCount = document.getElementById('notif-system')?.children.length || 0;
+    const total = pCount + sCount;
+    
+    const badge = document.getElementById('notificationBadge');
+    if (badge) {
+        if (total > 0) {
+            badge.textContent = total > 9 ? '9+' : total;
+            badge.classList.remove('hidden'); badge.classList.add('flex');
+        } else {
+            badge.classList.add('hidden'); badge.classList.remove('flex');
+        }
+    }
+}
+
+async function handleNotificationClick(notificationId, orderId) {
+    db_firestore.collection('notifications').doc(notificationId).update({ read: true });
+    if (orderId) await openAssignModal(orderId);
+}
+
+// --- D. PROCESAMIENTO Y FUSIÓN DE DATOS ---
+
+function rebuildAllOrders() {
+    let processed = [];
+    
+    masterOrdersMap.forEach((masterData) => {
+        // Convertir fecha string a objeto Date
+        let fdLocal = masterData.fechaDespacho ? new Date(masterData.fechaDespacho) : null;
+        
+        // Cálculos de fecha
+        const today = new Date(); today.setHours(0,0,0,0);
+        const dl = (fdLocal && fdLocal < today) ? Math.ceil((today - fdLocal) / 86400000) : 0;
+
+        processed.push({
+            ...masterData, 
+            fechaDespacho: fdLocal,
+            isLate: fdLocal && fdLocal < today,
+            isVeryLate: dl > 7,
+            isAboutToExpire: fdLocal && !dl && ((fdLocal - today) / 86400000) <= 2,
+            daysLate: dl,
+            
+            // Valores por defecto que se llenarán en mergeYActualizar
+            designer: '', customStatus: '', receivedDate: '', notes: '', completedDate: null, complexity: 'Media'
+        });
+    });
+    
+    allOrders = processed;
+    mergeYActualizar(); // Llamada inicial para cruzar con assignments
+}
 
 function mergeYActualizar() {
     if (!masterOrdersLoaded) return;
     
-    // BUG #9 FIX: Optimización de recálculo
+    // FIX DE RENDIMIENTO: Recalcular hijas solo si es necesario
     if (needsRecalculation) {
         recalculateChildPieces(); 
         needsRecalculation = false;
     }
     
     autoCompleteBatchWrites = []; 
-    filteredCache.key = null;
+    filteredCache.key = null; // Invalidar caché de búsqueda
 
     for (let i = 0; i < allOrders.length; i++) {
         const o = allOrders[i];
         const fb = firebaseAssignmentsMap.get(o.orderId);
         
         if (fb) {
-            o.designer = fb.designer || ''; o.customStatus = fb.customStatus || '';
-            o.receivedDate = fb.receivedDate || ''; o.notes = fb.notes || ''; o.completedDate = fb.completedDate || null;
+            // Si hay datos en Firebase, sobreescribimos los del Excel
+            o.designer = fb.designer || '';
+            o.customStatus = fb.customStatus || '';
+            o.receivedDate = fb.receivedDate || '';
+            o.notes = fb.notes || '';
+            o.completedDate = fb.completedDate || null;
             o.complexity = fb.complexity || 'Media'; 
         } else {
+            // Si no, valores limpios
             o.designer = ''; o.customStatus = ''; o.receivedDate = ''; o.notes = ''; o.completedDate = null; o.complexity = 'Media';
         }
 
+        // Lógica de Autocompletado (Si salió de Arte en el Excel nuevo)
         if (fb && o.departamento !== CONFIG.DEPARTMENTS.ART && o.departamento !== CONFIG.DEPARTMENTS.NONE) {
             if (fb.customStatus !== CONFIG.STATUS.COMPLETED && !autoCompletedOrderIds.has(o.orderId)) {
                 autoCompleteBatchWrites.push({
-                    orderId: o.orderId, displayCode: o.codigoContrato,
+                    orderId: o.orderId,
+                    displayCode: o.codigoContrato,
                     data: { customStatus: CONFIG.STATUS.COMPLETED, completedDate: new Date().toISOString(), lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION },
                     history: [`Salio de Arte (en ${o.departamento}) → Completada`]
                 });
@@ -405,33 +593,57 @@ function mergeYActualizar() {
         }
     }
     
-    if (document.getElementById('dashboard').style.display === 'block') updateDashboard(); 
+    // Actualizar UI solo si el Dashboard es visible
+    if (document.getElementById('dashboard').style.display === 'block') {
+        updateDashboard();
+    }
+    
+    // Ejecutar autocompletado si aplica
     if (autoCompleteBatchWrites.length > 0) confirmAutoCompleteBatch();
 }
 
-// BUG #5 FIX: Limpiar IDs
+function recalculateChildPieces() {
+    let cache = new Map();
+    firebaseChildOrdersMap.forEach((list, parentId) => {
+        const sum = list.reduce((s, c) => s + (Number(c.cantidad) || 0), 0);
+        cache.set(parentId, sum);
+    });
+    
+    allOrders.forEach(o => {
+        o.childPieces = cache.get(o.orderId) || 0;
+    });
+}
+
+// --- E. OPERACIONES BATCH ---
+
 async function ejecutarAutoCompleteBatch() {
     if (!usuarioActual || autoCompleteBatchWrites.length === 0) return;
     document.body.classList.add('processing-batch');
+    
     await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
         const user = usuarioActual.displayName;
+        
+        // Procesar máximo 400 escrituras por lote (límite Firestore 500)
         autoCompleteBatchWrites.slice(0, 400).forEach(w => {
             batch.set(db_firestore.collection('assignments').doc(w.orderId), w.data, { merge: true });
             batch.set(db_firestore.collection('history').doc(), { orderId: w.orderId, change: w.history[0], user, timestamp: new Date().toISOString() });
             autoCompletedOrderIds.add(w.orderId);
         });
+
         await batch.commit();
         autoCompleteBatchWrites = []; 
         
-        // BUG #5 FIX: Limpieza de memoria
+        // Limpieza de memoria (Set infinito fix)
         if (autoCompletedOrderIds.size > 1000) {
             const arr = Array.from(autoCompletedOrderIds);
             autoCompletedOrderIds.clear();
+            // Mantener solo los últimos 500
             arr.slice(-500).forEach(id => autoCompletedOrderIds.add(id));
         }
         return true;
     }, 'Sincronizando...', 'Estados actualizados.');
+    
     document.body.classList.remove('processing-batch');
 }
 
