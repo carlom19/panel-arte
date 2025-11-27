@@ -1514,7 +1514,7 @@ window.deleteDesigner = (id, name) => {
 };
 
 // ======================================================
-// ===== 12. MÉTRICAS DE DISEÑADORES (DARK MODE FIX) =====
+// ===== 12. MÉTRICAS DE DISEÑADORES Y REPORTES MENSUALES =====
 // ======================================================
 
 function populateMetricsSidebar() {
@@ -1528,7 +1528,7 @@ function populateMetricsSidebar() {
         const d = o.designer || 'Sin asignar';
         if (!designers[d]) designers[d] = { total: 0, pieces: 0 };
         designers[d].total++;
-        designers[d].pieces += o.cantidad + o.childPieces;
+        designers[d].pieces += (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0);
     });
     
     list.innerHTML = Object.entries(designers)
@@ -1548,157 +1548,198 @@ function generateDesignerMetrics(designerName) {
     const detail = document.getElementById('metricsDetail');
     if (!detail) return;
     
-    if (typeof Chart === 'undefined') {
-        detail.innerHTML = '<div class="text-center py-12"><p class="text-red-600">Error: Chart.js no está cargado</p></div>';
-        return;
-    }
-    
     const orders = allOrders.filter(o => 
         o.departamento === CONFIG.DEPARTMENTS.ART && 
         (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName)
     );
     
-    if (orders.length === 0) {
-        detail.innerHTML = `<div class="text-center py-12"><i class="fa-regular fa-folder-open text-4xl text-slate-300 dark:text-slate-600 mb-3"></i><p class="text-slate-400">No hay órdenes para este diseñador</p></div>`;
-        return;
-    }
-    
-    const stats = calculateStats(orders);
-    const totalPieces = orders.reduce((s, o) => s + o.cantidad + o.childPieces, 0);
-    
+    const totalPieces = orders.reduce((s, o) => s + (Number(o.cantidad)||0) + (Number(o.childPieces)||0), 0);
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+
     if (designerDoughnutChart) { designerDoughnutChart.destroy(); designerDoughnutChart = null; }
     if (designerBarChart) { designerBarChart.destroy(); designerBarChart = null; }
     
-    // HTML CON CLASES DARK MODE AGREGADAS
     detail.innerHTML = `
-        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white mb-6 shadow-lg">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-2xl font-bold">${escapeHTML(designerName)}</h2>
-                <button onclick="openCompareModal('${escapeHTML(designerName)}')" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-medium transition">
-                    <i class="fa-solid fa-code-compare mr-1"></i> Comparar
-                </button>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Órdenes</div>
-                    <div class="text-3xl font-bold">${orders.length}</div>
+        <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 text-white mb-6 shadow-lg">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">${escapeHTML(designerName)}</h2>
+                    <p class="text-blue-100 text-xs">Reporte de Productividad</p>
                 </div>
-                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+                
+                <div class="flex items-center gap-2 bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/20">
+                    <input type="month" id="reportMonthSelector" value="${currentMonth}" class="bg-white/90 text-slate-800 text-xs rounded border-0 py-1.5 px-2 focus:ring-2 focus:ring-blue-400 cursor-pointer">
+                    <button onclick="exportMonthlyReport('${escapeHTML(designerName)}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> Descargar Reporte
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-white/10">
+                    <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Histórico</div>
+                    <div class="text-3xl font-bold">${orders.length} <span class="text-sm font-normal text-blue-200">órdenes</span></div>
+                </div>
+                <div class="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-white/10">
                     <div class="text-white/70 text-xs uppercase font-bold mb-1">Total Piezas</div>
-                    <div class="text-3xl font-bold">${totalPieces.toLocaleString()}</div>
+                    <div class="text-3xl font-bold">${totalPieces.toLocaleString()} <span class="text-sm font-normal text-blue-200">pzs</span></div>
                 </div>
             </div>
         </div>
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700">
-                <h3 class="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                <h3 class="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-xs uppercase tracking-wide">
                     <i class="fa-solid fa-chart-pie text-blue-500"></i> Distribución de Estados
                 </h3>
-                <div class="relative h-64 w-full">
-                    <canvas id="designerDoughnutChart"></canvas>
-                </div>
+                <div class="relative h-64 w-full"><canvas id="designerDoughnutChart"></canvas></div>
             </div>
-            
             <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow border border-slate-200 dark:border-slate-700">
-                <h3 class="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-bar text-green-500"></i> Análisis de Entregas
+                <h3 class="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-xs uppercase tracking-wide">
+                    <i class="fa-solid fa-chart-bar text-green-500"></i> Eficiencia de Entrega
                 </h3>
-                <div class="relative h-64 w-full">
-                    <canvas id="designerBarChart"></canvas>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div class="bg-slate-50 dark:bg-slate-700 px-6 py-4 border-b border-slate-200 dark:border-slate-600 flex justify-between items-center">
-                <h3 class="font-bold text-slate-800 dark:text-white">Detalle de Órdenes</h3>
-                <button onclick="exportDesignerMetricsPDF('${escapeHTML(designerName)}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
-                    <i class="fa-solid fa-file-pdf mr-1"></i> Exportar PDF
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs text-slate-700 dark:text-slate-300">
-                    <thead class="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-600">
-                        <tr class="text-left text-slate-600 dark:text-slate-400 uppercase font-bold">
-                            <th class="px-4 py-3">Estado</th>
-                            <th class="px-4 py-3">Cliente</th>
-                            <th class="px-4 py-3">Código</th>
-                            <th class="px-4 py-3">Estilo</th>
-                            <th class="px-4 py-3">Fecha</th>
-                            <th class="px-4 py-3 text-right">Piezas</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                        ${orders.map(o => `
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer" onclick="openAssignModal('${o.orderId}')">
-                                <td class="px-4 py-3">${getStatusBadge(o)}</td>
-                                <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">${escapeHTML(o.cliente)}</td>
-                                <td class="px-4 py-3 font-mono text-slate-500 dark:text-slate-400">${escapeHTML(o.codigoContrato)}</td>
-                                <td class="px-4 py-3">${escapeHTML(o.estilo)}</td>
-                                <td class="px-4 py-3 text-slate-600 dark:text-slate-400">${formatDate(o.fechaDespacho)}</td>
-                                <td class="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">${(o.cantidad + o.childPieces).toLocaleString()}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <div class="relative h-64 w-full"><canvas id="designerBarChart"></canvas></div>
             </div>
         </div>
     `;
     
-    // (Resto del código de inicialización de Charts igual, solo cambia el HTML de arriba)
     setTimeout(() => {
         if (typeof Chart === 'undefined') return;
-
+        const stats = calculateStats(orders);
         const statusCounts = {
-            [CONFIG.STATUS.TRAY]: orders.filter(o => o.customStatus === CONFIG.STATUS.TRAY).length,
-            [CONFIG.STATUS.PROD]: orders.filter(o => o.customStatus === CONFIG.STATUS.PROD).length,
-            [CONFIG.STATUS.AUDIT]: orders.filter(o => o.customStatus === CONFIG.STATUS.AUDIT).length,
-            [CONFIG.STATUS.COMPLETED]: orders.filter(o => o.customStatus === CONFIG.STATUS.COMPLETED).length,
-            'Sin Estado': orders.filter(o => !o.customStatus).length
+            'Bandeja': orders.filter(o => o.customStatus === CONFIG.STATUS.TRAY).length,
+            'Producción': orders.filter(o => o.customStatus === CONFIG.STATUS.PROD).length,
+            'Auditoría': orders.filter(o => o.customStatus === CONFIG.STATUS.AUDIT).length,
+            'Completada': orders.filter(o => o.customStatus === CONFIG.STATUS.COMPLETED).length
         };
-        
-        const doughnutCanvas = document.getElementById('designerDoughnutChart');
-        if (doughnutCanvas) {
-            designerDoughnutChart = new Chart(doughnutCanvas, {
+        const isDark = document.documentElement.classList.contains('dark');
+        const textColor = isDark ? '#cbd5e1' : '#666';
+
+        const ctx1 = document.getElementById('designerDoughnutChart');
+        if (ctx1) {
+            designerDoughnutChart = new Chart(ctx1, {
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(statusCounts),
                     datasets: [{
                         data: Object.values(statusCounts),
-                        backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#64748b', '#e2e8f0'],
-                        borderColor: document.documentElement.classList.contains('dark') ? '#1e293b' : '#fff'
+                        backgroundColor: ['#fbbf24', '#a855f7', '#3b82f6', '#10b981'],
+                        borderColor: isDark ? '#1e293b' : '#fff',
+                        borderWidth: 2
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#666' } } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: textColor, font: { size: 10 }, boxWidth: 12 } } } }
             });
         }
         
-        const barCanvas = document.getElementById('designerBarChart');
-        if (barCanvas) {
-            designerBarChart = new Chart(barCanvas, {
+        const ctx2 = document.getElementById('designerBarChart');
+        if (ctx2) {
+            designerBarChart = new Chart(ctx2, {
                 type: 'bar',
                 data: {
                     labels: ['A Tiempo', 'Atrasadas', 'Muy Atrasadas'],
                     datasets: [{
                         label: 'Órdenes',
                         data: [stats.onTime, stats.late - stats.veryLate, stats.veryLate],
-                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderRadius: 4
                     }]
                 },
                 options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
+                    responsive: true, maintainAspectRatio: false, 
                     scales: { 
-                        y: { beginAtZero: true, grid: { color: document.documentElement.classList.contains('dark') ? '#334155' : '#e5e5e5' }, ticks: { color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#666' } },
-                        x: { grid: { display: false }, ticks: { color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#666' } }
+                        y: { beginAtZero: true, grid: { color: isDark ? '#334155' : '#e5e5e5' }, ticks: { color: textColor } },
+                        x: { grid: { display: false }, ticks: { color: textColor } }
                     },
-                    plugins: { legend: { labels: { color: document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#666' } } }
+                    plugins: { legend: { display: false } }
                 }
             });
         }
     }, 100);
 }
+
+// --- GENERAR REPORTE MENSUAL (FORMATO FINAL + FECHA PRODUCCION) ---
+window.exportMonthlyReport = (designerName) => {
+    const monthInput = document.getElementById('reportMonthSelector').value; // YYYY-MM
+    if (!monthInput) return showCustomAlert('Selecciona un mes válido', 'error');
+
+    // Helper: Obtener número de semana ISO
+    const getWeekNumber = (d) => {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    };
+
+    // 1. Filtrar órdenes por Mes + Diseñador
+    const reportData = allOrders.filter(o => {
+        const matchDesigner = (designerName === 'Sin asignar' ? !o.designer : o.designer === designerName);
+        if (!matchDesigner) return false;
+        
+        // Usamos Fecha Recibida como referencia de entrada para filtrar el mes
+        if (!o.receivedDate) return false;
+        return o.receivedDate.startsWith(monthInput);
+    });
+
+    if (reportData.length === 0) {
+        return showCustomAlert(`No hay órdenes registradas para ${designerName} en ${monthInput}`, 'info');
+    }
+
+    // 2. Mapear datos a columnas EXACTAS
+    const excelData = reportData.map(o => {
+        // Convertir string YYYY-MM-DD a objeto Date
+        const dateObj = new Date(o.receivedDate + "T12:00:00");
+        const weekNum = getWeekNumber(dateObj);
+        const dayName = dateObj.toLocaleDateString('es-ES', { weekday: 'long' }).toUpperCase();
+
+        return {
+            "SEMANA #-": weekNum,
+            "DIA": dayName,
+            "FECHA DE LLEGADA": o.receivedDate || '-',
+            "FECHA DE DESPACHO": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '-',
+            "CLIENTE": o.cliente || '',
+            "#- DE ORDEN": o.codigoContrato || '',
+            "CANT. PIEZAS": (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0),
+            
+            // CAMPOS MANUALES
+            "CANT. MONTADA": "", 
+            "PROOF": "", 
+            "APROBACION": "", 
+            
+            // AUTOMÁTICO: FECHA DE COMPLETADO (PRODUCCIÓN)
+            "PRODUCCION": o.completedDate ? new Date(o.completedDate).toLocaleDateString() : ''
+        };
+    });
+
+    // 3. Generar Excel
+    if (typeof XLSX === 'undefined') return showCustomAlert('Librería Excel no cargada', 'error');
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    
+    // Ancho de columnas para estética
+    const wscols = [
+        {wch: 10}, // Semana
+        {wch: 15}, // Dia
+        {wch: 15}, // Llegada
+        {wch: 15}, // Despacho
+        {wch: 25}, // Cliente
+        {wch: 15}, // Orden
+        {wch: 12}, // Cant Piezas
+        {wch: 12}, // Cant Montada
+        {wch: 10}, // Proof
+        {wch: 15}, // Aprobacion
+        {wch: 15}  // Produccion
+    ];
+    ws['!cols'] = wscols;
+
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte Mensual");
+    
+    const fileName = `REPORTE_ARTE_${monthInput}_${designerName.toUpperCase().replace(/\s+/g, '_')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    showCustomAlert('Reporte descargado correctamente', 'success');
+};
 
 // ======================================================
 // ===== 13. ANÁLISIS AVANZADO (LEAD TIME & CALIDAD) =====
