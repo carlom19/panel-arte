@@ -109,29 +109,64 @@ let currentCompareDesigner1 = '';
 // ===== 2. GESTOR DE MODALES =====
 // ======================================================
 const modalStack = []; 
+
 function openModalById(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
+    
+    // Gestión de Z-Index para modales apilados
     modal.style.zIndex = 2000 + (modalStack.length * 10);
     if (modalId === 'confirmModal') modal.style.zIndex = parseInt(modal.style.zIndex) + 1000;
+    
     modal.classList.add('active');
     modalStack.push(modalId);
     document.body.classList.add('modal-open');
 }
+
 function closeTopModal() {
     if (modalStack.length === 0) return;
+    
     const modalId = modalStack.pop(); 
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.remove('active');
+    
+    // --- CORRECCIÓN MEMORY LEAK (CRÍTICO) ---
+    // Si cerramos el modal de asignación, matamos inmediatamente el listener del chat
+    // para evitar que siga consumiendo datos o memoria en segundo plano.
+    if (modalId === 'assignModal' && unsubscribeChat) {
+        unsubscribeChat();
+        unsubscribeChat = null;
+    }
+
     if (modalStack.length === 0) document.body.classList.remove('modal-open');
 }
+
 function closeAllModals() {
     document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
     modalStack.length = 0;
     document.body.classList.remove('modal-open');
+    
+    // Limpieza de seguridad del chat
+    if (unsubscribeChat) {
+        unsubscribeChat();
+        unsubscribeChat = null;
+    }
 }
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalStack.length > 0) closeTopModal(); });
-window.closeModal = () => closeTopModal(); window.closeConfirmModal = () => closeTopModal(); window.closeMultiModal = () => closeTopModal(); window.closeAddChildModal = () => closeTopModal(); window.closeDesignerManager = () => closeTopModal(); window.closeCompareModals = () => closeAllModals(); window.closeWeeklyReportModal = () => closeTopModal(); window.closeLegendModal = () => closeTopModal();
+
+// Cierre con tecla Escape
+document.addEventListener('keydown', (e) => { 
+    if (e.key === 'Escape' && modalStack.length > 0) closeTopModal(); 
+});
+
+// Exponer funciones al scope global (window)
+window.closeModal = () => closeTopModal(); 
+window.closeConfirmModal = () => closeTopModal(); 
+window.closeMultiModal = () => closeTopModal(); 
+window.closeAddChildModal = () => closeTopModal(); 
+window.closeDesignerManager = () => closeTopModal(); 
+window.closeCompareModals = () => closeAllModals(); 
+window.closeWeeklyReportModal = () => closeTopModal(); 
+window.closeLegendModal = () => closeTopModal();
 
 // ======================================================
 // ===== 3. UTILIDADES (THEME FIX BUG #2) =====
@@ -826,6 +861,7 @@ async function uploadBatchesToFirestore(dataArray) {
 // ======================================================
 
 function getFilteredOrders() {
+    // Generar key única para caché
     const currentFilterKey = JSON.stringify({
         s: currentSearch.trim().toLowerCase(),
         c: currentClientFilter, d: currentDepartamentoFilter, des: currentDesignerFilter, st: currentCustomStatusFilter,
@@ -833,6 +869,7 @@ function getFilteredOrders() {
     });
 
     const now = Date.now();
+    // Retornar caché si es la misma búsqueda y pasaron menos de 2 segundos
     if (filteredCache.key === currentFilterKey && (now - filteredCache.timestamp < 2000)) {
         return filteredCache.results;
     }
@@ -853,35 +890,48 @@ function getFilteredOrders() {
     // 2. Filtro de Cliente
     if (currentClientFilter) res = res.filter(o => o.cliente === currentClientFilter);
     
-    // 3. Lógica de Departamento Inteligente (MEJORA)
-    if (currentDepartamentoFilter) {
-        // A. Si el usuario eligió un depto específico, respetarlo siempre
+    // 3. Lógica de Departamento (CORREGIDA Y BLINDADA)
+    if (currentDepartamentoFilter === 'ALL_DEPTS') {
+        // A. Opción explícita "Ver Todos": No filtramos nada por departamento.
+    } 
+    else if (currentDepartamentoFilter && currentDepartamentoFilter !== 'P_Art') {
+        // B. Usuario eligió un departamento específico (ej: P_Sew) -> Mostrar solo ese.
         res = res.filter(o => o.departamento === currentDepartamentoFilter);
-    } else if (s !== '') {
-        // B. Si el usuario está BUSCANDO (y no eligió depto), buscar en TODOS lados.
-        // (No aplicamos ningún filtro de departamento aquí)
-    } else {
-        // C. Si NO busca y NO elige depto, mostrar solo ARTE por defecto
+    } 
+    else {
+        // C. POR DEFECTO (Si es '' o 'P_Art'): 
+        // Mostrar SOLO Arte. Esto previene que al buscar texto aparezcan cosas de Shipping.
         res = res.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART); 
     }
     
+    // 4. Resto de filtros
     if (currentDesignerFilter) res = res.filter(o => o.designer === currentDesignerFilter);
     if (currentCustomStatusFilter) res = res.filter(o => o.customStatus === currentCustomStatusFilter);
     
+    // Filtros rápidos (Botones de colores)
     if (currentFilter === 'late') res = res.filter(o => o.isLate);
     else if (currentFilter === 'veryLate') res = res.filter(o => o.isVeryLate);
     else if (currentFilter === 'aboutToExpire') res = res.filter(o => o.isAboutToExpire);
     
+    // Filtro de Fechas
     if(currentDateFrom) res = res.filter(o => o.fechaDespacho && o.fechaDespacho >= new Date(currentDateFrom));
     if(currentDateTo) res = res.filter(o => o.fechaDespacho && o.fechaDespacho <= new Date(currentDateTo));
 
+    // Ordenamiento
     res.sort((a, b) => {
         let va = a[sortConfig.key], vb = b[sortConfig.key];
-        if (sortConfig.key === 'date') { va = a.fechaDespacho ? a.fechaDespacho.getTime() : 0; vb = b.fechaDespacho ? b.fechaDespacho.getTime() : 0; }
+        // Manejo especial para fechas null
+        if (sortConfig.key === 'date') { 
+            va = a.fechaDespacho ? a.fechaDespacho.getTime() : 0; 
+            vb = b.fechaDespacho ? b.fechaDespacho.getTime() : 0; 
+        }
+        // Manejo de strings
         if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+        
         return (va < vb ? -1 : 1) * (sortConfig.direction === 'asc' ? 1 : -1);
     });
     
+    // Guardar en caché
     filteredCache = { key: currentFilterKey, results: res, timestamp: now };
     return res;
 }
@@ -891,31 +941,50 @@ function getFilteredOrders() {
 // ======================================================
 
 function confirmAutoCompleteBatch() {
+    // 1. Verificación inicial
     if (document.body.classList.contains('processing-batch') || autoCompleteBatchWrites.length === 0) return;
+
+    // 2. Preparar mensaje
     const count = autoCompleteBatchWrites.length;
     const examples = autoCompleteBatchWrites.slice(0, 3).map(w => w.displayCode).join(', ');
     const message = `Se han detectado ${count} órdenes que salieron de Arte (Ej: ${examples}...). \n\n¿Marcar como 'Completada'?`;
 
-    showConfirmModal(message, () => ejecutarAutoCompleteBatch());
+    // 3. CLONAR DATOS (SOLUCIÓN AL BUG):
+    // Guardamos una copia exacta de los datos en este momento preciso.
+    // Así, si la variable global cambia mientras el usuario piensa, la confirmación no falla.
+    const batchToProcess = [...autoCompleteBatchWrites];
+
+    // 4. Pasamos la copia a la función de ejecución
+    showConfirmModal(message, () => ejecutarAutoCompleteBatch(batchToProcess));
 }
 
-async function ejecutarAutoCompleteBatch() {
-    if (!usuarioActual || autoCompleteBatchWrites.length === 0) return;
+// Ahora acepta un parámetro opcional 'itemsParam'
+async function ejecutarAutoCompleteBatch(itemsParam) {
+    // Usamos los items recibidos O la variable global si no se recibieron (fallback)
+    const items = itemsParam || autoCompleteBatchWrites;
+
+    if (!usuarioActual || items.length === 0) return;
+    
     document.body.classList.add('processing-batch');
     
     await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
         const user = usuarioActual.displayName;
         
-        autoCompleteBatchWrites.slice(0, 400).forEach(w => {
+        // Usamos 'items' en lugar de la variable global
+        items.slice(0, 400).forEach(w => {
             const ref = db_firestore.collection('assignments').doc(w.orderId);
             batch.set(ref, w.data, { merge: true });
             const hRef = db_firestore.collection('history').doc();
             batch.set(hRef, { orderId: w.orderId, change: w.history[0], user, timestamp: new Date().toISOString() });
+            
+            // Actualizamos el registro de completados para que no vuelva a salir
             autoCompletedOrderIds.add(w.orderId);
         });
 
         await batch.commit();
+        
+        // Limpiamos la global solo después de procesar
         autoCompleteBatchWrites = []; 
         return true;
     }, 'Sincronizando estados...', 'Estados actualizados correctamente.');
@@ -923,6 +992,7 @@ async function ejecutarAutoCompleteBatch() {
     document.body.classList.remove('processing-batch');
 }
 
+// ... (El resto de funciones loadUrgentOrdersToPlan y addSelectedToWorkPlan se quedan igual) ...
 window.loadUrgentOrdersToPlan = async () => {
     const wid = document.getElementById('view-workPlanWeekSelector').value;
     if (!wid) return showCustomAlert('Selecciona una semana primero', 'error');
@@ -982,6 +1052,7 @@ window.addSelectedToWorkPlan = async () => {
         return true;
     }, 'Agregando al plan...', `${selectedOrders.size} órdenes procesadas.`);
 };
+
 // ======================================================
 // ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER UI - BUG #6 FIX) =====
 // ======================================================
@@ -2495,8 +2566,6 @@ function updateKanbanDropdown() {
 // ===== 18. SISTEMA DE CHAT Y MENCIONES (COLLAB) =====
 // ======================================================
 
-// NOTA: Se eliminó 'let unsubscribeChat = null;' aquí porque ya está declarada arriba.
-
 // 1. Cargar comentarios de una orden
 function loadOrderComments(orderId) {
     const chatContainer = document.getElementById('chatHistory');
@@ -2504,7 +2573,8 @@ function loadOrderComments(orderId) {
     
     chatContainer.innerHTML = '<div class="flex justify-center pt-4"><div class="spinner"></div></div>';
     
-    // CRÍTICO: Desconectar listener anterior
+    // --- CORRECCIÓN MEMORY LEAK ---
+    // Antes de crear un listener nuevo, matamos el anterior obligatoriamente.
     if (unsubscribeChat) {
         unsubscribeChat();
         unsubscribeChat = null;
@@ -2543,7 +2613,7 @@ function renderMessage(data, isMe, container) {
     const div = document.createElement('div');
     div.className = `chat-bubble ${isMe ? 'me' : 'other'}`;
     
-    // Resaltar menciones
+    // Resaltar menciones visualmente
     let formattedText = escapeHTML(data.text).replace(/@(\w+)/g, '<span class="mention-tag">@$1</span>');
     formattedText = formattedText.replace(/\n/g, '<br>');
 
@@ -2572,13 +2642,13 @@ async function sendComment() {
     
     if (!text || !currentEditingOrderId || !usuarioActual) return;
 
-    // UI optimista
+    // UI optimista: Limpiar input inmediatamente
     input.value = ''; 
     input.style.height = 'auto'; 
     document.getElementById('mentionDropdown').classList.add('hidden');
 
     try {
-        // Guardar comentario
+        // Guardar comentario en Firebase
         await db_firestore.collection('assignments').doc(currentEditingOrderId).collection('comments').add({
             text: text,
             userId: usuarioActual.uid,
@@ -2587,38 +2657,38 @@ async function sendComment() {
             timestamp: new Date().toISOString()
         });
         
-        // Actualizar fecha de modificación de la orden para que se sepa que hubo actividad
+        // Actualizar timestamp de modificación en la orden
         db_firestore.collection('assignments').doc(currentEditingOrderId).update({
             lastModified: new Date().toISOString()
         });
 
-        // --- DETECCIÓN DE MENCIONES ---
-        // Regex mejorada para capturar nombres compuestos simples
-        const mentionRegex = /@([a-zA-Z0-9\s]+?)(?=\s|$)/g;
-        const mentions = text.match(mentionRegex);
-
-        if (mentions) {
-            mentions.forEach(m => {
-                const nameMentioned = m.substring(1).trim(); // Quitar el @
+        // --- CORRECCIÓN: DETECCIÓN EXACTA DE MENCIONES ---
+        // Verificamos contra la lista real de diseñadores (designerList)
+        if (designerList && designerList.length > 0) {
+            designerList.forEach(designerName => {
+                // Escapar caracteres especiales para el regex
+                const escapedName = designerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                // Regex Estricta: Busca @Nombre seguido de un límite de palabra (\b)
+                // Esto evita que "@Ana" haga match con "Analisis"
+                const regex = new RegExp(`@${escapedName}\\b`, 'i');
                 
-                let targetEmail = null;
-                // Buscar email del diseñador mencionado en el mapa de memoria
-                firebaseDesignersMap.forEach(dData => {
-                    // Comparamos ignorando mayúsculas/minúsculas
-                    if (dData.name.toLowerCase().includes(nameMentioned.toLowerCase())) {
-                        targetEmail = dData.email;
-                    }
-                });
+                if (regex.test(text)) {
+                    // Buscar email del diseñador mencionado
+                    let targetEmail = null;
+                    firebaseDesignersMap.forEach(dData => {
+                        if (dData.name === designerName) targetEmail = dData.email;
+                    });
 
-                // Si encontramos email y no soy yo mismo, notificar
-                if (targetEmail && targetEmail.toLowerCase() !== usuarioActual.email.toLowerCase()) {
-                    createNotification(
-                        targetEmail,
-                        'mention',
-                        'Te mencionaron',
-                        `${usuarioActual.displayName} te mencionó en una orden`,
-                        currentEditingOrderId
-                    );
+                    // Si encontramos email y no soy yo mismo, notificar
+                    if (targetEmail && targetEmail.toLowerCase() !== usuarioActual.email.toLowerCase()) {
+                        createNotification(
+                            targetEmail,
+                            'mention',
+                            'Te mencionaron',
+                            `${usuarioActual.displayName} te mencionó en una orden`,
+                            currentEditingOrderId
+                        );
+                    }
                 }
             });
         }
@@ -2648,7 +2718,7 @@ function handleChatInput(textarea) {
         const query = textBeforeCursor.substring(lastAt + 1).toLowerCase();
         
         // Si hay un espacio y el query es corto, quizás ya terminó la mención
-        // Pero permitimos espacios para nombres como "Ana Maria"
+        // Pero permitimos espacios para nombres como "Ana Maria" (hasta 20 chars)
         if (query.length < 20) {
             const matches = designerList.filter(d => d.toLowerCase().includes(query));
 
@@ -2751,7 +2821,7 @@ window.clearAllFilters = () => {
     updateTable();
 };
 
-// BUG #3 FIX: Llenado de Dropdowns con opción Default para Departamento
+// BUG #3 FIX: Llenado de Dropdowns con opción "VER TODOS LOS DEPTOS"
 window.populateFilterDropdowns = () => {
     const populate = (id, key) => {
         const sel = document.getElementById(id);
@@ -2759,18 +2829,27 @@ window.populateFilterDropdowns = () => {
         const currentVal = sel.value;
         const options = [...new Set(allOrders.map(o => o[key]).filter(Boolean))].sort();
         
-        let defaultOpt = '<option value="">Todos</option>';
-        // Solución: Agregar opción específica para ver solo Arte si se desea
-        if (id === 'departamentoFilter') defaultOpt += '<option value="P_Art">Solo P_Art</option>';
+        let defaultOpt = '<option value="">- Seleccionar -</option>';
+        
+        // CORRECCIÓN: Lógica específica para departamentos
+        if (id === 'departamentoFilter') {
+            defaultOpt = '<option value="P_Art">Solo P_Art (Por Defecto)</option>'; 
+            defaultOpt += '<option value="ALL_DEPTS">🌎 VER TODOS LOS DEPTOS</option>';
+        } else {
+            defaultOpt = '<option value="">Todos</option>';
+        }
         
         sel.innerHTML = defaultOpt + options.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join('');
         sel.value = currentVal;
+        
+        // Si es la primera carga y es el filtro de depto, forzar P_Art visualmente si está vacío
+        if (id === 'departamentoFilter' && !currentVal) sel.value = 'P_Art';
     };
     populate('clientFilter', 'cliente');
     populate('styleFilter', 'estilo');
     populate('teamFilter', 'teamName');
     populate('departamentoFilter', 'departamento');
-    if (typeof updateAllDesignerDropdowns === 'function') updateAllDesignerDropdowns();
+    updateAllDesignerDropdowns();
 }
 
 window.updateAllDesignerDropdowns = () => {
