@@ -1,5 +1,5 @@
 /* ====================================================== */
-/* ===== ESTILOS CSS - Estilo Salient v7.5 (Final) ===== */
+/* ===== ESTILOS CSS - Estilo Salient v7.6 (Final) ===== */
 /* ====================================================== */
 
 /* --- 1. Escala Global --- */
@@ -63,12 +63,13 @@ body:has(.main-content-shifted) .multi-select-bar { left: calc(50% + 8rem); }
 .multi-select-bar.active { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
 
 /* ====================================================== */
-/* ===== 6. ESTILO DE TABLA (COMPACTA Y AIREADA) ===== */
+/* ===== 6. ESTILO DE TABLA (AJUSTADA A PANTALLA) ===== */
 /* ====================================================== */
 
 .table-responsive, .table-container {
     width: 100%;
-    overflow-x: auto;
+    /* Scroll horizontal solo si es móvil o muy necesario */
+    overflow-x: auto; 
     -webkit-overflow-scrolling: touch;
     margin-bottom: 1rem;
     border-radius: 0.5rem; 
@@ -93,7 +94,10 @@ table.data-table th {
     letter-spacing: 0.05em; 
     border-bottom: 1px solid #E5E7EB; 
     white-space: nowrap; 
-    padding: 0.75rem 0.5rem; /* Compacto horizontalmente */
+    
+    /* Padding lateral reducido para juntar columnas */
+    padding: 0.75rem 0.5rem; 
+    
     position: sticky; top: 0; z-index: 10; text-align: left;
 }
 
@@ -111,19 +115,20 @@ table.data-table td {
     padding: 0.6rem 0.5rem; 
 }
 
-/* Ajustes para columnas de texto largo */
+/* REGLAS DE ANCHO MÁXIMO (Evita scroll horizontal) */
+/* Forza a estas columnas a romper línea si el texto es largo */
 table.data-table td:nth-child(4), /* Cliente */
 table.data-table td:nth-child(6), /* Estilo */
 table.data-table td:nth-child(7)  /* Team */ {
-    max-width: 140px; 
+    max-width: 130px; 
     line-height: 1.25;
 }
 
-/* Columnas fijas (Fechas, Códigos, Botones) */
-table.data-table td:nth-child(2), 
-table.data-table td:nth-child(3), 
-table.data-table td:nth-child(5), 
-table.data-table td:last-child {
+/* Columnas que NO deben romperse */
+table.data-table td:nth-child(2), /* Estado */
+table.data-table td:nth-child(3), /* Fecha */
+table.data-table td:nth-child(5), /* Código */
+table.data-table td:last-child    /* Botones */ {
     white-space: nowrap;
 }
 
@@ -140,41 +145,29 @@ table.data-table td:first-child {
     padding-left: 0.75rem; padding-right: 0.25rem; width: 2.5rem; text-align: center;
 }
 
-/* --- 7. Utilerías --- */
-.spinner { border: 3px solid #E2E8F0; border-top: 3px solid #2563EB; border-radius: 50%; width: 28px; height: 28px; animation: spin 0.8s linear infinite; margin: 0 auto; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-.loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; }
-body.processing-batch { pointer-events: none; cursor: wait; }
-body.processing-batch::after { content: ''; position: fixed; inset: 0; background: rgba(255, 255, 255, 0.5); z-index: 2999; backdrop-filter: blur(1px); }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+/* ====================================================== */
+/* ===== 9. ESTILOS KANBAN (TRELLO PRO) ===== */
+/* ====================================================== */
 
-/* --- 8. Responsivo --- */
-@media (max-width: 768px) {
-    .main-content-shifted { margin-left: 0 !important; width: 100% !important; }
-    #mainNavigation { transform: translateX(-100%); }
-    table.data-table th { display: none; }
-    table.data-table td { display: block; padding-left: 40% !important; text-align: right; position: relative; border: none; border-bottom: 1px dashed #eee; }
-    table.data-table td:before { content: attr(data-label); position: absolute; left: 1rem; font-weight: bold; color: #666; text-transform: uppercase; font-size: 0.7rem; }
-    table.data-table tr { display: block; border: 1px solid #eee; margin-bottom: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+/* Contenedor Principal - Fijo */
+#kanbanView {
+    height: 100vh;
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+    background-color: #F8FAFC;
 }
 
-/* ====================================================== */
-/* ===== 9. ESTILOS KANBAN (ESTILO TRELLO PRO) ===== */
-/* ====================================================== */
-
-#kanbanView {
-    height: calc(100vh - 64px); 
-    overflow-x: auto; /* Scroll horizontal del tablero */
-    overflow-y: hidden;
+/* Tablero Real - Scroll Horizontal */
+#kanbanBoard {
+    flex: 1;
     display: flex;
-    flex-direction: row; /* Columnas una al lado de otra */
-    align-items: flex-start;
+    flex-direction: row;
+    overflow-x: auto; /* Scroll aquí */
+    overflow-y: hidden;
     padding: 1.5rem;
-    gap: 1.5rem; 
-    background-color: #F8FAFC;
+    gap: 1.5rem;
+    align-items: flex-start;
 }
 
 .kanban-column {
@@ -189,7 +182,6 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-/* Header de Columna Trello */
 .kanban-column-header {
     padding: 12px 16px;
     font-weight: 600;
@@ -200,7 +192,6 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
     align-items: center;
 }
 
-/* Cuerpo de Columna */
 .kanban-dropzone {
     padding: 8px;
     overflow-y: auto;
@@ -211,7 +202,6 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
 
 .kanban-dropzone.drag-over { background-color: #E2E8F0; border-radius: 8px; }
 
-/* Tarjeta Estilo Trello */
 .kanban-card {
     background-color: #FFFFFF;
     border-radius: 8px;
@@ -229,11 +219,10 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
     box-shadow: 0 4px 8px rgba(9, 30, 66, 0.25);
 }
 
-/* Elementos dentro de la tarjeta */
 .card-label { height: 6px; border-radius: 4px; width: 40px; margin-bottom: 6px; display: inline-block; margin-right: 4px; }
 .card-avatar { width: 24px; height: 24px; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; border: 2px solid white; box-shadow: 0 0 0 1px #E2E8F0; }
 
-/* --- 10. Chat & Menciones --- */
+/* --- 10. Chat --- */
 .chat-bubble { max-width: 85%; padding: 8px 12px; border-radius: 12px; position: relative; font-size: 0.75rem; line-height: 1.4; word-wrap: break-word; }
 .chat-bubble.me { align-self: flex-end; background-color: #EFF6FF; color: #1E3A8A; border-bottom-right-radius: 2px; border: 1px solid #DBEAFE; }
 .chat-bubble.other { align-self: flex-start; background-color: #FFFFFF; color: #334155; border-bottom-left-radius: 2px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
@@ -252,17 +241,13 @@ body.processing-batch::after { content: ''; position: fixed; inset: 0; backgroun
 }
 #notificationBadge { animation: pulse-notification 2s infinite; }
 
-/* ====================================================== */
-/* ===== DARK MODE ===== */
-/* ====================================================== */
+/* --- DARK MODE --- */
 html.dark body { background-color: #0f172a; color: #f8fafc; }
 html.dark .main-content-shifted, html.dark #appMainContainer { background-color: #0f172a; }
 html.dark .bg-white { background-color: #1e293b !important; border-color: #334155 !important; color: #f1f5f9 !important; }
 html.dark .bg-slate-50, html.dark .bg-slate-100, html.dark .hover\:bg-slate-50:hover { background-color: #0f172a !important; color: #cbd5e1 !important; border-color: #334155 !important; }
 html.dark .text-slate-500, html.dark .text-slate-600, html.dark .text-slate-700, html.dark .text-gray-500, html.dark .text-gray-600, html.dark .text-gray-700 { color: #94a3b8 !important; }
 html.dark .text-slate-800, html.dark .text-slate-900, html.dark .text-gray-800, html.dark .text-gray-900 { color: #f1f5f9 !important; }
-html.dark button .text-slate-400 { color: #cbd5e1 !important; }
-html.dark button:hover .text-slate-400 { color: #ffffff !important; }
 
 /* Dark Tables */
 html.dark .table-responsive, html.dark .table-container { background-color: #1e293b; border-color: #334155; }
@@ -270,19 +255,13 @@ html.dark table.data-table th { background-color: #1e293b; color: #94a3b8; borde
 html.dark table.data-table td { color: #cbd5e1; border-bottom-color: #334155; background-color: #1e293b; }
 html.dark table.data-table tr:hover td { background-color: #334155 !important; }
 
-/* Dark Kanban (Trello) */
-html.dark #kanbanView { background-color: #0f172a; }
+/* Dark Kanban */
+html.dark #kanbanView, html.dark #kanbanBoard { background-color: #0f172a; }
 html.dark .kanban-column { background-color: #1e293b !important; border: 1px solid #334155 !important; }
 html.dark .kanban-column h3 { color: #f1f5f9; }
-html.dark .kanban-dropzone.drag-over { background-color: #334155 !important; }
 html.dark .kanban-card { background-color: #0f172a !important; box-shadow: 0 1px 2px rgba(0,0,0,0.5) !important; border: 1px solid #334155 !important; }
 html.dark .kanban-card:hover { background-color: #1e293b !important; }
 html.dark .card-avatar { border-color: #0f172a; box-shadow: none; }
 
-/* Dark Utils */
 html.dark .modal-content { background-color: #1e293b; border-color: #334155; color: #f1f5f9; }
 html.dark input, html.dark select, html.dark textarea { background-color: #0f172a; border-color: #334155; color: #f1f5f9; }
-html.dark ::-webkit-scrollbar-track { background: #0f172a; }
-html.dark ::-webkit-scrollbar-thumb { background: #475569; }
-html.dark .chat-bubble.other { background-color: #334155; color: #e2e8f0; border-color: #475569; }
-html.dark .chat-bubble.me { background-color: #1e40af; color: #dbeafe; border-color: #1e3a8a; }
