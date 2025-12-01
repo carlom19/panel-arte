@@ -1054,66 +1054,71 @@ window.addSelectedToWorkPlan = async () => {
 };
 
 // ======================================================
-// ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER UI) =====
+// ===== 9. SISTEMA DE NAVEGACIÓN (ROUTER UI - BUG #6 FIX) =====
 // ======================================================
 
 function navigateTo(viewId) {
+    // Protección: No navegar si no hay datos (salvo para ir a cargar archivo)
     if (!isExcelLoaded && viewId !== 'uploadSection') return;
 
-    // 1. Ocultar vistas
+    // 1. Ocultar todas las vistas
     document.querySelectorAll('.main-view').forEach(el => el.style.display = 'none');
     
-    // 2. Mostrar vista seleccionada
+    // 2. Mostrar vista objetivo
     const target = document.getElementById(viewId);
     if (target) {
         target.style.display = 'block';
         window.scrollTo(0, 0);
     }
 
-    // 3. Actualizar Sidebar (Estilo Indigo/Clean)
+    // 3. Resetear estilos del menú
     document.querySelectorAll('.nav-item').forEach(btn => {
-        // Limpiar clases activas antiguas
-        btn.classList.remove('active-nav', 'bg-slate-800', 'text-white', 'bg-indigo-50', 'text-indigo-600', 'font-semibold');
-        // Estado inactivo
+        btn.classList.remove('active-nav', 'bg-blue-50', 'text-blue-700', 'border-l-4', 'border-blue-600', 'font-bold');
         btn.classList.add('text-slate-500'); 
-        
-        // Resetear iconos
-        const icon = btn.querySelector('svg'); // Usamos SVG ahora
-        if(icon) icon.classList.add('text-slate-400');
+        const icon = btn.querySelector('i');
+        if(icon) {
+            // Limpiar colores específicos previos
+            icon.className = icon.className.replace(/text-(blue|pink|orange|purple|green)-[0-9]+/g, '').trim();
+            icon.classList.add('text-slate-400');
+        }
     });
 
     // 4. Activar botón actual
     const activeBtn = document.getElementById('nav-' + viewId);
     if (activeBtn) {
-        // Estilo Activo: Fondo Indigo claro, texto Indigo fuerte
-        activeBtn.classList.add('active-nav', 'bg-indigo-50', 'text-indigo-600', 'font-semibold');
+        activeBtn.classList.add('active-nav', 'bg-blue-50', 'text-blue-700', 'border-l-4', 'border-blue-600', 'font-bold');
         activeBtn.classList.remove('text-slate-500');
-        
-        const icon = activeBtn.querySelector('svg');
+        const icon = activeBtn.querySelector('i');
         if (icon) {
             icon.classList.remove('text-slate-400');
-            icon.classList.add('text-indigo-600');
+            if (viewId === 'dashboard') icon.classList.add('text-blue-600');
+            if (viewId === 'kanbanView') icon.classList.add('text-pink-500');
+            if (viewId === 'workPlanView') icon.classList.add('text-orange-500');
+            if (viewId === 'designerMetricsView') icon.classList.add('text-purple-500');
+            if (viewId === 'departmentMetricsView') icon.classList.add('text-green-500');
         }
     }
 
-    // 5. Inicializar vistas
-    if (viewId === 'dashboard') updateDashboard();
-    else if (viewId === 'kanbanView') {
-        if (typeof updateKanbanDropdown === 'function') updateKanbanDropdown();
-        if (typeof updateKanban === 'function') updateKanban();
-    }
-    else if (viewId === 'workPlanView' && typeof generateWorkPlan === 'function') generateWorkPlan();
-    else if (viewId === 'designerMetricsView' && typeof populateMetricsSidebar === 'function') {
-        populateMetricsSidebar();
-        // Auto-seleccionar primer diseñador si es necesario
-        if(document.getElementById('metricsDetail').innerText.includes('Selecciona')) {
-            const first = document.querySelector('#metricsSidebarList .filter-btn');
-            if(first) first.click();
-        }
+    // 5. Inicializar lógica específica de la vista
+    if (viewId === 'dashboard') {
+        updateDashboard();
     } 
-    else if (viewId === 'departmentMetricsView' && typeof generateDepartmentMetrics === 'function') generateDepartmentMetrics();
+    else if (viewId === 'kanbanView') {
+        // BUG #6 FIX: Verificar existencia antes de llamar
+        if (typeof updateKanbanDropdown === 'function') updateKanbanDropdown(); 
+        if (typeof updateKanban === 'function') updateKanban(); 
+    } 
+    else if (viewId === 'workPlanView') {
+        if (typeof generateWorkPlan === 'function') generateWorkPlan();
+    }
+    else if (viewId === 'designerMetricsView') {
+        if (typeof populateMetricsSidebar === 'function') populateMetricsSidebar();
+    }
+    else if (viewId === 'departmentMetricsView') {
+        if (typeof generateDepartmentMetrics === 'function') generateDepartmentMetrics();
+    }
     
-    // Limpieza de memoria (Gráficos)
+    // 6. Limpieza de memoria (Gráficos)
     if (viewId !== 'designerMetricsView' && viewId !== 'departmentMetricsView') {
         if (typeof destroyAllCharts === 'function') destroyAllCharts();
     }
@@ -1125,28 +1130,40 @@ function navigateTo(viewId) {
 
 function updateDashboard() {
     if (!isExcelLoaded) return;
-    if (needsRecalculation && typeof recalculateChildPieces === 'function') recalculateChildPieces();
+    
+    if (needsRecalculation && typeof recalculateChildPieces === 'function') {
+        recalculateChildPieces();
+    }
     
     const artOrders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     const stats = calculateStats(artOrders);
     
-    // Actualizar contadores
-    const setTxt = (id, val) => { if(document.getElementById(id)) document.getElementById(id).textContent = val; };
-    setTxt('statTotal', artOrders.length);
-    setTxt('statTotalPieces', artOrders.reduce((s,o) => s + o.cantidad + o.childPieces, 0).toLocaleString());
-    setTxt('statLate', stats.late);
-    setTxt('statExpiring', stats.aboutToExpire);
-    setTxt('statOnTime', stats.onTime);
+    if(document.getElementById('statTotal')) document.getElementById('statTotal').textContent = artOrders.length;
     
-    // Esta semana
-    const today = new Date(); today.setHours(0,0,0,0);
-    const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-    const thisWeekCount = artOrders.filter(o => o.fechaDespacho && o.fechaDespacho >= today && o.fechaDespacho <= nextWeek).length;
-    setTxt('statThisWeek', thisWeekCount);
+    // Protección contra NaN
+    const totalPiezas = artOrders.reduce((s, o) => s + (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0), 0);
+    if(document.getElementById('statTotalPieces')) document.getElementById('statTotalPieces').textContent = totalPiezas.toLocaleString();
+    
+    if(document.getElementById('statLate')) document.getElementById('statLate').textContent = stats.late;
+    if(document.getElementById('statExpiring')) document.getElementById('statExpiring').textContent = stats.aboutToExpire;
+    if(document.getElementById('statOnTime')) document.getElementById('statOnTime').textContent = stats.onTime;
+    
+    const thisWeekCount = artOrders.filter(o => {
+        if (!o.fechaDespacho) return false;
+        const today = new Date(); today.setHours(0,0,0,0);
+        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+        return o.fechaDespacho >= today && o.fechaDespacho <= nextWeek;
+    }).length;
+    if(document.getElementById('statThisWeek')) document.getElementById('statThisWeek').textContent = thisWeekCount;
     
     updateAlerts(stats);
     updateWidgets(artOrders);
-    populateFilterDropdowns();
+    
+    // Solo actualizar dropdowns si es necesario (Optimización)
+    if(document.getElementById('clientFilter') && document.getElementById('clientFilter').children.length <= 1) {
+        populateFilterDropdowns();
+    }
+    
     updateTable();
 }
 
@@ -1166,138 +1183,166 @@ function updateAlerts(stats) {
 
     let html = '';
     if (stats.veryLate > 0) {
-        html += `<div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 cursor-pointer border-b border-slate-50 flex gap-3 items-start"><div class="mt-1 text-red-500"><i class="fa-solid fa-circle-exclamation"></i></div><div><p class="text-xs font-bold text-slate-700">Muy Atrasadas (>7 días)</p><p class="text-[10px] text-slate-500">${stats.veryLate} órdenes críticas</p></div></div>`;
+        html += `
+        <div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800">
+            <div class="mt-1 text-red-500"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <div>
+                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-red-600 dark:group-hover:text-red-400">Muy Atrasadas (>7 días)</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">${stats.veryLate} órdenes requieren atención inmediata</p>
+            </div>
+        </div>`;
     }
     if (stats.aboutToExpire > 0) {
-        html += `<div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 cursor-pointer border-b border-slate-50 flex gap-3 items-start"><div class="mt-1 text-yellow-600"><i class="fa-solid fa-clock"></i></div><div><p class="text-xs font-bold text-slate-700">Por Vencer</p><p class="text-[10px] text-slate-500">${stats.aboutToExpire} órdenes próximas</p></div></div>`;
+        html += `
+        <div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800">
+            <div class="mt-1 text-yellow-500"><i class="fa-solid fa-stopwatch"></i></div>
+            <div>
+                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-yellow-600 dark:group-hover:text-yellow-400">Por Vencer (≤2 días)</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">${stats.aboutToExpire} órdenes próximas a vencer</p>
+            </div>
+        </div>`;
     }
+    
     container.innerHTML = html;
     if(typeof updateTotalBadge === 'function') updateTotalBadge();
 }
 
 function updateWidgets(artOrders) {
-    // Top Clientes
-    const cObj = {};
-    artOrders.forEach(o => cObj[o.cliente] = (cObj[o.cliente] || 0) + 1);
-    const topC = Object.entries(cObj).sort((a,b) => b[1]-a[1]).slice(0, 10);
+    // 1. Top Clientes
+    const clientCounts = {};
+    artOrders.forEach(o => clientCounts[o.cliente] = (clientCounts[o.cliente] || 0) + 1);
+    const topClients = Object.entries(clientCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
     
-    const cr = document.getElementById('clientReport');
-    if(cr) cr.innerHTML = topC.map(([c, n], i) => `<div class="flex justify-between py-2 border-b border-gray-100 last:border-0 text-xs"><span class="text-gray-600 truncate w-40 font-medium">${i+1}. ${c}</span><span class="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">${n}</span></div>`).join('');
+    const clientReport = document.getElementById('clientReport');
+    if (clientReport) {
+        clientReport.innerHTML = topClients.map(([c, n], i) => `
+            <div class="flex justify-between py-2 border-b border-slate-50 dark:border-slate-700 last:border-0 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-2 rounded transition">
+                <span class="text-slate-600 dark:text-slate-300 truncate w-40 font-medium" title="${c}">${i+1}. ${c}</span>
+                <span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">${n}</span>
+            </div>`).join('');
+    }
 
-    // Carga Trabajo
-    const wObj = {};
-    let total = 0;
-    artOrders.forEach(o => { 
-        if(o.designer){ 
-            const p = o.cantidad + o.childPieces; 
-            wObj[o.designer] = (wObj[o.designer] || 0) + p; 
-            if(o.designer !== CONFIG.EXCLUDED_DESIGNER) total += p;
-        } 
-    });
-    if(document.getElementById('workloadTotal')) document.getElementById('workloadTotal').textContent = total.toLocaleString() + ' pzs';
+    // 2. Carga de Trabajo (Soporte Array Excluidos)
+    const workload = {};
+    let totalWorkload = 0;
     
-    const wl = document.getElementById('workloadList');
-    if(wl) wl.innerHTML = Object.entries(wObj).sort((a,b)=>b[1]-a[1]).map(([d,p]) => {
-        const pct = total > 0 ? ((p/total)*100).toFixed(1) : 0;
-        return `<div class="mb-3"><div class="flex justify-between text-xs mb-1"><span class="font-bold text-gray-700">${d}</span><span class="text-gray-500">${p.toLocaleString()} (${pct}%)</span></div><div class="h-1.5 bg-gray-100 rounded-full"><div class="h-full bg-indigo-500 rounded-full" style="width:${pct}%"></div></div></div>`;
-    }).join('');
+    artOrders.forEach(o => {
+        if (o.designer) {
+            const pieces = (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0);
+            workload[o.designer] = (workload[o.designer] || 0) + pieces;
+            
+            // FILTRO DE EXCLUIDOS MEJORADO (Array)
+            if (!CONFIG.EXCLUDED_DESIGNERS.includes(o.designer)) {
+                totalWorkload += pieces;
+            }
+        }
+    });
+    
+    if(document.getElementById('workloadTotal')) document.getElementById('workloadTotal').textContent = totalWorkload.toLocaleString() + ' pzs';
+    
+    const workloadList = document.getElementById('workloadList');
+    if (workloadList) {
+        workloadList.innerHTML = Object.entries(workload)
+            .sort((a, b) => b[1] - a[1])
+            .map(([designer, pieces]) => {
+                const isExcluded = CONFIG.EXCLUDED_DESIGNERS.includes(designer);
+                const pct = (totalWorkload > 0 && !isExcluded) ? ((pieces / totalWorkload) * 100).toFixed(1) : 0;
+                
+                return `
+                <div class="mb-3 ${isExcluded ? 'opacity-50' : ''}">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-700 dark:text-slate-300 font-bold truncate w-32">${designer} ${isExcluded ? '(Excl)' : ''}</span>
+                        <span class="text-slate-500 dark:text-slate-400">${pieces.toLocaleString()} ${!isExcluded ? `(${pct}%)` : ''}</span>
+                    </div>
+                    <div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full" style="width: ${isExcluded ? 0 : pct}%"></div>
+                    </div>
+                </div>`;
+            }).join('');
+    }
 }
 
 function updateTable() {
+    if (typeof getFilteredOrders !== 'function') return;
+    
     const filtered = getFilteredOrders();
     const start = (currentPage - 1) * rowsPerPage;
     paginatedOrders = filtered.slice(start, start + rowsPerPage);
     
     if(document.getElementById('resultCount')) document.getElementById('resultCount').textContent = filtered.length;
-    if(document.getElementById('resultPieces')) document.getElementById('resultPieces').textContent = filtered.reduce((s,o)=>s+o.cantidad+o.childPieces,0).toLocaleString();
+    const totalTable = filtered.reduce((s, o) => s + (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0), 0);
+    if(document.getElementById('resultPieces')) document.getElementById('resultPieces').textContent = totalTable.toLocaleString();
 
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
 
     if (paginatedOrders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="13" class="text-center py-12 text-slate-400 italic">No se encontraron datos.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" class="text-center py-12 text-slate-400 italic">No se encontraron órdenes con los filtros actuales.</td></tr>`;
     } else {
         tbody.innerHTML = paginatedOrders.map(order => {
             const rowClass = order.isVeryLate ? 'very-late' : order.isLate ? 'late' : order.isAboutToExpire ? 'expiring' : '';
+            const statusBadge = getStatusBadge(order);
+            const internalBadge = getCustomStatusBadge(order.customStatus);
+            const hasChild = order.childPieces > 0 ? `<span class="ml-1 text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 rounded-full font-bold border border-blue-200 dark:border-blue-800">+${order.childPieces}</span>` : '';
             const isArt = order.departamento === CONFIG.DEPARTMENTS.ART;
-            const hasChild = order.childPieces > 0 ? `<span class="ml-1 text-[9px] bg-indigo-50 text-indigo-700 px-1.5 rounded-full border border-indigo-100 font-bold">+${order.childPieces}</span>` : '';
 
-            // Badges estilo Pill
-            const deptBadge = order.departamento ? `<span class="px-2 py-0.5 rounded-full text-xs border ${isArt ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-600 border-gray-200'}">${escapeHTML(order.departamento)}</span>` : '-';
-            const desBadge = order.designer ? `<span class="px-2 py-0.5 rounded-full text-xs border bg-indigo-50 text-indigo-700 border-indigo-200">${escapeHTML(order.designer)}</span>` : '<span class="text-xs text-gray-400 italic">--</span>';
+            const pillBase = "px-3 py-1 rounded-full text-xs font-medium border inline-block shadow-sm text-center whitespace-nowrap";
+            let deptBadge = '-';
+            if (order.departamento) {
+                const isPArt = order.departamento === CONFIG.DEPARTMENTS.ART;
+                const deptClass = isPArt ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' : 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600';
+                deptBadge = `<span class="${pillBase} ${deptClass}">${escapeHTML(order.departamento)}</span>`;
+            }
+
+            let designerBadge = '<span class="text-slate-400 text-xs italic">--</span>';
+            if (order.designer) {
+                designerBadge = `<span class="${pillBase} bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">${escapeHTML(order.designer)}</span>`;
+            }
 
             return `
-            <tr class="${rowClass} hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0" onclick="openAssignModal('${order.orderId}')">
-                <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
-                    ${isArt ? `<input type="checkbox" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId)?'checked':''}>` : ''}
+            <tr class="${rowClass} hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer border-b border-slate-50 dark:border-slate-700 last:border-b-0" onclick="openAssignModal('${order.orderId}')">
+                <td class="px-3 py-2.5 text-center" onclick="event.stopPropagation()">
+                    ${isArt ? `<input type="checkbox" class="rounded border-slate-300 dark:border-slate-500 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" onchange="toggleOrderSelection('${order.orderId}')" ${selectedOrders.has(order.orderId) ? 'checked' : ''}>` : ''}
                 </td>
-                <td class="px-3 py-2">${getStatusBadge(order)}</td>
-                <td class="px-3 py-2 whitespace-nowrap text-gray-600">${formatDate(order.fechaDespacho)}</td>
-                <td class="px-3 py-2 font-medium text-gray-900 truncate max-w-[140px]" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
-                <td class="px-3 py-2 text-gray-500 font-mono text-xs whitespace-nowrap">${escapeHTML(order.codigoContrato)}</td>
-                <td class="px-3 py-2 text-gray-600 truncate max-w-[140px]" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
-                <td class="px-3 py-2 hidden lg:table-cell text-gray-500 text-xs truncate max-w-[140px]">${escapeHTML(order.teamName)}</td>
-                <td class="px-3 py-2 hidden md:table-cell">${deptBadge}</td>
-                <td class="px-3 py-2">${desBadge}</td>
-                <td class="px-3 py-2">${getCustomStatusBadge(order.customStatus)}</td>
-                <td class="px-3 py-2 hidden lg:table-cell text-gray-500 text-xs whitespace-nowrap">${order.receivedDate ? formatDate(new Date(order.receivedDate+'T00:00:00')) : '-'}</td>
-                <td class="px-3 py-2 text-right"><div class="flex justify-end gap-1 font-bold text-gray-700">${order.cantidad.toLocaleString()} ${hasChild}</div></td>
-                <td class="px-3 py-2 text-right"><i class="fa-solid fa-chevron-right text-gray-300 text-[10px]"></i></td>
+                <td class="px-3 py-2.5" data-label="Estado">${statusBadge}</td>
+                <td class="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap" data-label="Fecha">${formatDate(order.fechaDespacho)}</td>
+                <td class="px-3 py-2.5 font-medium text-slate-900 dark:text-white truncate max-w-[160px]" title="${escapeHTML(order.cliente)}">${escapeHTML(order.cliente)}</td>
+                <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">${escapeHTML(order.codigoContrato)}</td>
+                <td class="px-3 py-2.5 text-slate-600 dark:text-slate-300 truncate max-w-[160px]" title="${escapeHTML(order.estilo)}">${escapeHTML(order.estilo)}</td>
+                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 dark:text-slate-400 text-[11px] max-w-[160px] truncate" title="${escapeHTML(order.teamName)}">${escapeHTML(order.teamName)}</td>
+                <td class="px-3 py-2.5 hidden md:table-cell">${deptBadge}</td>
+                <td class="px-3 py-2.5">${designerBadge}</td>
+                <td class="px-3 py-2.5">${internalBadge}</td>
+                <td class="px-3 py-2.5 hidden lg:table-cell text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">${order.receivedDate ? formatDate(new Date(order.receivedDate + 'T00:00:00')) : '-'}</td>
+                <td class="px-3 py-2.5 text-right">
+                    <div class="flex items-center justify-end gap-1 font-bold text-slate-700 dark:text-slate-200">
+                        ${(Number(order.cantidad)||0).toLocaleString()} 
+                        ${hasChild}
+                    </div>
+                </td>
+                <td class="px-3 py-2.5 text-right">
+                    <i class="fa-solid fa-chevron-right text-slate-300 dark:text-slate-600 text-[10px]"></i>
+                </td>
             </tr>`;
         }).join('');
     }
-    updateCheckboxes();
-    updateMultiSelectBar();
-    renderPagination();
-}
-
-function renderPagination() {
-    const c = document.getElementById('paginationControls');
-    if (!c) return;
-    const total = Math.ceil(getFilteredOrders().length / rowsPerPage);
     
-    let h = `<button onclick="changePage(${currentPage-1})" ${currentPage===1?'disabled':''} class="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-50 text-gray-600 disabled:opacity-50"><</button>`;
-    
-    let start = Math.max(1, currentPage - 2);
-    let end = Math.min(total, start + 4);
-    if(end-start<4) start = Math.max(1, end-4);
-    
-    for(let i=start; i<=end; i++) {
-        h += `<button onclick="changePage(${i})" class="w-8 h-8 flex items-center justify-center border rounded text-xs font-medium ${i===currentPage ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 hover:bg-gray-50'}">${i}</button>`;
+    const sa = document.getElementById('selectAll');
+    if (sa) {
+        const allChecked = paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrders.has(o.orderId));
+        sa.checked = allChecked;
+        sa.indeterminate = !allChecked && paginatedOrders.some(o => selectedOrders.has(o.orderId));
     }
-    h += `<button onclick="changePage(${currentPage+1})" ${currentPage>=total?'disabled':''} class="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-50 text-gray-600 disabled:opacity-50">></button>`;
-    c.innerHTML = h;
-}
-
-// Helpers de Estado (Estilo Pill Pastel)
-function getStatusBadge(order) {
-    const base = "px-3 py-1 rounded-full text-xs font-medium inline-flex items-center justify-center shadow-sm whitespace-nowrap";
-    if (order.isVeryLate) return `<div class="flex flex-col items-start gap-1"><span class="${base} bg-red-100 text-red-800 border border-red-200">MUY ATRASADA</span><span class="text-[10px] font-bold text-red-600 ml-1"><i class="fa-solid fa-clock"></i> ${order.daysLate}d</span></div>`;
-    if (order.isLate) return `<div class="flex flex-col items-start gap-1"><span class="${base} bg-orange-100 text-orange-800 border border-orange-200">Atrasada</span><span class="text-[10px] font-bold text-orange-600 ml-1"><i class="fa-regular fa-clock"></i> ${order.daysLate}d</span></div>`;
-    if (order.isAboutToExpire) return `<span class="${base} bg-yellow-100 text-yellow-800 border border-yellow-200">Por Vencer</span>`;
-    return `<span class="${base} bg-green-100 text-green-800 border border-green-200">A Tiempo</span>`;
-}
-
-function getCustomStatusBadge(status) {
-    const base = "px-3 py-1 rounded-full text-xs font-medium border inline-block min-w-[90px] text-center shadow-sm";
-    if (!status) return `<span class="text-gray-400 text-xs italic">--</span>`;
-    if (status === 'Completada') return `<span class="${base} bg-gray-100 text-gray-600 border-gray-200">Completada</span>`;
-    if (status === 'Bandeja') return `<span class="${base} bg-yellow-50 text-yellow-700 border-yellow-200">Bandeja</span>`;
-    if (status === 'Producción') return `<span class="${base} bg-purple-50 text-purple-700 border-purple-200">Producción</span>`;
-    if (status === 'Auditoría') return `<span class="${base} bg-blue-50 text-blue-700 border-blue-200">Auditoría</span>`;
-    return `<span class="${base} bg-gray-50 text-gray-600 border-gray-200">${escapeHTML(status)}</span>`;
-}
-
-function populateFilterDropdowns() {
-    const populate = (id, k) => {
-        const s = document.getElementById(id); if(!s) return;
-        const v = s.value;
-        const o = [...new Set(allOrders.map(x=>x[k]).filter(Boolean))].sort();
-        s.innerHTML = '<option value="">Todos</option>' + o.map(x=>`<option value="${escapeHTML(x)}">${escapeHTML(x)}</option>`).join('');
-        s.value = v;
-    };
-    populate('clientFilter', 'cliente'); populate('styleFilter', 'estilo'); populate('teamFilter', 'teamName'); populate('departamentoFilter', 'departamento');
-    updateAllDesignerDropdowns();
+    
+    const bar = document.getElementById('multiSelectBar');
+    if (selectedOrders.size > 0) {
+        bar.classList.add('active');
+        document.getElementById('selectedCount').textContent = selectedOrders.size;
+    } else {
+        bar.classList.remove('active');
+    }
+    
+    renderPagination();
 }
 
 // ======================================================
@@ -2328,14 +2373,32 @@ console.log('   - Verificaciones de librerías externas');
 console.log('   - Gestión de gráficos mejorada');
 
 // ======================================================
-// ===== 17. LÓGICA KANBAN (DISEÑO TRELLO) =====
+// ===== 17. LÓGICA KANBAN (NEXT LEVEL) =====
 // ======================================================
 
 function updateKanban() {
-    const designerFilter = document.getElementById('kanbanDesignerFilter').value;
-    let orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
-    if(designerFilter) orders = orders.filter(o => o.designer === designerFilter);
+    // 1. Obtener datos filtrados
+    const designerFilterSelect = document.getElementById('kanbanDesignerFilter');
+    let targetDesigner = designerFilterSelect.value;
+    
+    // LÓGICA DE PRIVACIDAD: Si soy diseñador (y no admin), FUERZO el filtro
+    if (currentDesignerName && userRole !== 'admin') {
+        targetDesigner = currentDesignerName;
+        // Ocultar visualmente el filtro para que no confunda
+        designerFilterSelect.style.display = 'none'; 
+    } else {
+        designerFilterSelect.style.display = 'block';
+    }
 
+    // Filtrar solo órdenes de Arte
+    let orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
+    
+    // Aplicar filtro de diseñador si existe (o si fue forzado)
+    if(targetDesigner) {
+        orders = orders.filter(o => o.designer === targetDesigner);
+    }
+
+    // 2. Referencias a columnas del DOM
     const columns = {
         'Bandeja': document.querySelector('.kanban-dropzone[data-status="Bandeja"]'),
         'Producción': document.querySelector('.kanban-dropzone[data-status="Producción"]'),
@@ -2343,66 +2406,160 @@ function updateKanban() {
         'Completada': document.querySelector('.kanban-dropzone[data-status="Completada"]')
     };
 
-    Object.keys(columns).forEach(k => { 
-        if(columns[k]) columns[k].innerHTML = ''; 
-        const c = document.getElementById(`count-${k}`); if(c) c.textContent = '0';
+    // Limpiar columnas
+    Object.keys(columns).forEach(k => {
+        if(columns[k]) columns[k].innerHTML = '';
+        const countEl = document.getElementById(`count-${k}`);
+        if(countEl) countEl.textContent = '0';
     });
     
     const counts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0 };
 
+    // 3. Generar tarjetas
     orders.forEach(o => {
         let status = o.customStatus || 'Bandeja';
         if (!columns[status]) status = 'Bandeja'; 
+        
         counts[status]++;
 
         const card = document.createElement('div');
-        card.className = 'kanban-card group'; // Clase CSS del estilo Trello
+        // NOTA: Se agregaron clases dark: para modo oscuro
+        card.className = 'kanban-card bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 cursor-move hover:shadow-md transition group relative border-l-4';
+        
+        // Colores de borde según urgencia
+        if(o.isVeryLate) card.classList.add('border-l-red-500');
+        else if(o.isLate) card.classList.add('border-l-orange-400');
+        else if(o.isAboutToExpire) card.classList.add('border-l-yellow-400');
+        else card.classList.add('border-l-slate-300'); 
+
         card.draggable = true;
         card.dataset.id = o.orderId;
         card.ondragstart = drag;
+        
+        // Al hacer clic, abrir el modal
         card.onclick = () => openAssignModal(o.orderId); 
 
-        // Etiquetas de Color (Labels Trello)
-        let labelsHTML = '';
-        if(o.isVeryLate) labelsHTML += `<div class="card-label bg-red-500" title="Muy Atrasada"></div>`;
-        else if(o.isLate) labelsHTML += `<div class="card-label bg-orange-400" title="Atrasada"></div>`;
-        else if(o.isAboutToExpire) labelsHTML += `<div class="card-label bg-yellow-400" title="Por Vencer"></div>`;
-        
-        if(o.childPieces > 0) labelsHTML += `<div class="card-label bg-indigo-400 ml-1" title="Tiene Hijas"></div>`;
-
-        // Avatar (Iniciales)
-        let avatarHTML = '';
-        if (o.designer) {
-            const initials = o.designer.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
-            const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-indigo-500', 'bg-pink-500'];
-            const colorClass = colors[o.designer.length % colors.length];
-            avatarHTML = `<div class="card-avatar ${colorClass}" title="${escapeHTML(o.designer)}">${initials}</div>`;
-        } else {
-            avatarHTML = `<div class="card-avatar bg-gray-300 text-gray-600" title="Sin asignar">?</div>`;
-        }
-
+        // Contenido HTML de la tarjeta (con soporte Dark Mode)
         card.innerHTML = `
-            <div class="flex flex-wrap gap-1 mb-1.5 h-2">${labelsHTML}</div>
-            <div class="text-xs text-gray-500 font-medium mb-0.5 truncate">${escapeHTML(o.cliente)}</div>
-            <div class="text-sm font-semibold text-gray-800 leading-tight mb-2 break-words">${escapeHTML(o.estilo)}</div>
-            <div class="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
-                <div class="flex items-center gap-1.5 text-gray-400 text-[10px]">
-                    <i class="fa-regular fa-clock"></i>
-                    <span class="font-mono">${formatDate(o.fechaDespacho).slice(0,5)}</span>
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 rounded truncate max-w-[120px]">${escapeHTML(o.cliente)}</span>
+                ${o.childPieces > 0 ? '<span class="text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-1 rounded-full font-bold">+'+o.childPieces+'</span>' : ''}
+            </div>
+            <div class="font-bold text-xs text-slate-800 dark:text-slate-200 mb-0.5 truncate" title="${escapeHTML(o.estilo)}">${escapeHTML(o.estilo)}</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono mb-2">${escapeHTML(o.codigoContrato)}</div>
+            
+            <div class="flex justify-between items-end border-t border-slate-50 dark:border-slate-600 pt-2">
+                <div class="flex items-center gap-1">
+                    <div class="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[9px] font-bold" title="${escapeHTML(o.designer)}">
+                        ${o.designer ? o.designer.substring(0,2).toUpperCase() : '?'}
+                    </div>
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500">${formatDate(o.fechaDespacho).slice(0,5)}</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] font-bold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                        ${(o.cantidad + o.childPieces).toLocaleString()}
-                    </span>
-                    ${avatarHTML}
-                </div>
+                <div class="font-bold text-xs text-slate-700 dark:text-slate-300">${(o.cantidad + o.childPieces).toLocaleString()} pzs</div>
             </div>
         `;
+
         if(columns[status]) columns[status].appendChild(card);
     });
 
-    Object.keys(counts).forEach(k => { const c = document.getElementById(`count-${k}`); if(c) c.textContent = counts[k]; });
+    // Actualizar badges
+    Object.keys(counts).forEach(k => {
+        const countEl = document.getElementById(`count-${k}`);
+        if(countEl) countEl.textContent = counts[k];
+    });
+    
     filterKanbanCards();
+}
+
+// --- BUSCADOR REALTIME DEL KANBAN ---
+window.filterKanbanCards = () => {
+    const input = document.getElementById('kanbanSearchInput');
+    if(!input) return;
+    
+    const term = input.value.toLowerCase().trim();
+    const cards = document.querySelectorAll('.kanban-card');
+
+    cards.forEach(card => {
+        const textContent = card.innerText.toLowerCase();
+        if (textContent.includes(term)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+};
+
+// --- FUNCIONES DRAG & DROP ---
+
+function allowDrop(ev) {
+    ev.preventDefault();
+    // Resaltado visual de la zona de destino
+    ev.currentTarget.classList.add('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
+}
+
+function dragLeave(ev) {
+    // Quitar resaltado al salir
+    ev.currentTarget.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
+}
+
+function drag(ev) {
+    ev.dataTransfer.setData("text", ev.target.dataset.id);
+    ev.dataTransfer.effectAllowed = "move";
+}
+
+async function drop(ev) {
+    ev.preventDefault();
+    const zone = ev.currentTarget;
+    zone.classList.remove('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset'); 
+
+    const orderId = ev.dataTransfer.getData("text");
+    const newStatus = zone.dataset.status;
+
+    // 1. Actualización Optimista (UI inmediata)
+    const card = document.querySelector(`div[data-id="${orderId}"]`);
+    if(card) {
+        zone.appendChild(card); 
+        // Opcional: Actualizar contadores visuales aquí manualmente para mayor velocidad percibida
+    }
+
+    // 2. Guardado en Firebase
+    await safeFirestoreOperation(async () => {
+        const batch = db_firestore.batch();
+        const ref = db_firestore.collection('assignments').doc(orderId);
+        
+        const updateData = { 
+            customStatus: newStatus, 
+            lastModified: new Date().toISOString(),
+            schemaVersion: CONFIG.DB_VERSION 
+        };
+
+        if (newStatus === 'Completada') {
+            updateData.completedDate = new Date().toISOString();
+        }
+
+        batch.set(ref, updateData, { merge: true });
+
+        // Registrar en historial
+        const hRef = db_firestore.collection('history').doc();
+        batch.set(hRef, {
+            orderId: orderId,
+            change: `Movido a ${newStatus} (Kanban)`,
+            user: usuarioActual.displayName,
+            timestamp: new Date().toISOString()
+        });
+
+        await batch.commit();
+    }, 'Moviendo...', null); // Null para no mostrar alerta invasiva por cada movimiento
+}
+
+// --- Actualizar Dropdown de Filtro ---
+function updateKanbanDropdown() {
+    const sel = document.getElementById('kanbanDesignerFilter');
+    if(sel) {
+        // Reutilizamos la lista global de diseñadores
+        sel.innerHTML = '<option value="">Todos los Diseñadores</option>' + 
+        designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
+    }
 }
 
 // ======================================================
