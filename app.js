@@ -247,6 +247,31 @@ async function createNotification(recipientEmail, type, title, message, orderId)
 // ===== 4. INICIALIZACIÓN Y AUTH =====
 // ======================================================
 
+// --- DEFINICIÓN DE FUNCIONES DE AUTH (Faltaban estas funciones) ---
+window.iniciarLoginConGoogle = () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider)
+        .then((result) => {
+            showCustomAlert(`Bienvenido, ${result.user.displayName}`, 'success');
+        })
+        .catch((error) => {
+            console.error("Error Login:", error);
+            showCustomAlert(`Error de acceso: ${error.message}`, 'error');
+        });
+};
+
+window.iniciarLogout = () => {
+    firebase.auth().signOut()
+        .then(() => {
+            showCustomAlert('Sesión cerrada.', 'info');
+            // La UI se actualizará automáticamente gracias al listener onAuthStateChanged
+        })
+        .catch((error) => {
+            console.error("Error Logout:", error);
+        });
+};
+
+// --- INICIALIZACIÓN DEL DOM ---
 document.addEventListener('DOMContentLoaded', () => {
     console.log('App v7.4 Loaded (Collapsible Sidebar)');
     
@@ -273,9 +298,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Listeners de Auth ---
     const btnLogin = document.getElementById('loginButton');
-    if(btnLogin) btnLogin.addEventListener('click', iniciarLoginConGoogle);
+    if(btnLogin) btnLogin.addEventListener('click', window.iniciarLoginConGoogle); // Usamos window. para asegurar referencia
+    
     const btnLogout = document.getElementById('logoutNavBtn');
-    if(btnLogout) btnLogout.addEventListener('click', iniciarLogout);
+    if(btnLogout) btnLogout.addEventListener('click', window.iniciarLogout);
 
     firebase.auth().onAuthStateChanged((user) => {
         const login = document.getElementById('loginSection');
