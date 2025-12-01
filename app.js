@@ -248,11 +248,30 @@ async function createNotification(recipientEmail, type, title, message, orderId)
 // ======================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v7.2 Loaded (Bugfixes + Performance)');
+    console.log('App v7.4 Loaded (Collapsible Sidebar)');
     
-    // BUG #2 FIX: InitTheme ya está definido arriba
+    // InitTheme
     initTheme();
+
+    // --- SIDEBAR TOGGLE & PERSISTENCIA ---
+    const sidebarBtn = document.getElementById('sidebarToggleBtn');
     
+    // Recuperar estado al cargar (para evitar parpadeo)
+    if (localStorage.getItem('sidebarState') === 'collapsed') {
+        document.body.classList.add('sidebar-collapsed');
+    }
+
+    if (sidebarBtn) {
+        sidebarBtn.addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-collapsed');
+            
+            // Guardar preferencia
+            const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+            localStorage.setItem('sidebarState', isCollapsed ? 'collapsed' : 'expanded');
+        });
+    }
+
+    // --- Listeners de Auth ---
     const btnLogin = document.getElementById('loginButton');
     if(btnLogin) btnLogin.addEventListener('click', iniciarLoginConGoogle);
     const btnLogout = document.getElementById('logoutNavBtn');
@@ -285,6 +304,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 upload.style.display = 'block'; main.style.display = 'none'; nav.style.display = 'none'; main.classList.remove('main-content-shifted');
             } else {
                 upload.style.display = 'none'; main.style.display = 'block'; nav.style.display = 'flex'; main.classList.add('main-content-shifted');
+                // Al entrar, asegurar que el sidebar respete el estado guardado
+                setTimeout(() => {
+                   document.getElementById('mainNavigation').style.transform = 'translateX(0)';
+                }, 50);
             }
             conectarDatosDeFirebase();
         } else {
@@ -293,9 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Sidebar & Filtros
-    const sidebarBtn = document.getElementById('sidebarToggleBtn');
-    if (sidebarBtn) sidebarBtn.addEventListener('click', () => { document.body.classList.toggle('sidebar-collapsed'); });
+    // Filtros
     const searchInp = document.getElementById('searchInput');
     if(searchInp) searchInp.addEventListener('input', debounce((e) => { currentSearch = e.target.value; currentPage = 1; updateTable(); }, 300));
     ['clientFilter', 'styleFilter', 'teamFilter', 'departamentoFilter', 'designerFilter', 'customStatusFilter', 'dateFrom', 'dateTo'].forEach(id => {
@@ -329,13 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
         generateDesignerMetrics(btn.dataset.designer);
     });
     delegate('childOrdersList', '.btn-delete-child', (btn, e) => { e.stopPropagation(); deleteChildOrder(btn.dataset.childId, btn.dataset.childCode); });
-    
-    // FIX BUG #8: removeOrderFromPlan is now defined properly below
     delegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
 });
-
-function iniciarLoginConGoogle() { firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => showCustomAlert(e.message, 'error')); }
-function iniciarLogout() { firebase.auth().signOut().then(() => { document.getElementById('mainNavigation').style.transform = 'translateX(-100%)'; document.getElementById('appMainContainer').classList.remove('main-content-shifted'); }); }
 
 // ======================================================
 // ===== 5. LÓGICA DE DATOS (FIREBASE LISTENERS & SYNC) =====
@@ -1375,7 +1391,7 @@ window.openAssignModal = async (id) => {
     const totalPcs = (Number(o.cantidad)||0) + (Number(o.childPieces)||0);
     document.getElementById('detailPiezas').textContent = `${(Number(o.cantidad)||0).toLocaleString()} (+${(Number(o.childPieces)||0)}) = ${totalPcs.toLocaleString()}`;
     
-    // Inyección Selector Complejidad
+    // Inyección Selector Complejidad (si no existe)
     const statusSelect = document.getElementById('modalStatus');
     if (!document.getElementById('modalComplexityWrapper')) {
         const wrapper = document.createElement('div');
@@ -1390,32 +1406,30 @@ window.openAssignModal = async (id) => {
         }
     }
 
-    // Valores Inputs
+    // Valores Inputs (con Fallbacks seguros)
     document.getElementById('modalStatus').value = o.customStatus || 'Bandeja';
     document.getElementById('modalReceivedDate').value = o.receivedDate || new Date().toISOString().split('T')[0];
     if(document.getElementById('modalComplexity')) document.getElementById('modalComplexity').value = o.complexity || 'Media';
 
     // ============================================================
-    // CORRECCIÓN: Lógica de permisos de edición (Auto-Asignación)
+    // Lógica de permisos de edición (Auto-Asignación)
     // ============================================================
     const designerSelect = document.getElementById('modalDesigner');
     const container = designerSelect.parentNode;
     
-    // 1. Limpieza previa: Eliminar botones antiguos si existen
+    // 1. Limpieza previa
     if(document.getElementById('btn-self-assign')) document.getElementById('btn-self-assign').remove();
     
-    // 2. Estado Base: Mostrar SIEMPRE el select primero y habilitado
+    // 2. Estado Base
     designerSelect.style.display = 'block';
     designerSelect.disabled = false;
     designerSelect.value = o.designer || '';
 
-    // 3. Aplicar restricción SOLO si es diseñador Y NO es admin
+    // 3. Restricción (Diseñadores no Admin)
     if (currentDesignerName && userRole !== 'admin') {
-        
-        // A. Si la orden ya tiene dueño y no soy yo (BLOQUEADO)
+        // A. Si tiene dueño y no soy yo -> BLOQUEADO
         if (o.designer && o.designer !== 'Sin asignar' && o.designer !== currentDesignerName) {
             designerSelect.style.display = 'none';
-            
             const btn = document.createElement('button');
             btn.id = 'btn-self-assign';
             btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600';
@@ -1423,10 +1437,9 @@ window.openAssignModal = async (id) => {
             btn.disabled = true;
             container.appendChild(btn);
         } 
-        // B. Si la orden es mía (LIBERAR)
+        // B. Si es mía -> LIBERAR
         else if (o.designer === currentDesignerName) {
             designerSelect.style.display = 'none';
-            
             const btn = document.createElement('button');
             btn.id = 'btn-self-assign';
             btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
@@ -1434,10 +1447,9 @@ window.openAssignModal = async (id) => {
             btn.onclick = () => { designerSelect.value = ''; saveAssignment(); };
             container.appendChild(btn);
         }
-        // C. Si está libre (TOMAR)
+        // C. Si está libre -> TOMAR
         else {
             designerSelect.style.display = 'none';
-            
             const btn = document.createElement('button');
             btn.id = 'btn-self-assign';
             btn.className = 'w-full py-2 rounded-lg text-xs font-bold transition shadow-sm border flex items-center justify-center gap-2 mt-1 bg-green-50 text-green-600 border-green-200 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
@@ -1446,7 +1458,6 @@ window.openAssignModal = async (id) => {
             container.appendChild(btn);
         }
     }
-    // Si soy ADMIN, se salta el bloque if anterior y muestra el select libremente.
     
     // Historial
     const h = firebaseHistoryMap.get(id) || [];
@@ -1461,12 +1472,16 @@ window.openAssignModal = async (id) => {
     openModalById('assignModal');
 };
 
+// --- FUNCIÓN DE GUARDADO MEJORADA ---
 window.saveAssignment = async () => {
-    if (!currentEditingOrderId) return;
+    // 1. Validaciones
+    if (!currentEditingOrderId) return showCustomAlert('Error: ID no encontrado.', 'error');
     const o = allOrders.find(x => x.orderId === currentEditingOrderId);
-    
-    const desName = document.getElementById('modalDesigner').value;
-    const stat = document.getElementById('modalStatus').value;
+    if (!o) return showCustomAlert('Error: Orden no encontrada en memoria.', 'error');
+
+    // 2. Obtener valores (limpiando espacios)
+    const desName = document.getElementById('modalDesigner').value.trim();
+    const stat = document.getElementById('modalStatus').value.trim();
     const rd = document.getElementById('modalReceivedDate').value;
     const comp = document.getElementById('modalComplexity') ? document.getElementById('modalComplexity').value : 'Media';
     
@@ -1476,19 +1491,20 @@ window.saveAssignment = async () => {
     // --- LÓGICA DE EMAIL VINCULADO ---
     let desEmail = null;
     if (desName && desName !== 'Sin asignar') {
-        // Buscar el email correspondiente al nombre seleccionado
         firebaseDesignersMap.forEach(dData => { 
             if (dData.name === desName) desEmail = dData.email; 
         });
     }
 
-    // 1. Cambio de Diseñador
-    if(o.designer !== desName) { 
+    // 3. Detección de Cambios (Comparación Segura)
+
+    // A. Diseñador
+    if((o.designer || '') !== desName) { 
         changes.push(`Diseñador: ${o.designer || 'N/A'} -> ${desName}`); 
         data.designer = desName; 
-        data.designerEmail = desEmail; // <--- AQUÍ GUARDAMOS EL EMAIL EN LA BD
+        data.designerEmail = desEmail; 
 
-        // Notificación
+        // Notificar si cambió
         if (desEmail && usuarioActual && usuarioActual.email !== desEmail) {
             if(typeof createNotification === 'function') {
                 createNotification(desEmail, 'assign', 'Nueva Asignación', `${usuarioActual.displayName || 'Admin'} te asignó ${o.codigoContrato}`, currentEditingOrderId);
@@ -1496,43 +1512,67 @@ window.saveAssignment = async () => {
         }
     }
 
-    // 2. Cambio de Estado
-    if(o.customStatus !== stat) { 
+    // B. Estado (AQUÍ ESTABA EL ERROR: Usamos || '' para evitar undefined)
+    if((o.customStatus || '') !== stat) { 
         changes.push(`Estado: ${o.customStatus || 'N/A'} -> ${stat}`); 
         data.customStatus = stat; 
-        if(stat === CONFIG.STATUS.COMPLETED) data.completedDate = new Date().toISOString(); 
+        
+        // Manejo inteligente de fecha completado
+        if(stat === CONFIG.STATUS.COMPLETED) {
+            data.completedDate = new Date().toISOString(); 
+        } else {
+            // Si regresamos de completada, borramos la fecha
+            data.completedDate = null; 
+        }
     }
     
-    if(o.receivedDate !== rd) { changes.push(`Fecha Rx: ${rd}`); data.receivedDate = rd; }
+    // C. Fecha Recepción
+    if((o.receivedDate || '') !== rd) { 
+        changes.push(`Fecha Rx: ${rd}`); 
+        data.receivedDate = rd; 
+    }
     
-    // 3. Complejidad
+    // D. Complejidad
     if((o.complexity || 'Media') !== comp) {
         changes.push(`Complejidad: ${o.complexity || 'Media'} -> ${comp}`);
         data.complexity = comp;
-        o.complexity = comp; 
+        o.complexity = comp; // Actualizar localmente de una vez
     }
     
-    if(changes.length === 0) return showCustomAlert('Sin cambios', 'info');
+    if(changes.length === 0) return showCustomAlert('No realizaste ningún cambio.', 'info');
 
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
-        // Guardamos nombre Y email
-        batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), { 
-            ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION 
-        }, { merge: true });
+        
+        const updatePayload = { 
+            ...data, 
+            lastModified: new Date().toISOString(), 
+            schemaVersion: CONFIG.DB_VERSION 
+        };
+
+        batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), updatePayload, { merge: true });
         
         changes.forEach(c => {
             batch.set(db_firestore.collection('history').doc(), { 
-                orderId: currentEditingOrderId, change: c, user: usuarioActual.displayName, timestamp: new Date().toISOString() 
+                orderId: currentEditingOrderId, change: c, user: usuarioActual.displayName || 'Usuario', timestamp: new Date().toISOString() 
             });
         });
+        
         await batch.commit();
-    }, 'Guardando...', 'Guardado');
+
+        // --- ACTUALIZACIÓN OPTIMISTA (UI INMEDIATA) ---
+        // Esto fuerza a la tabla a cambiar de color INSTANTÁNEAMENTE
+        if (data.customStatus) o.customStatus = data.customStatus;
+        if (data.designer !== undefined) o.designer = data.designer;
+        if (data.completedDate !== undefined) o.completedDate = data.completedDate;
+        updateTable(); 
+
+    }, 'Guardando...', 'Orden actualizada');
 
     if(ok) closeTopModal();
 };
 
-// --- Funciones de soporte (Hijas, Batch, Equipo) se mantienen igual ---
+// --- Funciones de soporte (Hijas, Batch, Equipo) ---
 window.openAddChildModal = () => {
     const o = allOrders.find(x => x.orderId === currentEditingOrderId);
     document.getElementById('parentOrderInfo').textContent = `${o.cliente} - ${o.estilo}`;
@@ -1576,7 +1616,6 @@ window.saveMultiAssignment = async () => {
     const r = document.getElementById('multiModalReceivedDate').value;
     const n = document.getElementById('multiModalNotes').value;
     
-    // Buscar email para asignación masiva
     let desEmail = null;
     if (d && d !== 'Sin asignar') {
         firebaseDesignersMap.forEach(dData => { if (dData.name === d) desEmail = dData.email; });
@@ -1587,7 +1626,7 @@ window.saveMultiAssignment = async () => {
         let c = 0;
         selectedOrders.forEach(id => {
             const data = { schemaVersion: CONFIG.DB_VERSION, lastModified: new Date().toISOString() };
-            if (d) { data.designer = d; data.designerEmail = desEmail; } // Guardamos email también
+            if (d) { data.designer = d; data.designerEmail = desEmail; }
             if (s) data.customStatus = s; 
             if (r) data.receivedDate = r; if (n) data.notes = n; 
             if (Object.keys(data).length > 2) { 
@@ -2821,49 +2860,6 @@ window.clearAllFilters = () => {
     updateTable();
 };
 
-// BUG #3 FIX: Llenado de Dropdowns con opción "VER TODOS LOS DEPTOS"
-window.populateFilterDropdowns = () => {
-    const populate = (id, key) => {
-        const sel = document.getElementById(id);
-        if(!sel) return;
-        const currentVal = sel.value;
-        const options = [...new Set(allOrders.map(o => o[key]).filter(Boolean))].sort();
-        
-        let defaultOpt = '<option value="">- Seleccionar -</option>';
-        
-        // CORRECCIÓN: Lógica específica para departamentos
-        if (id === 'departamentoFilter') {
-            defaultOpt = '<option value="P_Art">Solo P_Art (Por Defecto)</option>'; 
-            defaultOpt += '<option value="ALL_DEPTS">🌎 VER TODOS LOS DEPTOS</option>';
-        } else {
-            defaultOpt = '<option value="">Todos</option>';
-        }
-        
-        sel.innerHTML = defaultOpt + options.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join('');
-        sel.value = currentVal;
-        
-        // Si es la primera carga y es el filtro de depto, forzar P_Art visualmente si está vacío
-        if (id === 'departamentoFilter' && !currentVal) sel.value = 'P_Art';
-    };
-    populate('clientFilter', 'cliente');
-    populate('styleFilter', 'estilo');
-    populate('teamFilter', 'teamName');
-    populate('departamentoFilter', 'departamento');
-    updateAllDesignerDropdowns();
-}
-
-window.updateAllDesignerDropdowns = () => {
-    const html = '<option value="">Todos</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
-    if(document.getElementById('designerFilter')) document.getElementById('designerFilter').innerHTML = html;
-    
-    const modalHtml = '<option value="">Sin asignar</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
-    if(document.getElementById('modalDesigner')) document.getElementById('modalDesigner').innerHTML = modalHtml;
-    if(document.getElementById('multiModalDesigner')) document.getElementById('multiModalDesigner').innerHTML = modalHtml;
-    
-    const compareHtml = '<option value="">Seleccionar...</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
-    if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
-}
-
 // --- Selección Masiva ---
 window.toggleOrderSelection = (id) => { 
     if (selectedOrders.has(id)) selectedOrders.delete(id); 
@@ -2903,42 +2899,6 @@ window.removeOrderFromPlan = async (planEntryId, orderCode) => {
     });
 };
 
-window.resetApp = () => {
-    if (userRole !== 'admin') {
-        return showCustomAlert('Acceso Denegado: Se requieren permisos de Administrador.', 'error');
-    }
-
-    showConfirmModal("¿Subir nuevo archivo? Se perderán los datos no guardados.", () => {
-        document.getElementById('appMainContainer').style.display = 'none';
-        document.getElementById('mainNavigation').style.display = 'none';
-        document.getElementById('uploadSection').style.display = 'block';
-        
-        allOrders = []; 
-        isExcelLoaded = false;
-        
-        document.getElementById('fileInput').value = ''; 
-        document.getElementById('fileName').textContent = '';
-        
-        desconectarDatosDeFirebase();
-        if(typeof destroyAllCharts === 'function') destroyAllCharts();
-    });
-};
-
-window.showConfirmModal = (msg, cb) => {
-    document.getElementById('confirmModalMessage').textContent = msg;
-    const btn = document.getElementById('confirmModalConfirm');
-    
-    const newBtn = btn.cloneNode(true);
-    btn.parentNode.replaceChild(newBtn, btn);
-    
-    newBtn.addEventListener('click', () => { 
-        cb(); 
-        closeTopModal(); 
-    });
-    
-    openModalById('confirmModal');
-};
-
 // ======================================================
 // ===== 20. MODO OSCURO (LOGIC & PERSISTENCE) =====
 // ======================================================
@@ -2973,10 +2933,10 @@ function initTheme() {
 }
 
 // ======================================================
-// ===== 21. HELPERS VISUALES Y UI (MISSING PARTS) =====
+// ===== 21. HELPERS VISUALES Y UI (FIXED) =====
 // ======================================================
 
-// --- Renderizado de Badges (Corrige Bug #9) ---
+// --- Renderizado de Badges ---
 function getStatusBadge(order) {
     const base = "px-3 py-1 rounded-full text-xs font-medium inline-flex items-center justify-center shadow-sm whitespace-nowrap";
     
@@ -3004,7 +2964,7 @@ function getCustomStatusBadge(status) {
     return `<span class="text-slate-400 text-xs italic pl-2">${safeStatus}</span>`;
 }
 
-// --- Paginación (Corrige Bug #7) ---
+// --- Paginación ---
 function renderPagination() {
     const totalPages = Math.ceil(getFilteredOrders().length / rowsPerPage);
     const c = document.getElementById('paginationControls');
@@ -3024,20 +2984,29 @@ function renderPagination() {
     c.innerHTML = h;
 }
 
-// --- Dropdowns Dinámicos (Corrige Bug #9) ---
+// --- Dropdowns Dinámicos (MEJORADO) ---
 function populateFilterDropdowns() {
     const populate = (id, key) => {
         const sel = document.getElementById(id);
         if(!sel) return;
         const currentVal = sel.value;
         const options = [...new Set(allOrders.map(o => o[key]).filter(Boolean))].sort();
-        sel.innerHTML = '<option value="">Todos</option>' + options.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join('');
+        
+        // Manejo especial para Departamentos para permitir "Ver Todos"
+        if(id === 'departamentoFilter') {
+             sel.innerHTML = '<option value="">(Defecto: Solo Arte)</option><option value="ALL_DEPTS">🌎 VER TODOS LOS DEPTOS</option>' + 
+                             options.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join('');
+        } else {
+             sel.innerHTML = '<option value="">Todos</option>' + 
+                             options.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join('');
+        }
         sel.value = currentVal;
     };
+
     populate('clientFilter', 'cliente');
     populate('styleFilter', 'estilo');
     populate('teamFilter', 'teamName');
-    populate('departamentoFilter', 'departamento');
+    populate('departamentoFilter', 'departamento'); // <--- Ahora usa la lógica especial
     updateAllDesignerDropdowns();
 }
 

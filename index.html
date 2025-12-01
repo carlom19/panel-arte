@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v7.1 (Enterprise)</title>
+    <title>Panel de Control - Arte v7.4 (Enterprise)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -20,7 +20,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-    <link rel="stylesheet" href="estilos.css?v=7.2">
+    <link rel="stylesheet" href="estilos.css?v=7.4">
     
     <script>
         tailwind.config = {
@@ -38,69 +38,78 @@
 
     <div id="customAlert" style="display: none;" class="fixed top-5 right-5 z-[3000] max-w-sm w-full bg-white dark:bg-slate-800 shadow-2xl rounded-xl pointer-events-auto transform transition-all duration-300 ring-1 ring-black/5 overflow-hidden"></div>
 
-    <nav id="mainNavigation" class="fixed left-0 top-0 h-full w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 z-50 flex flex-col shadow-sm transition-transform duration-300" style="display: none;">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30">
-                    <i class="fa-solid fa-layer-group"></i>
+    <nav id="mainNavigation" class="fixed left-0 top-0 h-full w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 z-50 flex flex-col shadow-sm transition-all duration-300" style="display: none;">
+        
+        <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3 overflow-hidden whitespace-nowrap">
+                    <div class="w-8 h-8 min-w-[2rem] bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <h1 class="nav-text text-lg font-bold tracking-tight text-slate-800 dark:text-white transition-opacity duration-300">
+                        Panel Arte <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1 rounded border border-blue-100 dark:border-blue-800">v7.4</span>
+                    </h1>
                 </div>
-                <h1 class="text-lg font-bold tracking-tight text-slate-800 dark:text-white">Panel Arte <span class="text-blue-600 text-xs bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800">v7.1</span></h1>
+                <button id="sidebarToggleBtn" class="text-slate-400 hover:text-blue-600 transition p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700" title="Contraer/Expandir Menú">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                </button>
             </div>
-            <div class="flex items-center gap-3 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-                <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-200 shadow-sm">
+
+            <div class="flex items-center gap-3 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden whitespace-nowrap">
+                <div class="w-8 h-8 min-w-[2rem] rounded-full bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-200 shadow-sm">
                     <i class="fa-solid fa-user"></i>
                 </div>
-                <div class="overflow-hidden">
+                <div class="nav-text overflow-hidden transition-opacity duration-300">
                     <p class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate" id="navUserName">Usuario</p>
-                    <p class="text-[10px] text-slate-400 flex items-center gap-1" id="navDbStatus">
+                    <p class="text-[10px] text-slate-400 flex items-center gap-1 truncate" id="navDbStatus">
                         <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
                     </p>
                 </div>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-            <p class="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Principal</p>
+        <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1 overflow-x-hidden scrollbar-thin">
+            <p class="nav-text px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 transition-opacity duration-300">Principal</p>
             
-            <button onclick="navigateTo('dashboard')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-dashboard">
-                <i class="fa-solid fa-table-list w-5 text-center group-hover:text-blue-500 transition-colors"></i> 
-                Dashboard
+            <button onclick="navigateTo('dashboard')" title="Dashboard" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-dashboard">
+                <i class="fa-solid fa-table-list w-5 text-center text-base group-hover:text-blue-500 transition-colors"></i> 
+                <span class="nav-text">Dashboard</span>
             </button>
 
-            <button onclick="navigateTo('kanbanView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-kanbanView">
-                <i class="fa-solid fa-table-columns w-5 text-center group-hover:text-pink-500 transition-colors"></i> 
-                Tablero Kanban
+            <button onclick="navigateTo('kanbanView')" title="Tablero Kanban" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-kanbanView">
+                <i class="fa-solid fa-table-columns w-5 text-center text-base group-hover:text-pink-500 transition-colors"></i> 
+                <span class="nav-text">Tablero Kanban</span>
             </button>
 
-            <button onclick="navigateTo('workPlanView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-workPlanView">
-                <i class="fa-solid fa-calendar-week w-5 text-center group-hover:text-orange-500 transition-colors"></i> 
-                Plan Semanal
+            <button onclick="navigateTo('workPlanView')" title="Plan Semanal" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-workPlanView">
+                <i class="fa-solid fa-calendar-week w-5 text-center text-base group-hover:text-orange-500 transition-colors"></i> 
+                <span class="nav-text">Plan Semanal</span>
             </button>
 
-            <p class="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-6 mb-2">Análisis</p>
+            <p class="nav-text px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-6 mb-2 transition-opacity duration-300">Análisis</p>
             
-            <button onclick="navigateTo('designerMetricsView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-designerMetricsView">
-                <i class="fa-solid fa-chart-pie w-5 text-center group-hover:text-purple-500 transition-colors"></i> 
-                Métricas Diseñador
+            <button onclick="navigateTo('designerMetricsView')" title="Métricas Diseñador" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-designerMetricsView">
+                <i class="fa-solid fa-chart-pie w-5 text-center text-base group-hover:text-purple-500 transition-colors"></i> 
+                <span class="nav-text">Métricas Diseñador</span>
             </button>
 
-            <button onclick="navigateTo('departmentMetricsView')" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-departmentMetricsView">
-                <i class="fa-solid fa-chart-column w-5 text-center group-hover:text-green-500 transition-colors"></i> 
-                Métricas Globales
+            <button onclick="navigateTo('departmentMetricsView')" title="Métricas Globales" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-departmentMetricsView">
+                <i class="fa-solid fa-chart-column w-5 text-center text-base group-hover:text-green-500 transition-colors"></i> 
+                <span class="nav-text">Métricas Globales</span>
             </button>
             
-            <button id="nav-manageTeam" onclick="openDesignerManager()" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group">
-                <i class="fa-solid fa-users-gear w-5 text-center group-hover:text-blue-500 transition-colors"></i> 
-                Gestionar Equipo
+            <button id="nav-manageTeam" onclick="openDesignerManager()" title="Gestionar Equipo" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group">
+                <i class="fa-solid fa-users-gear w-5 text-center text-base group-hover:text-blue-500 transition-colors"></i> 
+                <span class="nav-text">Gestionar Equipo</span>
             </button>
         </div>
 
         <div class="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-            <button id="nav-resetApp" onclick="resetApp()" class="w-full mb-2 px-4 py-2 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 hover:text-slate-900 rounded-lg text-xs font-medium transition flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-600 shadow-sm">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Nuevo Excel
+            <button id="nav-resetApp" onclick="resetApp()" title="Subir Nuevo Excel" class="w-full mb-2 px-4 py-2 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 hover:text-slate-900 rounded-lg text-xs font-medium transition flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-600 shadow-sm overflow-hidden whitespace-nowrap">
+                <i class="fa-solid fa-cloud-arrow-up text-base"></i> <span class="nav-text">Nuevo Excel</span>
             </button>
-            <button id="logoutNavBtn" class="w-full px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-xs font-medium transition flex items-center justify-center gap-2">
-                <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+            <button id="logoutNavBtn" title="Cerrar Sesión" class="w-full px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-xs font-medium transition flex items-center justify-center gap-2 overflow-hidden whitespace-nowrap">
+                <i class="fa-solid fa-right-from-bracket text-base"></i> <span class="nav-text">Cerrar Sesión</span>
             </button>
         </div>
     </nav>
@@ -113,7 +122,6 @@
             <h2 class="mt-6 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Panel de Control Arte</h2>
             <p class="mt-2 text-slate-500 dark:text-slate-400 text-xs">Gestión de producción y diseño inteligente</p>
         </div>
-
         <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
             <div class="bg-white dark:bg-slate-800 py-8 px-4 shadow-sm ring-1 ring-slate-900/5 sm:rounded-xl sm:px-10 border border-slate-200 dark:border-slate-700">
                 <button id="loginButton" class="w-full flex justify-center items-center gap-3 rounded-lg bg-slate-900 dark:bg-black px-3 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 transition-all">
@@ -128,7 +136,6 @@
             <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Sincronización de Datos</h1>
             <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Sube el archivo "Working Process" para comenzar.</p>
         </div>
-        
         <div id="dropZone" class="relative block w-full rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 p-12 text-center hover:border-blue-500 transition-all bg-white dark:bg-slate-800 cursor-pointer group shadow-sm">
             <div class="mx-auto h-16 w-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                 <i class="fa-solid fa-cloud-arrow-up text-3xl text-blue-600"></i>
@@ -141,149 +148,59 @@
     </div>
 
     <div id="appMainContainer" class="transition-all duration-300 min-h-screen bg-slate-50 dark:bg-slate-900">
-
         <div id="dashboard" class="main-view w-full" style="display: none;">
-            
             <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
                 <div>
                     <h2 class="text-lg font-bold text-slate-800 dark:text-white">Dashboard de Producción</h2>
                     <p class="text-[10px] text-slate-400">Vista general de órdenes y estados</p>
                 </div>
-
                 <div class="flex items-center gap-4">
-                    <button onclick="toggleTheme()" class="text-slate-400 hover:text-yellow-500 transition p-2 mr-2" title="Cambiar Tema">
-                        <i id="themeIcon" class="fa-solid fa-moon text-lg"></i>
-                    </button>
-
+                    <button onclick="toggleTheme()" class="text-slate-400 hover:text-yellow-500 transition p-2 mr-2" title="Cambiar Tema"><i id="themeIcon" class="fa-solid fa-moon text-lg"></i></button>
                     <div class="relative">
-                        <button id="notificationBtn" onclick="toggleNotifications()" class="text-slate-400 hover:text-blue-600 transition p-2 relative">
-                            <i class="fa-regular fa-bell text-lg"></i>
-                            <span id="notificationBadge" class="absolute top-1 right-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">!</span>
-                        </button>
+                        <button id="notificationBtn" onclick="toggleNotifications()" class="text-slate-400 hover:text-blue-600 transition p-2 relative"><i class="fa-regular fa-bell text-lg"></i><span id="notificationBadge" class="absolute top-1 right-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">!</span></button>
                         <div id="notificationDropdown" class="hidden absolute right-0 mt-3 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-2xl ring-1 ring-slate-900/10 dark:ring-slate-700 z-50 origin-top-right overflow-hidden border border-slate-100 dark:border-slate-700">
-                            <div class="p-3 border-b border-slate-50 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-700/50 backdrop-blur-sm">
-                                <h3 class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Alertas</h3>
-                            </div>
-                            <div id="notificationList" class="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
-                                <div id="notif-personal"></div> <div id="notif-system"></div>
-                            </div>
+                            <div class="p-3 border-b border-slate-50 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-700/50 backdrop-blur-sm"><h3 class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Alertas</h3></div>
+                            <div id="notificationList" class="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700"><div id="notif-personal"></div> <div id="notif-system"></div></div>
                         </div>
                     </div>
-
                     <div class="h-6 w-px bg-slate-200 dark:bg-slate-600"></div>
-
-                    <button onclick="exportTableToExcel()" class="text-slate-500 dark:text-slate-400 hover:text-green-600 transition text-xs font-medium flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20">
-                        <i class="fa-solid fa-file-excel"></i> Exportar
-                    </button>
-                    
+                    <button onclick="exportTableToExcel()" class="text-slate-500 dark:text-slate-400 hover:text-green-600 transition text-xs font-medium flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"><i class="fa-solid fa-file-excel"></i> Exportar</button>
                     <button onclick="openLegendModal()" class="text-slate-400 hover:text-slate-600 transition px-2" title="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
                 </div>
             </header>
-
+            
             <main class="w-full px-6 py-6 pb-24">
-                <div class="w-full space-y-6">
-                    
+                 <div class="w-full space-y-6">
                     <div id="summaryBox" class="hidden"></div> 
-                    
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-blue-200 transition-all">
-                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total P_Art</p><i class="fa-solid fa-box-open text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors"></i></div>
-                            <div class="text-2xl font-bold text-slate-900 dark:text-white" id="statTotal">0</div>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-purple-200 transition-all">
-                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Piezas</p><i class="fa-solid fa-layer-group text-slate-300 dark:text-slate-600 group-hover:text-purple-500 transition-colors"></i></div>
-                            <div class="text-2xl font-bold text-slate-900 dark:text-white" id="statTotalPieces">0</div>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-red-200 hover:bg-red-50/30 dark:hover:bg-red-900/20 transition-all cursor-pointer" onclick="setFilter('veryLate')">
-                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-red-600 uppercase tracking-wide">Atrasadas</p><i class="fa-solid fa-triangle-exclamation text-red-200 dark:text-red-900 group-hover:text-red-500 transition-colors"></i></div>
-                            <div class="text-2xl font-bold text-red-600" id="statLate">0</div>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-yellow-200 hover:bg-yellow-50/30 dark:hover:bg-yellow-900/20 transition-all cursor-pointer" onclick="setFilter('aboutToExpire')">
-                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-yellow-600 uppercase tracking-wide">Por Vencer</p><i class="fa-solid fa-hourglass-half text-yellow-200 dark:text-yellow-900 group-hover:text-yellow-500 transition-colors"></i></div>
-                            <div class="text-2xl font-bold text-yellow-600" id="statExpiring">0</div>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-green-200 transition-all">
-                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-green-600 uppercase tracking-wide">A Tiempo</p><i class="fa-solid fa-circle-check text-green-200 dark:text-green-900 group-hover:text-green-500 transition-colors"></i></div>
-                            <div class="text-2xl font-bold text-green-600" id="statOnTime">0</div>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-orange-200 transition-all">
-                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Esta Semana</p><i class="fa-solid fa-calendar-week text-slate-300 dark:text-slate-600 group-hover:text-orange-500 transition-colors"></i></div>
-                            <div class="text-2xl font-bold text-orange-600" id="statThisWeek">0</div>
-                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-blue-200 transition-all"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total P_Art</p><i class="fa-solid fa-box-open text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors"></i></div><div class="text-2xl font-bold text-slate-900 dark:text-white" id="statTotal">0</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-purple-200 transition-all"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Piezas</p><i class="fa-solid fa-layer-group text-slate-300 dark:text-slate-600 group-hover:text-purple-500 transition-colors"></i></div><div class="text-2xl font-bold text-slate-900 dark:text-white" id="statTotalPieces">0</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-red-200 hover:bg-red-50/30 dark:hover:bg-red-900/20 transition-all cursor-pointer" onclick="setFilter('veryLate')"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-red-600 uppercase tracking-wide">Atrasadas</p><i class="fa-solid fa-triangle-exclamation text-red-200 dark:text-red-900 group-hover:text-red-500 transition-colors"></i></div><div class="text-2xl font-bold text-red-600" id="statLate">0</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-yellow-200 hover:bg-yellow-50/30 dark:hover:bg-yellow-900/20 transition-all cursor-pointer" onclick="setFilter('aboutToExpire')"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-yellow-600 uppercase tracking-wide">Por Vencer</p><i class="fa-solid fa-hourglass-half text-yellow-200 dark:text-yellow-900 group-hover:text-yellow-500 transition-colors"></i></div><div class="text-2xl font-bold text-yellow-600" id="statExpiring">0</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-green-200 transition-all"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-green-600 uppercase tracking-wide">A Tiempo</p><i class="fa-solid fa-circle-check text-green-200 dark:text-green-900 group-hover:text-green-500 transition-colors"></i></div><div class="text-2xl font-bold text-green-600" id="statOnTime">0</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-orange-200 transition-all"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Esta Semana</p><i class="fa-solid fa-calendar-week text-slate-300 dark:text-slate-600 group-hover:text-orange-500 transition-colors"></i></div><div class="text-2xl font-bold text-orange-600" id="statThisWeek">0</div></div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
-                            <h3 class="text-xs font-bold text-slate-800 dark:text-white mb-4 uppercase tracking-wide border-b dark:border-slate-700 pb-2">Top Clientes</h3>
-                            <div class="max-h-52 overflow-y-auto pr-2 scrollbar-thin" id="clientReport"></div>
-                        </div>
-                        <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
-                            <div class="flex justify-between items-center mb-4 border-b dark:border-slate-700 pb-2">
-                                <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wide">Carga de Trabajo</h3>
-                                <span class="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-900/30 px-2 py-1 text-[10px] font-bold text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800" id="workloadTotal">0 piezas</span>
-                            </div>
-                            <div id="workloadList" class="space-y-3 max-h-52 overflow-y-auto pr-2 scrollbar-thin"></div>
-                        </div>
+                        <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-5"><h3 class="text-xs font-bold text-slate-800 dark:text-white mb-4 uppercase tracking-wide border-b dark:border-slate-700 pb-2">Top Clientes</h3><div class="max-h-52 overflow-y-auto pr-2 scrollbar-thin" id="clientReport"></div></div>
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-5"><div class="flex justify-between items-center mb-4 border-b dark:border-slate-700 pb-2"><h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wide">Carga de Trabajo</h3><span class="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-900/30 px-2 py-1 text-[10px] font-bold text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800" id="workloadTotal">0 piezas</span></div><div id="workloadList" class="space-y-3 max-h-52 overflow-y-auto pr-2 scrollbar-thin"></div></div>
                     </div>
 
                     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 sticky top-20 z-20">
                         <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                            <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                                <i class="fa-solid fa-filter text-xs"></i>
-                                <h3 class="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wide">Filtros de Búsqueda</h3>
-                            </div>
-                            <div class="relative w-full md:w-72">
-                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                    <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
-                                </div>
-                                <input type="text" id="searchInput" class="block w-full rounded-lg border-0 py-2 pl-9 text-slate-900 dark:text-white dark:bg-slate-700 ring-1 ring-inset ring-slate-200 dark:ring-slate-600 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs shadow-sm" placeholder="Buscar cliente, estilo, código...">
-                            </div>
+                            <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400"><i class="fa-solid fa-filter text-xs"></i><h3 class="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wide">Filtros de Búsqueda</h3></div>
+                            <div class="relative w-full md:w-72"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i></div><input type="text" id="searchInput" class="block w-full rounded-lg border-0 py-2 pl-9 text-slate-900 dark:text-white dark:bg-slate-700 ring-1 ring-inset ring-slate-200 dark:ring-slate-600 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs shadow-sm" placeholder="Buscar cliente, estilo, código..."></div>
                         </div>
-                        
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 items-end">
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Cliente</label>
-                                <select id="clientFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Estilo</label>
-                                <select id="styleFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Team</label>
-                                <select id="teamFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Departamento</label>
-                                <select id="departamentoFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Diseñador</label>
-                                <select id="designerFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Estado</label>
-                                <select id="customStatusFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                                    <option value="">Todos</option>
-                                    <option value="Bandeja">Bandeja</option>
-                                    <option value="Producción">Producción</option>
-                                    <option value="Auditoría">Auditoría</option>
-                                    <option value="Completada">Completada</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Desde Fecha</label>
-                                <input type="date" id="dateFrom" class="filter-input dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Hasta Fecha</label>
-                                <input type="date" id="dateTo" class="filter-input dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                            </div>
-                            <div class="col-span-2 lg:col-span-2">
-                                 <button class="w-full rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-800 transition border border-slate-200 dark:border-slate-600" onclick="clearAllFilters()">
-                                    <i class="fa-solid fa-eraser mr-1"></i> Limpiar Filtros
-                                 </button>
-                            </div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Cliente</label><select id="clientFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Estilo</label><select id="styleFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Team</label><select id="teamFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Departamento</label><select id="departamentoFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Diseñador</label><select id="designerFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Estado</label><select id="customStatusFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"><option value="">Todos</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option><option value="Completada">Completada</option></select></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Desde Fecha</label><input type="date" id="dateFrom" class="filter-input dark:bg-slate-700 dark:text-white dark:border-slate-600"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Hasta Fecha</label><input type="date" id="dateTo" class="filter-input dark:bg-slate-700 dark:text-white dark:border-slate-600"></div>
+                            <div class="col-span-2 lg:col-span-2"><button class="w-full rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-800 transition border border-slate-200 dark:border-slate-600" onclick="clearAllFilters()"><i class="fa-solid fa-eraser mr-1"></i> Limpiar Filtros</button></div>
                         </div>
                     </div>
 
@@ -292,428 +209,132 @@
                             <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 data-table">
                                 <thead class="bg-slate-50 dark:bg-slate-700">
                                     <tr>
-                                        <th class="px-3 py-3 text-center w-8">
-                                            <input type="checkbox" id="selectAll" class="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-600" onchange="toggleSelectAll()">
-                                        </th>
-                                        
+                                        <th class="px-3 py-3 text-center w-8"><input type="checkbox" id="selectAll" class="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-600" onchange="toggleSelectAll()"></th>
                                         <th onclick="sortTable('status')" class="cursor-pointer select-none text-left px-3 py-3">Estado <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
                                         <th onclick="sortTable('date')" class="cursor-pointer select-none text-left px-3 py-3">Fecha <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
                                         <th onclick="sortTable('cliente')" class="cursor-pointer select-none text-left px-3 py-3">Cliente <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
                                         <th class="text-left px-3 py-3">Código</th>
                                         <th onclick="sortTable('estilo')" class="cursor-pointer select-none text-left px-3 py-3">Estilo <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
-                                        
                                         <th onclick="sortTable('teamName')" class="cursor-pointer select-none hidden lg:table-cell text-left px-3 py-3">Team <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
                                         <th onclick="sortTable('departamento')" class="cursor-pointer select-none hidden md:table-cell text-left px-3 py-3">Depto <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
-                                        
                                         <th onclick="sortTable('designer')" class="cursor-pointer select-none text-left px-3 py-3">Diseñador <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
                                         <th onclick="sortTable('customStatus')" class="cursor-pointer select-none text-left px-3 py-3">Estado Int. <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
                                         <th onclick="sortTable('receivedDate')" class="cursor-pointer select-none hidden lg:table-cell text-left px-3 py-3">Recibida <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
-                                        
                                         <th onclick="sortTable('cantidad')" class="cursor-pointer select-none text-right px-3 py-3">Cant. <i class="fa-solid fa-sort text-slate-300 ml-1"></i></th>
-                                        
                                         <th class="text-right px-3 py-3"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="tableBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800 text-xs"></tbody>
                             </table>
                         </div>
-                        
                         <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 px-4 py-3">
                              <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
-                                <select id="rowsPerPage" onchange="changeRowsPerPage()" class="rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white py-1 text-xs text-slate-700 focus:ring-blue-500">
-                                    <option value="25">25 filas</option>
-                                    <option value="50" selected>50 filas</option>
-                                    <option value="100">100 filas</option>
-                                    <option value="250">250 filas</option>
-                                </select>
-                                <span class="text-slate-300">|</span>
-                                <span><span id="resultCount" class="font-bold text-slate-800 dark:text-white">0</span> resultados</span>
-                                <span class="text-slate-300">|</span>
-                                <span class="text-blue-600 dark:text-blue-400 font-bold"><span id="resultPieces">0</span> pzs</span>
+                                <select id="rowsPerPage" onchange="changeRowsPerPage()" class="rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white py-1 text-xs text-slate-700 focus:ring-blue-500"><option value="25">25 filas</option><option value="50" selected>50 filas</option><option value="100">100 filas</option><option value="250">250 filas</option></select>
+                                <span class="text-slate-300">|</span><span><span id="resultCount" class="font-bold text-slate-800 dark:text-white">0</span> resultados</span><span class="text-slate-300">|</span><span class="text-blue-600 dark:text-blue-400 font-bold"><span id="resultPieces">0</span> pzs</span>
                             </div>
                             <div class="pagination-controls flex gap-1" id="paginationControls"></div>
                         </div>
                     </div>
-                </div>
+                 </div>
             </main>
         </div>
 
         <div id="kanbanView" class="main-view w-full h-screen flex flex-col" style="display: none;">
             <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between shrink-0">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-800 dark:text-white">Flujo de Trabajo (Kanban)</h2>
-                    <p class="text-[10px] text-slate-400">Arrastra las tarjetas para cambiar el estado</p>
-                </div>
-                
+                <div><h2 class="text-lg font-bold text-slate-800 dark:text-white">Flujo de Trabajo (Kanban)</h2><p class="text-[10px] text-slate-400">Arrastra las tarjetas para cambiar el estado</p></div>
                 <div class="flex gap-3 items-center">
-                    <div class="relative">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
-                        </div>
-                        <input type="text" id="kanbanSearchInput" oninput="filterKanbanCards()" 
-                               class="block w-48 rounded-lg border-0 py-1.5 pl-9 text-slate-900 dark:text-white dark:bg-slate-700 ring-1 ring-inset ring-slate-300 dark:ring-slate-600 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs shadow-sm" 
-                               placeholder="Buscar en tablero...">
-                    </div>
-
-                    <select id="kanbanDesignerFilter" onchange="updateKanban()" class="text-xs border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg py-1.5 shadow-sm focus:ring-pink-500">
-                        <option value="">Todos los Diseñadores</option>
-                    </select>
+                    <div class="relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i></div><input type="text" id="kanbanSearchInput" oninput="filterKanbanCards()" class="block w-48 rounded-lg border-0 py-1.5 pl-9 text-slate-900 dark:text-white dark:bg-slate-700 ring-1 ring-inset ring-slate-300 dark:ring-slate-600 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs shadow-sm" placeholder="Buscar en tablero..."></div>
+                    <select id="kanbanDesignerFilter" onchange="updateKanban()" class="text-xs border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg py-1.5 shadow-sm focus:ring-pink-500"><option value="">Todos los Diseñadores</option></select>
                 </div>
             </header>
-            
             <div class="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-slate-50/50 dark:bg-slate-900/50">
                 <div class="flex h-full gap-6 min-w-max">
-                    <div class="kanban-column flex flex-col w-80 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 h-full max-h-full shadow-sm">
-                        <div class="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-200/50 dark:bg-slate-700/50 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0">
-                            <h3 class="font-bold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-2">
-                                <i class="fa-solid fa-inbox text-slate-400"></i> Bandeja
-                            </h3>
-                            <span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-600 dark:text-slate-200 border border-slate-300 dark:border-slate-500" id="count-Bandeja">0</span>
-                        </div>
-                        <div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Bandeja" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
-                    </div>
-        
-                    <div class="kanban-column flex flex-col w-80 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 h-full max-h-full shadow-sm">
-                        <div class="p-3 border-b border-blue-100 dark:border-blue-900 bg-blue-100/50 dark:bg-blue-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0">
-                            <h3 class="font-bold text-xs text-blue-800 dark:text-blue-300 uppercase tracking-wide flex items-center gap-2">
-                                <i class="fa-solid fa-palette text-blue-400"></i> Producción
-                            </h3>
-                            <span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-blue-600 dark:text-blue-200 border border-blue-200 dark:border-blue-800" id="count-Producción">0</span>
-                        </div>
-                        <div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Producción" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
-                    </div>
-        
-                    <div class="kanban-column flex flex-col w-80 bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900 h-full max-h-full shadow-sm">
-                        <div class="p-3 border-b border-purple-100 dark:border-purple-900 bg-purple-100/50 dark:bg-purple-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0">
-                            <h3 class="font-bold text-xs text-purple-800 dark:text-purple-300 uppercase tracking-wide flex items-center gap-2">
-                                <i class="fa-solid fa-magnifying-glass text-purple-400"></i> Auditoría
-                            </h3>
-                            <span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-purple-600 dark:text-purple-200 border border-purple-200 dark:border-purple-800" id="count-Auditoría">0</span>
-                        </div>
-                        <div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Auditoría" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
-                    </div>
-        
-                    <div class="kanban-column flex flex-col w-80 bg-green-50/50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900 h-full max-h-full opacity-90 shadow-sm">
-                        <div class="p-3 border-b border-green-100 dark:border-green-900 bg-green-100/50 dark:bg-green-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0">
-                            <h3 class="font-bold text-xs text-green-800 dark:text-green-300 uppercase tracking-wide flex items-center gap-2">
-                                <i class="fa-solid fa-check-circle text-green-500"></i> Completada
-                            </h3>
-                            <span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-green-600 dark:text-green-200 border border-green-200 dark:border-green-800" id="count-Completada">0</span>
-                        </div>
-                        <div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Completada" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
-                    </div>
+                    <div class="kanban-column flex flex-col w-80 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 h-full max-h-full shadow-sm"><div class="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-200/50 dark:bg-slate-700/50 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0"><h3 class="font-bold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-inbox text-slate-400"></i> Bandeja</h3><span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-600 dark:text-slate-200 border border-slate-300 dark:border-slate-500" id="count-Bandeja">0</span></div><div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Bandeja" ondragover="allowDrop(event)" ondrop="drop(event)"></div></div>
+                    <div class="kanban-column flex flex-col w-80 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 h-full max-h-full shadow-sm"><div class="p-3 border-b border-blue-100 dark:border-blue-900 bg-blue-100/50 dark:bg-blue-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0"><h3 class="font-bold text-xs text-blue-800 dark:text-blue-300 uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-palette text-blue-400"></i> Producción</h3><span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-blue-600 dark:text-blue-200 border border-blue-200 dark:border-blue-800" id="count-Producción">0</span></div><div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Producción" ondragover="allowDrop(event)" ondrop="drop(event)"></div></div>
+                    <div class="kanban-column flex flex-col w-80 bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900 h-full max-h-full shadow-sm"><div class="p-3 border-b border-purple-100 dark:border-purple-900 bg-purple-100/50 dark:bg-purple-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0"><h3 class="font-bold text-xs text-purple-800 dark:text-purple-300 uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-purple-400"></i> Auditoría</h3><span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-purple-600 dark:text-purple-200 border border-purple-200 dark:border-purple-800" id="count-Auditoría">0</span></div><div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Auditoría" ondragover="allowDrop(event)" ondrop="drop(event)"></div></div>
+                    <div class="kanban-column flex flex-col w-80 bg-green-50/50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900 h-full max-h-full opacity-90 shadow-sm"><div class="p-3 border-b border-green-100 dark:border-green-900 bg-green-100/50 dark:bg-green-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0"><h3 class="font-bold text-xs text-green-800 dark:text-green-300 uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-check-circle text-green-500"></i> Completada</h3><span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-green-600 dark:text-green-200 border border-green-200 dark:border-green-800" id="count-Completada">0</span></div><div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Completada" ondragover="allowDrop(event)" ondrop="drop(event)"></div></div>
                 </div>
             </div>
         </div>
 
         <div id="designerMetricsView" class="main-view w-full" style="display: none;">
-            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center">
-                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas por Diseñador</h1>
-            </header>
-            <div class="w-full px-6 py-8">
-                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 h-fit">
-                        <h3 class="font-bold mb-4 text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wide">Seleccionar Diseñador</h3>
-                        <div id="metricsSidebarList" class="space-y-1 max-h-[600px] overflow-y-auto scrollbar-thin pr-1"></div>
-                    </div>
-                    <div id="metricsDetail" class="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 min-h-[400px]">
-                        <div class="flex items-center justify-center h-full text-slate-400">
-                            <p>Selecciona un diseñador para ver sus estadísticas</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center"><h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas por Diseñador</h1></header>
+            <div class="w-full px-6 py-8"><div class="grid grid-cols-1 lg:grid-cols-4 gap-6"><div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 h-fit"><h3 class="font-bold mb-4 text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wide">Seleccionar Diseñador</h3><div id="metricsSidebarList" class="space-y-1 max-h-[600px] overflow-y-auto scrollbar-thin pr-1"></div></div><div id="metricsDetail" class="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 min-h-[400px]"><div class="flex items-center justify-center h-full text-slate-400"><p>Selecciona un diseñador para ver sus estadísticas</p></div></div></div></div>
         </div>
         
         <div id="departmentMetricsView" class="main-view w-full" style="display: none;">
-            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center">
-                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas Globales del Departamento</h1>
-            </header>
-            <div class="w-full px-6 py-8">
-                <div id="departmentMetricsContent" class="space-y-6"></div>
-            </div>
+            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center"><h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas Globales del Departamento</h1></header>
+            <div class="w-full px-6 py-8"><div id="departmentMetricsContent" class="space-y-6"></div></div>
         </div>
         
         <div id="workPlanView" class="main-view w-full" style="display: none;">
-            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
-                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Plan de Trabajo Semanal</h1>
-            </header>
-            <div class="w-full px-6 py-8">
-                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
-                    <div class="flex flex-wrap gap-4 mb-6 items-end border-b border-slate-100 dark:border-slate-700 pb-6">
-                        <div class="w-full sm:w-auto">
-                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Semana Objetivo</label>
-                            <input type="week" id="view-workPlanWeekSelector" onchange="generateWorkPlan()" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white py-2 text-sm focus:ring-blue-500 focus:border-blue-500 text-slate-700">
-                        </div>
-                        <button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 text-xs font-bold shadow-sm transition-colors flex items-center gap-2" onclick="loadUrgentOrdersToPlan()">
-                            <i class="fa-solid fa-bolt"></i> Cargar Urgentes
-                        </button>
-                        <span id="view-workPlanSummary" class="ml-auto text-xs text-slate-600 dark:text-slate-300 font-bold bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600"></span>
-                    </div>
-                    <div id="view-workPlanContent" class="space-y-6"></div>
-                </div>
-            </div>
+            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between"><h1 class="text-lg font-bold text-slate-800 dark:text-white">Plan de Trabajo Semanal</h1></header>
+            <div class="w-full px-6 py-8"><div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6"><div class="flex flex-wrap gap-4 mb-6 items-end border-b border-slate-100 dark:border-slate-700 pb-6"><div class="w-full sm:w-auto"><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Semana Objetivo</label><input type="week" id="view-workPlanWeekSelector" onchange="generateWorkPlan()" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white py-2 text-sm focus:ring-blue-500 focus:border-blue-500 text-slate-700"></div><button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 text-xs font-bold shadow-sm transition-colors flex items-center gap-2" onclick="loadUrgentOrdersToPlan()"><i class="fa-solid fa-bolt"></i> Cargar Urgentes</button><span id="view-workPlanSummary" class="ml-auto text-xs text-slate-600 dark:text-slate-300 font-bold bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600"></span></div><div id="view-workPlanContent" class="space-y-6"></div></div></div>
         </div>
 
     </div> 
     
     <div id="multiSelectBar" class="multi-select-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white rounded-full shadow-2xl p-2 pr-6 pl-6 flex items-center gap-6 z-[100] border border-white/10 transform translate-y-20 opacity-0 transition-all duration-300">
-        <span class="font-semibold text-xs whitespace-nowrap flex items-center gap-2">
-            <span class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px]" id="selectedCount">0</span> seleccionadas
-        </span>
+        <span class="font-semibold text-xs whitespace-nowrap flex items-center gap-2"><span class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px]" id="selectedCount">0</span> seleccionadas</span>
         <div class="h-4 w-px bg-white/20"></div>
-        <button class="text-slate-300 hover:text-white text-xs font-medium transition-colors flex items-center gap-2" onclick="openMultiAssignModal()">
-            <i class="fa-solid fa-user-pen"></i> Asignar
-        </button>
-        <button class="text-slate-300 hover:text-green-400 text-xs font-medium transition-colors flex items-center gap-2" onclick="addSelectedToWorkPlan()">
-            <i class="fa-solid fa-calendar-plus"></i> Al Plan
-        </button>
+        <button class="text-slate-300 hover:text-white text-xs font-medium transition-colors flex items-center gap-2" onclick="openMultiAssignModal()"><i class="fa-solid fa-user-pen"></i> Asignar</button>
+        <button class="text-slate-300 hover:text-green-400 text-xs font-medium transition-colors flex items-center gap-2" onclick="addSelectedToWorkPlan()"><i class="fa-solid fa-calendar-plus"></i> Al Plan</button>
         <div class="h-4 w-px bg-white/20"></div>
-        <button class="text-red-400 hover:text-red-300 text-xs font-medium transition-colors" onclick="clearSelection()">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
+        <button class="text-red-400 hover:text-red-300 text-xs font-medium transition-colors" onclick="clearSelection()"><i class="fa-solid fa-xmark"></i></button>
     </div>
 
     <div id="assignModal" class="modal">
         <div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto md:max-h-[85vh]">
-            
             <div class="w-full md:w-1/2 p-0 flex flex-col h-full overflow-hidden border-r border-slate-100 dark:border-slate-700">
-                <div class="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-700/80 shrink-0">
-                    <h2 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <i class="fa-solid fa-pen-to-square text-blue-600"></i> Editar Orden
-                    </h2>
-                    <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 w-6 h-6 flex md:hidden items-center justify-center rounded-full hover:bg-slate-200 transition">✕</button>
-                </div>
-                
+                <div class="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-700/80 shrink-0"><h2 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-blue-600"></i> Editar Orden</h2><button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 w-6 h-6 flex md:hidden items-center justify-center rounded-full hover:bg-slate-200 transition">✕</button></div>
                 <div class="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin text-xs">
                     <div class="bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900 p-4 grid grid-cols-2 gap-y-3 gap-x-4">
                         <div><span class="block text-[10px] font-bold text-blue-400 uppercase">Cliente</span><span id="detailCliente" class="font-semibold text-slate-900 dark:text-white text-sm">-</span></div>
                         <div><span class="block text-[10px] font-bold text-blue-400 uppercase">Código</span><span id="detailCodigo" class="font-semibold text-slate-900 dark:text-white text-sm">-</span></div>
                         <div><span class="block text-[10px] font-bold text-blue-400 uppercase">Estilo</span><span id="detailEstilo" class="font-medium text-slate-700 dark:text-slate-300">-</span></div>
                         <div><span class="block text-[10px] font-bold text-blue-400 uppercase">Entrega</span><span id="detailFecha" class="font-medium text-slate-700 dark:text-slate-300">-</span></div>
-                        <div class="col-span-2 border-t border-blue-200/50 dark:border-blue-800/50 pt-2 mt-1">
-                            <span class="block text-[10px] font-bold text-blue-400 uppercase">Total Piezas</span>
-                            <span id="detailPiezas" class="font-bold text-slate-900 dark:text-white">-</span>
-                        </div>
+                        <div class="col-span-2 border-t border-blue-200/50 dark:border-blue-800/50 pt-2 mt-1"><span class="block text-[10px] font-bold text-blue-400 uppercase">Total Piezas</span><span id="detailPiezas" class="font-bold text-slate-900 dark:text-white">-</span></div>
                     </div>
-
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Diseñador Asignado</label>
-                            <select id="modalDesigner" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500"></select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Estado Interno</label>
-                            <select id="modalStatus" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500">
-                                <option value="">Sin estado</option>
-                                <option value="Bandeja">Bandeja</option>
-                                <option value="Producción">Producción</option>
-                                <option value="Auditoría">Auditoría</option>
-                                <option value="Completada">Completada</option>
-                            </select>
-                        </div>
+                        <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Diseñador Asignado</label><select id="modalDesigner" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500"></select></div>
+                        <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Estado Interno</label><select id="modalStatus" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500"><option value="">Sin estado</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option><option value="Completada">Completada</option></select></div>
                     </div>
-                    
-                    <div class="grid grid-cols-1 gap-4">
-                         <div>
-                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Fecha Recibida</label>
-                            <input type="date" id="modalReceivedDate" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="pt-2">
-                        <div class="flex justify-between items-center mb-2">
-                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Órdenes Hijas (<span id="childOrderCount">0</span>)</label>
-                            <button id="addChildOrderBtn" class="text-blue-600 dark:text-blue-400 text-[10px] font-bold hover:underline" onclick="openAddChildModal()">+ Agregar Hija</button>
-                        </div>
-                        <div id="childOrdersList" class="bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 p-2 max-h-24 overflow-y-auto space-y-1"></div>
-                    </div>
-                    
-                    <div class="bg-slate-50 dark:bg-slate-700 rounded-lg p-3 border border-slate-100 dark:border-slate-600">
-                        <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Historial de Sistema</div>
-                        <div id="modalHistory" class="max-h-20 overflow-y-auto space-y-1.5 text-[10px] text-slate-600 dark:text-slate-300 scrollbar-thin"></div>
-                    </div>
+                    <div class="grid grid-cols-1 gap-4"><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Fecha Recibida</label><input type="date" id="modalReceivedDate" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500"></div></div>
+                    <div class="pt-2"><div class="flex justify-between items-center mb-2"><label class="text-xs font-bold text-slate-700 dark:text-slate-300">Órdenes Hijas (<span id="childOrderCount">0</span>)</label><button id="addChildOrderBtn" class="text-blue-600 dark:text-blue-400 text-[10px] font-bold hover:underline" onclick="openAddChildModal()">+ Agregar Hija</button></div><div id="childOrdersList" class="bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 p-2 max-h-24 overflow-y-auto space-y-1"></div></div>
+                    <div class="bg-slate-50 dark:bg-slate-700 rounded-lg p-3 border border-slate-100 dark:border-slate-600"><div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Historial de Sistema</div><div id="modalHistory" class="max-h-20 overflow-y-auto space-y-1.5 text-[10px] text-slate-600 dark:text-slate-300 scrollbar-thin"></div></div>
                 </div>
-                
-                <div class="flex justify-end gap-3 p-4 bg-slate-50 dark:bg-slate-700 border-t border-slate-200 dark:border-slate-600 shrink-0">
-                    <button class="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white px-4 py-2 text-xs font-medium transition-colors" onclick="closeModal()">Cancelar</button>
-                    <button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 text-xs font-bold shadow-sm transition-all" id="saveAssignmentButton" onclick="saveAssignment()">Guardar Cambios</button>
-                </div>
+                <div class="flex justify-end gap-3 p-4 bg-slate-50 dark:bg-slate-700 border-t border-slate-200 dark:border-slate-600 shrink-0"><button class="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white px-4 py-2 text-xs font-medium transition-colors" onclick="closeModal()">Cancelar</button><button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 text-xs font-bold shadow-sm transition-all" id="saveAssignmentButton" onclick="saveAssignment()">Guardar Cambios</button></div>
             </div>
-
             <div class="w-full md:w-1/2 flex flex-col h-[400px] md:h-auto bg-slate-50 dark:bg-slate-900 relative">
                 <button onclick="closeModal()" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 w-8 h-8 hidden md:flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition z-10">✕</button>
-                
-                <div class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3 flex justify-between items-center shrink-0">
-                    <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-2">
-                        <i class="fa-regular fa-comments text-blue-500"></i> Comentarios y Cambios
-                    </label>
-                    <span class="text-[9px] text-slate-400 mr-8">Menciona con <strong>@</strong></span>
-                </div>
-
-                <div id="chatHistory" class="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin flex flex-col bg-slate-50/50 dark:bg-slate-900/50">
-                    <div class="text-center text-slate-400 text-xs italic mt-10">Cargando conversación...</div>
-                </div>
-
+                <div class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3 flex justify-between items-center shrink-0"><label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-2"><i class="fa-regular fa-comments text-blue-500"></i> Comentarios y Cambios</label><span class="text-[9px] text-slate-400 mr-8">Menciona con <strong>@</strong></span></div>
+                <div id="chatHistory" class="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin flex flex-col bg-slate-50/50 dark:bg-slate-900/50"><div class="text-center text-slate-400 text-xs italic mt-10">Cargando conversación...</div></div>
                 <div class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-3 relative shrink-0">
                     <div id="mentionDropdown" class="hidden absolute bottom-full left-3 mb-1 w-56 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 shadow-xl rounded-lg z-50 max-h-40 overflow-y-auto scrollbar-thin"></div>
-
                     <div class="flex gap-2 items-end">
-                        <div class="relative flex-1">
-                            <textarea id="chatInput" rows="1" class="w-full rounded-2xl border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2.5 px-4 focus:ring-blue-500 focus:border-blue-500 resize-none pr-10 scrollbar-hide shadow-sm" placeholder="Escribe un comentario o @menciona..." oninput="handleChatInput(this)"></textarea>
-                            <button onclick="insertEmoji('👍')" class="absolute right-3 bottom-2 text-slate-400 hover:text-yellow-500 transition text-sm">👍</button>
-                        </div>
-                        <button onclick="sendComment()" id="btnSendComment" class="bg-blue-600 text-white rounded-full w-9 h-9 flex items-center justify-center hover:bg-blue-700 transition shadow-sm flex-shrink-0">
-                            <i class="fa-solid fa-paper-plane text-xs"></i>
-                        </button>
+                        <div class="relative flex-1"><textarea id="chatInput" rows="1" class="w-full rounded-2xl border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2.5 px-4 focus:ring-blue-500 focus:border-blue-500 resize-none pr-10 scrollbar-hide shadow-sm" placeholder="Escribe un comentario o @menciona..." oninput="handleChatInput(this)"></textarea><button onclick="insertEmoji('👍')" class="absolute right-3 bottom-2 text-slate-400 hover:text-yellow-500 transition text-sm">👍</button></div>
+                        <button onclick="sendComment()" id="btnSendComment" class="bg-blue-600 text-white rounded-full w-9 h-9 flex items-center justify-center hover:bg-blue-700 transition shadow-sm flex-shrink-0"><i class="fa-solid fa-paper-plane text-xs"></i></button>
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
-    <div id="multiAssignModal" class="modal">
-         <div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6">
-            <h2 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Edición Masiva</h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">Aplicando cambios a <span id="multiModalCount" class="font-bold text-blue-600 dark:text-blue-400">0</span> órdenes.</p>
-            <div class="space-y-4">
-                <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Diseñador</label><select id="multiModalDesigner" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></select></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Estado</label><select id="multiModalStatus" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"><option value="">- Sin cambio -</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Fecha Recibida</label><input type="date" id="multiModalReceivedDate" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Nota (se agrega al final)</label><textarea id="multiModalNotes" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2" rows="2"></textarea></div>
-            </div>
-            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
-                <button onclick="closeMultiModal()" class="text-slate-500 dark:text-slate-400 text-xs font-medium hover:underline">Cancelar</button>
-                <button id="saveMultiAssignmentButton" onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Aplicar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="confirmModal" class="modal">
-        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-xs p-6 text-center">
-            <div class="mx-auto flex items-center justify-center h-10 w-10 rounded-full bg-red-50 dark:bg-red-900/20 mb-4 text-red-600 dark:text-red-400 text-lg">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white" id="confirmModalTitle">¿Estás seguro?</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-6" id="confirmModalMessage"></p>
-            <div id="confirmStrictContainer" class="mb-4 hidden text-left bg-red-50 dark:bg-red-900/10 p-3 rounded border border-red-100 dark:border-red-900">
-                <p class="text-[10px] text-red-700 dark:text-red-400 mb-1">Escribe "CONFIRMAR":</p>
-                <input type="text" id="confirmStrictInput" class="border-red-300 dark:border-red-800 dark:bg-slate-700 dark:text-white p-1.5 w-full text-center uppercase rounded text-xs" oninput="checkStrictInput()">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <button id="confirmModalCancel" class="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-3 py-2 rounded-lg text-xs font-medium" onclick="closeConfirmModal()">Cancelar</button>
-                <button id="confirmModalConfirm" class="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-red-700 transition">Confirmar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="addChildModal" class="modal">
-        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-5 w-full max-w-sm">
-            <h2 class="font-bold text-sm mb-4 dark:text-white">Nueva Orden Hija</h2>
-            <div id="parentOrderInfo" class="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 p-2 rounded border border-blue-100 dark:border-blue-800 mb-4"></div>
-            <div class="space-y-3">
-                <input id="childOrderCode" readonly class="w-full bg-slate-100 dark:bg-slate-700 rounded-lg border-0 text-xs text-slate-500 dark:text-slate-300 py-2 px-3">
-                <div class="flex gap-2">
-                    <input id="childOrderNumber" type="number" placeholder="#" class="w-20 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2" oninput="updateChildOrderCode()">
-                    <input id="childPieces" type="number" placeholder="Piezas" class="flex-1 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2">
-                </div>
-                <input id="childDeliveryDate" type="date" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2">
-                <textarea id="childNotes" placeholder="Notas adicionales" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></textarea>
-            </div>
-            <div class="flex justify-end gap-3 mt-5">
-                <button onclick="closeAddChildModal()" class="text-xs text-slate-500 dark:text-slate-400 hover:underline">Cancelar</button>
-                <button onclick="saveChildOrder()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Crear</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="legendModal" class="modal">
-        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-5 max-w-xs">
-            <div class="flex justify-between mb-3"><h3 class="font-bold text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Guía de Colores</h3><button class="dark:text-slate-400" onclick="document.getElementById('legendModal').classList.remove('active')">✕</button></div>
-            <div class="space-y-2 text-xs font-medium text-slate-700 dark:text-slate-300">
-                <div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div>Muy Atrasada (>7 días)</div>
-                <div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-orange-500 shadow-sm"></div>Atrasada</div>
-                <div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-yellow-400 shadow-sm"></div>Por Vencer (≤2 días)</div>
-                <div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-green-500 shadow-sm"></div>A Tiempo</div>
-            </div>
-        </div>
-    </div>
-
-    <div id="designerManagerModal" class="modal">
-        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md">
-            <h2 class="font-bold text-sm text-slate-900 dark:text-white mb-4">Gestionar Equipo de Diseño</h2>
-            <div id="designerManagerList" class="max-h-60 overflow-y-auto mb-4 space-y-1 pr-1 scrollbar-thin bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600 p-2"></div>
-            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-3 rounded-lg space-y-2 shadow-sm">
-                <input id="newDesignerName" placeholder="Nombre completo" class="w-full rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-1.5">
-                <input id="newDesignerEmail" placeholder="usuario@fitwellus.com" class="w-full rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-1.5">
-                <button onclick="addDesigner()" class="w-full bg-green-600 hover:bg-green-700 text-white rounded py-2 text-xs font-bold transition">Agregar Nuevo</button>
-            </div>
-            <button onclick="closeDesignerManager()" class="mt-4 w-full text-slate-400 hover:text-slate-600 text-xs">Cerrar</button>
-        </div>
-    </div>
-
-    <div id="selectCompareModal" class="modal">
-        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm">
-            <h2 class="font-bold text-sm mb-2 dark:text-white">Comparar Desempeño</h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Comparar <strong id="compareDesigner1Name" class="text-blue-600 dark:text-blue-400"></strong> contra:</p>
-            <select id="compareDesignerSelect" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white mb-6 text-xs py-2"></select>
-            <div class="flex justify-end gap-3">
-                <button onclick="closeCompareModals()" class="text-slate-500 dark:text-slate-400 text-xs">Cancelar</button>
-                <button onclick="startComparison()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Comparar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="compareModal" class="modal">
-        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-3xl h-[80vh] flex flex-col">
-            <div class="flex justify-between mb-4 border-b dark:border-slate-700 pb-2">
-                <h2 class="font-bold text-sm text-slate-800 dark:text-white">Resultados de Comparación</h2>
-                <button class="dark:text-slate-400" onclick="closeCompareModals()">✕</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2">
-                <div id="compareChartContainer" class="h-64 bg-slate-50 dark:bg-slate-700 rounded-xl p-4 mb-4 border border-slate-100 dark:border-slate-600"><canvas id="compareChartCanvas"></canvas></div>
-                <div id="compareTableContainer"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="weeklyReportModal" class="modal">
-        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-4xl h-[90vh] flex flex-col">
-            <h2 class="font-bold text-sm text-slate-900 dark:text-white mb-4">Generar Reporte Semanal</h2>
-            <div class="mb-4 flex gap-4 items-end">
-                <input type="week" id="weekSelector" onchange="generateWeeklyReport()" class="rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2">
-                <div id="weeklyReportSpinner" class="hidden"><i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i></div>
-            </div>
-            <div id="weeklyReportContent" class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-700 rounded-xl p-4 border border-slate-200 dark:border-slate-600 text-xs dark:text-slate-200"></div>
-            <div class="flex justify-end gap-3 mt-4">
-                <button onclick="closeWeeklyReportModal()" class="text-slate-500 dark:text-slate-400 text-xs font-medium">Cerrar</button>
-                <button onclick="exportWeeklyReportAsPDF()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-700">Descargar PDF</button>
-            </div>
-        </div>
-    </div>
+    <div id="multiAssignModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6"><h2 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Edición Masiva</h2><p class="text-xs text-slate-500 dark:text-slate-400 mb-5">Aplicando cambios a <span id="multiModalCount" class="font-bold text-blue-600 dark:text-blue-400">0</span> órdenes.</p><div class="space-y-4"><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Diseñador</label><select id="multiModalDesigner" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></select></div><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Estado</label><select id="multiModalStatus" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"><option value="">- Sin cambio -</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select></div><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Fecha Recibida</label><input type="date" id="multiModalReceivedDate" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></div><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Nota (se agrega al final)</label><textarea id="multiModalNotes" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2" rows="2"></textarea></div></div><div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700"><button onclick="closeMultiModal()" class="text-slate-500 dark:text-slate-400 text-xs font-medium hover:underline">Cancelar</button><button id="saveMultiAssignmentButton" onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Aplicar</button></div></div></div>
+    <div id="confirmModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-xs p-6 text-center"><div class="mx-auto flex items-center justify-center h-10 w-10 rounded-full bg-red-50 dark:bg-red-900/20 mb-4 text-red-600 dark:text-red-400 text-lg"><i class="fa-solid fa-triangle-exclamation"></i></div><h3 class="text-sm font-bold text-slate-900 dark:text-white" id="confirmModalTitle">¿Estás seguro?</h3><p class="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-6" id="confirmModalMessage"></p><div id="confirmStrictContainer" class="mb-4 hidden text-left bg-red-50 dark:bg-red-900/10 p-3 rounded border border-red-100 dark:border-red-900"><p class="text-[10px] text-red-700 dark:text-red-400 mb-1">Escribe "CONFIRMAR":</p><input type="text" id="confirmStrictInput" class="border-red-300 dark:border-red-800 dark:bg-slate-700 dark:text-white p-1.5 w-full text-center uppercase rounded text-xs" oninput="checkStrictInput()"></div><div class="grid grid-cols-2 gap-3"><button id="confirmModalCancel" class="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-3 py-2 rounded-lg text-xs font-medium" onclick="closeConfirmModal()">Cancelar</button><button id="confirmModalConfirm" class="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-red-700 transition">Confirmar</button></div></div></div>
+    <div id="addChildModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-5 w-full max-w-sm"><h2 class="font-bold text-sm mb-4 dark:text-white">Nueva Orden Hija</h2><div id="parentOrderInfo" class="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 p-2 rounded border border-blue-100 dark:border-blue-800 mb-4"></div><div class="space-y-3"><input id="childOrderCode" readonly class="w-full bg-slate-100 dark:bg-slate-700 rounded-lg border-0 text-xs text-slate-500 dark:text-slate-300 py-2 px-3"><div class="flex gap-2"><input id="childOrderNumber" type="number" placeholder="#" class="w-20 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2" oninput="updateChildOrderCode()"><input id="childPieces" type="number" placeholder="Piezas" class="flex-1 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></div><input id="childDeliveryDate" type="date" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"><textarea id="childNotes" placeholder="Notas adicionales" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></textarea></div><div class="flex justify-end gap-3 mt-5"><button onclick="closeAddChildModal()" class="text-xs text-slate-500 dark:text-slate-400 hover:underline">Cancelar</button><button onclick="saveChildOrder()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Crear</button></div></div></div>
+    <div id="legendModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-5 max-w-xs"><div class="flex justify-between mb-3"><h3 class="font-bold text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Guía de Colores</h3><button class="dark:text-slate-400" onclick="document.getElementById('legendModal').classList.remove('active')">✕</button></div><div class="space-y-2 text-xs font-medium text-slate-700 dark:text-slate-300"><div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div>Muy Atrasada (>7 días)</div><div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-orange-500 shadow-sm"></div>Atrasada</div><div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-yellow-400 shadow-sm"></div>Por Vencer (≤2 días)</div><div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-green-500 shadow-sm"></div>A Tiempo</div></div></div></div>
+    <div id="designerManagerModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md"><h2 class="font-bold text-sm text-slate-900 dark:text-white mb-4">Gestionar Equipo de Diseño</h2><div id="designerManagerList" class="max-h-60 overflow-y-auto mb-4 space-y-1 pr-1 scrollbar-thin bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600 p-2"></div><div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-3 rounded-lg space-y-2 shadow-sm"><input id="newDesignerName" placeholder="Nombre completo" class="w-full rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-1.5"><input id="newDesignerEmail" placeholder="usuario@fitwellus.com" class="w-full rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-1.5"><button onclick="addDesigner()" class="w-full bg-green-600 hover:bg-green-700 text-white rounded py-2 text-xs font-bold transition">Agregar Nuevo</button></div><button onclick="closeDesignerManager()" class="mt-4 w-full text-slate-400 hover:text-slate-600 text-xs">Cerrar</button></div></div>
+    <div id="selectCompareModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm"><h2 class="font-bold text-sm mb-2 dark:text-white">Comparar Desempeño</h2><p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Comparar <strong id="compareDesigner1Name" class="text-blue-600 dark:text-blue-400"></strong> contra:</p><select id="compareDesignerSelect" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white mb-6 text-xs py-2"></select><div class="flex justify-end gap-3"><button onclick="closeCompareModals()" class="text-slate-500 dark:text-slate-400 text-xs">Cancelar</button><button onclick="startComparison()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Comparar</button></div></div></div>
+    <div id="compareModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-3xl h-[80vh] flex flex-col"><div class="flex justify-between mb-4 border-b dark:border-slate-700 pb-2"><h2 class="font-bold text-sm text-slate-800 dark:text-white">Resultados de Comparación</h2><button class="dark:text-slate-400" onclick="closeCompareModals()">✕</button></div><div class="flex-1 overflow-y-auto pr-2"><div id="compareChartContainer" class="h-64 bg-slate-50 dark:bg-slate-700 rounded-xl p-4 mb-4 border border-slate-100 dark:border-slate-600"><canvas id="compareChartCanvas"></canvas></div><div id="compareTableContainer"></div></div></div></div>
+    <div id="weeklyReportModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-4xl h-[90vh] flex flex-col"><h2 class="font-bold text-sm text-slate-900 dark:text-white mb-4">Generar Reporte Semanal</h2><div class="mb-4 flex gap-4 items-end"><input type="week" id="weekSelector" onchange="generateWeeklyReport()" class="rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"><div id="weeklyReportSpinner" class="hidden"><i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i></div></div><div id="weeklyReportContent" class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-700 rounded-xl p-4 border border-slate-200 dark:border-slate-600 text-xs dark:text-slate-200"></div><div class="flex justify-end gap-3 mt-4"><button onclick="closeWeeklyReportModal()" class="text-slate-500 dark:text-slate-400 text-xs font-medium">Cerrar</button><button onclick="exportWeeklyReportAsPDF()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-700">Descargar PDF</button></div></div></div>
     
     <style>
-        .filter-select {
-            display: block; width: 100%; border-radius: 0.5rem; border: 0; 
-            padding-top: 0.5rem; padding-bottom: 0.5rem; 
-            font-size: 0.75rem; line-height: 1rem; 
-            background-color: #F8FAFC; color: #0F172A; 
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
-            ring: 1px inset #E2E8F0;
-        }
+        .filter-select { display: block; width: 100%; border-radius: 0.5rem; border: 0; padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.75rem; line-height: 1rem; background-color: #F8FAFC; color: #0F172A; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); ring: 1px inset #E2E8F0; }
         .filter-select:focus { ring: 2px inset #2563EB; }
-        
-        .filter-input {
-            display: block; width: 100%; border-radius: 0.5rem; border: 0; 
-            padding-top: 0.4rem; padding-bottom: 0.4rem; 
-            font-size: 0.75rem; 
-            background-color: #F8FAFC; color: #0F172A; 
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
-            ring: 1px inset #E2E8F0;
-        }
+        .filter-input { display: block; width: 100%; border-radius: 0.5rem; border: 0; padding-top: 0.4rem; padding-bottom: 0.4rem; font-size: 0.75rem; background-color: #F8FAFC; color: #0F172A; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); ring: 1px inset #E2E8F0; }
     </style>
 
-    <script src="app.js?v=7.2"></script>
+    <script src="app.js?v=7.4"></script>
 </body>
 </html>
