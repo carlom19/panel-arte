@@ -166,7 +166,6 @@ window.closeAddChildModal = () => closeTopModal();
 window.closeDesignerManager = () => closeTopModal(); 
 window.closeCompareModals = () => closeAllModals(); 
 window.closeWeeklyReportModal = () => closeTopModal(); 
-window.closeLegendModal = () => closeTopModal();
 
 // ======================================================
 // ===== 3. UTILIDADES (THEME FIX BUG #2) =====
@@ -2323,23 +2322,6 @@ window.exportDesignerMetricsPDF = (name) => {
     doc.save(`Metricas_${name.replace(/\s+/g,'_')}.pdf`);
 };
 
-window.exportTableToExcel = () => {
-    if (allOrders.length === 0) return showCustomAlert('No hay datos', 'error');
-    if (typeof XLSX === 'undefined') return showCustomAlert('Error: XLSX no cargado', 'error');
-    
-    const ordersToExport = getFilteredOrders();
-    const data = ordersToExport.map(o => ({
-        "Cliente": o.cliente, "Código": o.codigoContrato, "Estilo": o.estilo, "Departamento": o.departamento,
-        "Fecha Despacho": o.fechaDespacho ? o.fechaDespacho.toLocaleDateString() : '',
-        "Diseñador": o.designer, "Estado Interno": o.customStatus, 
-        "Piezas": o.cantidad, "Piezas Hijas": o.childPieces, "Total Piezas": o.cantidad + o.childPieces, "Notas": o.notes || ''
-    }));
-    
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Reporte");
-    XLSX.writeFile(wb, `Reporte_Panel_${new Date().toISOString().slice(0,10)}.xlsx`);
-};
-
 window.generateWeeklyReport = () => {
     const w = document.getElementById('weekSelector').value;
     if(!w) { showCustomAlert('Selecciona una semana', 'error'); return; }
@@ -2403,8 +2385,6 @@ window.showConfirmModal = (msg, cb) => {
     newBtn.addEventListener('click', () => { cb(); closeTopModal(); });
     openModalById('confirmModal');
 };
-
-window.openLegendModal = () => openModalById('legendModal');
 
 window.openWeeklyReportModal = () => {
     const weekSelector = document.getElementById('weekSelector');

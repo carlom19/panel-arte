@@ -40,22 +40,11 @@
 
     <nav id="mainNavigation" class="fixed left-0 top-0 h-full w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 z-50 flex flex-col shadow-sm transition-all duration-300" style="display: none;">
         
-        <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col gap-4">
-            <div id="sidebarHeader" class="flex items-center justify-between transition-all duration-300">
-                <div class="flex items-center gap-3 overflow-hidden whitespace-nowrap">
-                    <div class="w-8 h-8 min-w-[2rem] bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30">
-                        <i class="fa-solid fa-layer-group"></i>
-                    </div>
-                    <h1 class="nav-text text-lg font-bold tracking-tight text-slate-800 dark:text-white transition-opacity duration-300">
-                        Panel Arte <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1 rounded border border-blue-100 dark:border-blue-800">v7.4</span>
-                    </h1>
-                </div>
-                <button id="sidebarToggleBtn" class="text-slate-400 hover:text-blue-600 transition p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700" title="Contraer/Expandir Menú">
-                    <i class="fa-solid fa-bars-staggered"></i>
-                </button>
-            </div>
-
-            </div>
+        <div id="sidebarHeader" class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-center items-center transition-all duration-300">
+            <button id="sidebarToggleBtn" class="text-slate-400 hover:text-blue-600 transition p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 w-full flex justify-center" title="Contraer/Expandir Menú">
+                <i class="fa-solid fa-bars-staggered text-xl"></i>
+            </button>
+        </div>
 
         <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1 overflow-x-hidden scrollbar-thin">
             <p class="nav-text px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 transition-opacity duration-300">Principal</p>
@@ -140,10 +129,20 @@
         
         <div id="dashboard" class="main-view w-full" style="display: none;">
             <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-800 dark:text-white">Dashboard de Producción</h2>
-                    <p class="text-[10px] text-slate-400">Vista general de órdenes y estados</p>
+                
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-blue-500/20 shadow-lg">
+                        <i class="fa-solid fa-layer-group text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-tight">Panel Arte</h1>
+                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.4</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium">Dashboard de Producción</p>
+                    </div>
                 </div>
+
                 <div class="flex items-center gap-4">
                     <button onclick="toggleTheme()" class="text-slate-400 hover:text-yellow-500 transition p-2 mr-2" title="Cambiar Tema"><i id="themeIcon" class="fa-solid fa-moon text-lg"></i></button>
                     <div class="relative">
@@ -153,10 +152,7 @@
                             <div id="notificationList" class="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700"><div id="notif-personal"></div> <div id="notif-system"></div></div>
                         </div>
                     </div>
-                    <div class="h-6 w-px bg-slate-200 dark:bg-slate-600"></div>
-                    <button onclick="exportTableToExcel()" class="hidden md:flex text-slate-500 dark:text-slate-400 hover:text-green-600 transition text-xs font-medium items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"><i class="fa-solid fa-file-excel"></i> Exportar</button>
-                    <button onclick="openLegendModal()" class="text-slate-400 hover:text-slate-600 transition px-2" title="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
-                    
+
                     <div class="h-6 w-px bg-slate-200 dark:bg-slate-600 mx-2"></div>
                     
                     <div class="flex items-center gap-3 pl-2">
@@ -170,7 +166,6 @@
                              <i class="fa-solid fa-user"></i>
                         </div>
                     </div>
-
                 </div>
             </header>
             
@@ -246,7 +241,20 @@
 
         <div id="kanbanView" class="main-view w-full h-screen flex flex-col" style="display: none;">
             <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between shrink-0">
-                <div><h2 class="text-lg font-bold text-slate-800 dark:text-white">Flujo de Trabajo (Kanban)</h2><p class="text-[10px] text-slate-400">Arrastra las tarjetas para cambiar el estado</p></div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-blue-500/20 shadow-lg">
+                        <i class="fa-solid fa-layer-group text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-tight">Panel Arte</h1>
+                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.4</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium">Flujo de Trabajo (Kanban)</p>
+                    </div>
+                </div>
+
                 <div class="flex gap-3 items-center">
                     <div class="relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i></div><input type="text" id="kanbanSearchInput" oninput="filterKanbanCards()" class="block w-48 rounded-lg border-0 py-1.5 pl-9 text-slate-900 dark:text-white dark:bg-slate-700 ring-1 ring-inset ring-slate-300 dark:ring-slate-600 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs shadow-sm" placeholder="Buscar en tablero..."></div>
                     <select id="kanbanDesignerFilter" onchange="updateKanban()" class="text-xs border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg py-1.5 shadow-sm focus:ring-pink-500"><option value="">Todos los Diseñadores</option></select>
@@ -277,8 +285,20 @@
 
         <div id="designerMetricsView" class="main-view w-full" style="display: none;">
             <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
-                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas por Diseñador</h1>
                 
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-blue-500/20 shadow-lg">
+                        <i class="fa-solid fa-layer-group text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-tight">Panel Arte</h1>
+                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.4</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium">Métricas por Diseñador</p>
+                    </div>
+                </div>
+
                 <div class="flex items-center gap-3 pl-2">
                     <div class="text-right hidden md:block">
                         <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
@@ -296,8 +316,20 @@
         
         <div id="departmentMetricsView" class="main-view w-full" style="display: none;">
             <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
-                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas Globales del Departamento</h1>
                 
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-blue-500/20 shadow-lg">
+                        <i class="fa-solid fa-layer-group text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-tight">Panel Arte</h1>
+                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.4</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium">Métricas Globales</p>
+                    </div>
+                </div>
+
                 <div class="flex items-center gap-3 pl-2">
                     <div class="text-right hidden md:block">
                         <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
@@ -315,8 +347,20 @@
         
         <div id="workPlanView" class="main-view w-full" style="display: none;">
             <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
-                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Plan de Trabajo Semanal</h1>
                 
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-blue-500/20 shadow-lg">
+                        <i class="fa-solid fa-layer-group text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-tight">Panel Arte</h1>
+                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.4</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium">Plan de Trabajo Semanal</p>
+                    </div>
+                </div>
+
                 <div class="flex items-center gap-3 pl-2">
                     <div class="text-right hidden md:block">
                         <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
@@ -383,7 +427,6 @@
     <div id="multiAssignModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6"><h2 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Edición Masiva</h2><p class="text-xs text-slate-500 dark:text-slate-400 mb-5">Aplicando cambios a <span id="multiModalCount" class="font-bold text-blue-600 dark:text-blue-400">0</span> órdenes.</p><div class="space-y-4"><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Diseñador</label><select id="multiModalDesigner" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></select></div><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Estado</label><select id="multiModalStatus" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"><option value="">- Sin cambio -</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select></div><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Fecha Recibida</label><input type="date" id="multiModalReceivedDate" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></div><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Nota (se agrega al final)</label><textarea id="multiModalNotes" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2" rows="2"></textarea></div></div><div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700"><button onclick="closeMultiModal()" class="text-slate-500 dark:text-slate-400 text-xs font-medium hover:underline">Cancelar</button><button id="saveMultiAssignmentButton" onclick="saveMultiAssignment()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Aplicar</button></div></div></div>
     <div id="confirmModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-xs p-6 text-center"><div class="mx-auto flex items-center justify-center h-10 w-10 rounded-full bg-red-50 dark:bg-red-900/20 mb-4 text-red-600 dark:text-red-400 text-lg"><i class="fa-solid fa-triangle-exclamation"></i></div><h3 class="text-sm font-bold text-slate-900 dark:text-white" id="confirmModalTitle">¿Estás seguro?</h3><p class="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-6" id="confirmModalMessage"></p><div id="confirmStrictContainer" class="mb-4 hidden text-left bg-red-50 dark:bg-red-900/10 p-3 rounded border border-red-100 dark:border-red-900"><p class="text-[10px] text-red-700 dark:text-red-400 mb-1">Escribe "CONFIRMAR":</p><input type="text" id="confirmStrictInput" class="border-red-300 dark:border-red-800 dark:bg-slate-700 dark:text-white p-1.5 w-full text-center uppercase rounded text-xs" oninput="checkStrictInput()"></div><div class="grid grid-cols-2 gap-3"><button id="confirmModalCancel" class="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-3 py-2 rounded-lg text-xs font-medium" onclick="closeConfirmModal()">Cancelar</button><button id="confirmModalConfirm" class="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-red-700 transition">Confirmar</button></div></div></div>
     <div id="addChildModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-5 w-full max-w-sm"><h2 class="font-bold text-sm mb-4 dark:text-white">Nueva Orden Hija</h2><div id="parentOrderInfo" class="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 p-2 rounded border border-blue-100 dark:border-blue-800 mb-4"></div><div class="space-y-3"><input id="childOrderCode" readonly class="w-full bg-slate-100 dark:bg-slate-700 rounded-lg border-0 text-xs text-slate-500 dark:text-slate-300 py-2 px-3"><div class="flex gap-2"><input id="childOrderNumber" type="number" placeholder="#" class="w-20 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2" oninput="updateChildOrderCode()"><input id="childPieces" type="number" placeholder="Piezas" class="flex-1 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></div><input id="childDeliveryDate" type="date" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"><textarea id="childNotes" placeholder="Notas adicionales" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"></textarea></div><div class="flex justify-end gap-3 mt-5"><button onclick="closeAddChildModal()" class="text-xs text-slate-500 dark:text-slate-400 hover:underline">Cancelar</button><button onclick="saveChildOrder()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Crear</button></div></div></div>
-    <div id="legendModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-5 max-w-xs"><div class="flex justify-between mb-3"><h3 class="font-bold text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Guía de Colores</h3><button class="dark:text-slate-400" onclick="document.getElementById('legendModal').classList.remove('active')">✕</button></div><div class="space-y-2 text-xs font-medium text-slate-700 dark:text-slate-300"><div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div>Muy Atrasada (>7 días)</div><div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-orange-500 shadow-sm"></div>Atrasada</div><div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-yellow-400 shadow-sm"></div>Por Vencer (≤2 días)</div><div class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700"><div class="w-2 h-2 rounded-full bg-green-500 shadow-sm"></div>A Tiempo</div></div></div></div>
     <div id="designerManagerModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md"><h2 class="font-bold text-sm text-slate-900 dark:text-white mb-4">Gestionar Equipo de Diseño</h2><div id="designerManagerList" class="max-h-60 overflow-y-auto mb-4 space-y-1 pr-1 scrollbar-thin bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600 p-2"></div><div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-3 rounded-lg space-y-2 shadow-sm"><input id="newDesignerName" placeholder="Nombre completo" class="w-full rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-1.5"><input id="newDesignerEmail" placeholder="usuario@fitwellus.com" class="w-full rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-1.5"><button onclick="addDesigner()" class="w-full bg-green-600 hover:bg-green-700 text-white rounded py-2 text-xs font-bold transition">Agregar Nuevo</button></div><button onclick="closeDesignerManager()" class="mt-4 w-full text-slate-400 hover:text-slate-600 text-xs">Cerrar</button></div></div>
     <div id="selectCompareModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm"><h2 class="font-bold text-sm mb-2 dark:text-white">Comparar Desempeño</h2><p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Comparar <strong id="compareDesigner1Name" class="text-blue-600 dark:text-blue-400"></strong> contra:</p><select id="compareDesignerSelect" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white mb-6 text-xs py-2"></select><div class="flex justify-end gap-3"><button onclick="closeCompareModals()" class="text-slate-500 dark:text-slate-400 text-xs">Cancelar</button><button onclick="startComparison()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Comparar</button></div></div></div>
     <div id="compareModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-3xl h-[80vh] flex flex-col"><div class="flex justify-between mb-4 border-b dark:border-slate-700 pb-2"><h2 class="font-bold text-sm text-slate-800 dark:text-white">Resultados de Comparación</h2><button class="dark:text-slate-400" onclick="closeCompareModals()">✕</button></div><div class="flex-1 overflow-y-auto pr-2"><div id="compareChartContainer" class="h-64 bg-slate-50 dark:bg-slate-700 rounded-xl p-4 mb-4 border border-slate-100 dark:border-slate-600"><canvas id="compareChartCanvas"></canvas></div><div id="compareTableContainer"></div></div></div></div>
