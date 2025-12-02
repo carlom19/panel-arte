@@ -3203,3 +3203,53 @@ function renderQualityCharts(logs) {
         });
     }
 }
+
+// ======================================================
+// ===== 23. HERRAMIENTAS ADMINISTRATIVAS (SOLO CONSOLA) =====
+// ======================================================
+
+/**
+ * Función para crear o actualizar roles de usuario.
+ * Uso desde Consola (F12): window.crearUsuario('correo@ejemplo.com', 'admin');
+ * Roles permitidos: 'admin', 'auditor', 'user'
+ */
+window.crearUsuario = async (email, rol = 'user') => {
+    // 1. Verificar si quien ejecuta es Admin
+    if (!usuarioActual || userRole !== 'admin') {
+        console.error("⛔ ERROR DE PERMISOS: Solo un administrador actual puede crear otros usuarios.");
+        alert("⛔ No tienes permisos de Administrador para realizar esta acción.");
+        return;
+    }
+
+    // 2. Validaciones básicas
+    if (!email || !email.includes('@')) {
+        console.error("⚠️ Email inválido.");
+        return;
+    }
+
+    const validRoles = ['admin', 'auditor', 'user'];
+    if (!validRoles.includes(rol)) {
+        console.error(`⚠️ Rol inválido. Usa: ${validRoles.join(', ')}`);
+        return;
+    }
+
+    try {
+        const emailLimpio = email.trim().toLowerCase();
+        
+        // 3. Guardar en Firestore (Colección 'users')
+        await db_firestore.collection('users').doc(emailLimpio).set({
+            email: emailLimpio,
+            role: rol,
+            updatedAt: new Date().toISOString(),
+            updatedBy: usuarioActual.email
+        }, { merge: true });
+
+        // 4. Feedback
+        console.log(`✅ ÉXITO: Usuario ${emailLimpio} guardado con rol '${rol}'`);
+        alert(`✅ Usuario actualizado correctamente:\n\nEmail: ${emailLimpio}\nRol: ${rol.toUpperCase()}`);
+
+    } catch (e) {
+        console.error("Error creando usuario:", e);
+        alert("Error al guardar en base de datos: " + e.message);
+    }
+};
