@@ -64,6 +64,11 @@
                 <span class="nav-text">Plan Semanal</span>
             </button>
 
+            <button onclick="navigateTo('qualityView')" title="Control de Calidad" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-qualityView">
+                <i class="fa-solid fa-clipboard-check w-5 text-center text-base group-hover:text-teal-500 transition-colors"></i> 
+                <span class="nav-text">Control de Calidad</span>
+            </button>
+
             <p class="nav-text px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-6 mb-2 transition-opacity duration-300">Análisis</p>
             
             <button onclick="navigateTo('designerMetricsView')" title="Métricas Diseñador" class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-3 text-xs font-medium group" id="nav-designerMetricsView">
@@ -377,6 +382,95 @@
             <div class="w-full px-6 py-8"><div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6"><div class="flex flex-wrap gap-4 mb-6 items-end border-b border-slate-100 dark:border-slate-700 pb-6"><div class="w-full sm:w-auto"><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Semana Objetivo</label><input type="week" id="view-workPlanWeekSelector" onchange="generateWorkPlan()" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white py-2 text-sm focus:ring-blue-500 focus:border-blue-500 text-slate-700"></div><button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 text-xs font-bold shadow-sm transition-colors flex items-center gap-2" onclick="loadUrgentOrdersToPlan()"><i class="fa-solid fa-bolt"></i> Cargar Urgentes</button><span id="view-workPlanSummary" class="ml-auto text-xs text-slate-600 dark:text-slate-300 font-bold bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600"></span></div><div id="view-workPlanContent" class="space-y-6"></div></div></div>
         </div>
 
+        <div id="qualityView" class="main-view w-full" style="display: none;">
+            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
+                
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-blue-500/20 shadow-lg">
+                        <i class="fa-solid fa-layer-group text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-tight">Panel Arte</h1>
+                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.4</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium">Control de Calidad y Auditoría</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 pl-2">
+                    <div class="text-right hidden md:block">
+                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
+                        <p class="text-[10px] text-slate-400 flex items-center justify-end gap-1 leading-tight" id="navDbStatus">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
+                        </p>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-sm">
+                            <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="w-full px-6 py-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Tasa de Rechazo (Global)</p>
+                            <h3 class="text-2xl font-bold text-slate-800 dark:text-white" id="kpiRejectRate">0%</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center text-lg"><i class="fa-solid fa-percent"></i></div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Errores este Mes</p>
+                            <h3 class="text-2xl font-bold text-slate-800 dark:text-white" id="kpiTotalErrors">0</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-900/20 text-orange-500 flex items-center justify-center text-lg"><i class="fa-solid fa-bug"></i></div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Categoría Principal</p>
+                            <h3 class="text-lg font-bold text-slate-800 dark:text-white truncate max-w-[150px]" id="kpiTopCategory">-</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center text-lg"><i class="fa-solid fa-chart-pie"></i></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <h3 class="font-bold text-sm text-slate-800 dark:text-white mb-4">Pareto de Errores (Tipología)</h3>
+                        <div class="relative h-64"><canvas id="qualityParetoChart"></canvas></div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <h3 class="font-bold text-sm text-slate-800 dark:text-white mb-4">Errores por Diseñador</h3>
+                        <div class="relative h-64"><canvas id="qualityDesignerChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-700">
+                        <h3 class="font-bold text-sm text-slate-800 dark:text-white">Últimos Rechazos Registrados</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-600 dark:text-slate-400">
+                            <thead class="bg-slate-50 dark:bg-slate-700 uppercase font-bold text-slate-500 dark:text-slate-300">
+                                <tr>
+                                    <th class="px-4 py-3">Fecha</th>
+                                    <th class="px-4 py-3">Orden</th>
+                                    <th class="px-4 py-3">Diseñador</th>
+                                    <th class="px-4 py-3">Categoría</th>
+                                    <th class="px-4 py-3">Motivo</th>
+                                    <th class="px-4 py-3">Auditor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="qualityLogTableBody" class="divide-y divide-slate-100 dark:divide-slate-700">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div> 
     
     <div id="multiSelectBar" class="multi-select-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white rounded-full shadow-2xl p-2 pr-6 pl-6 flex items-center gap-6 z-[100] border border-white/10 transform translate-y-20 opacity-0 transition-all duration-300">
@@ -433,6 +527,47 @@
     <div id="compareModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-3xl h-[80vh] flex flex-col"><div class="flex justify-between mb-4 border-b dark:border-slate-700 pb-2"><h2 class="font-bold text-sm text-slate-800 dark:text-white">Resultados de Comparación</h2><button class="dark:text-slate-400" onclick="closeCompareModals()">✕</button></div><div class="flex-1 overflow-y-auto pr-2"><div id="compareChartContainer" class="h-64 bg-slate-50 dark:bg-slate-700 rounded-xl p-4 mb-4 border border-slate-100 dark:border-slate-600"><canvas id="compareChartCanvas"></canvas></div><div id="compareTableContainer"></div></div></div></div>
     <div id="weeklyReportModal" class="modal"><div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-4xl h-[90vh] flex flex-col"><h2 class="font-bold text-sm text-slate-900 dark:text-white mb-4">Generar Reporte Semanal</h2><div class="mb-4 flex gap-4 items-end"><input type="week" id="weekSelector" onchange="generateWeeklyReport()" class="rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2"><div id="weeklyReportSpinner" class="hidden"><i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i></div></div><div id="weeklyReportContent" class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-700 rounded-xl p-4 border border-slate-200 dark:border-slate-600 text-xs dark:text-slate-200"></div><div class="flex justify-end gap-3 mt-4"><button onclick="closeWeeklyReportModal()" class="text-slate-500 dark:text-slate-400 text-xs font-medium">Cerrar</button><button onclick="exportWeeklyReportAsPDF()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-700">Descargar PDF</button></div></div></div>
     
+    <div id="rejectionModal" class="modal">
+        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm shadow-2xl border-2 border-red-100 dark:border-red-900/30">
+            <div class="flex items-center gap-3 mb-4 text-red-600 dark:text-red-400">
+                <div class="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                    <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold text-sm text-slate-900 dark:text-white">Reportar No Conformidad</h2>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400">Esta orden será devuelta a producción.</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Categoría del Error</label>
+                    <select id="rejectCategory" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-red-500 focus:border-red-500">
+                        <option value="">-- Seleccionar Causa --</option>
+                        <option value="Ortografía/Tipografía">Ortografía / Tipografía</option>
+                        <option value="Color/Pantones">Color / Pantones Incorrectos</option>
+                        <option value="Especificaciones Técnicas">Medidas / Sangrado / Resolución</option>
+                        <option value="Interpretación">No siguió instrucciones del cliente</option>
+                        <option value="Omisión">Faltaron elementos/piezas</option>
+                        <option value="Cambio Cliente">Cambio solicitado por Cliente (No penalizar)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Detalle del Error</label>
+                    <textarea id="rejectReason" rows="3" placeholder="Ej: Faltó tilde en la palabra 'Canción'..." class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-red-500 focus:border-red-500"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
+                <button onclick="closeModal()" class="text-slate-500 dark:text-slate-400 text-xs font-medium hover:underline">Cancelar</button>
+                <button onclick="confirmRejection()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-700 shadow-sm transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-reply"></i> Devolver Orden
+                </button>
+            </div>
+        </div>
+    </div>
+
     <style>
         .filter-select { display: block; width: 100%; border-radius: 0.5rem; border: 0; padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.75rem; line-height: 1rem; background-color: #F8FAFC; color: #0F172A; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); ring: 1px inset #E2E8F0; }
         .filter-select:focus { ring: 2px inset #2563EB; }
