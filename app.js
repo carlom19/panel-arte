@@ -246,7 +246,7 @@ async function createNotification(recipientEmail, type, title, message, orderId)
 // ===== 4. INICIALIZACIÓN Y AUTH =====
 // ======================================================
 
-// --- DEFINICIÓN DE FUNCIONES DE AUTH (Faltaban estas funciones) ---
+// --- DEFINICIÓN DE FUNCIONES DE AUTH ---
 window.iniciarLoginConGoogle = () => {
     const provider = new firebase.auth.GoogleAuthProvider();
     firebase.auth().signInWithPopup(provider)
@@ -263,24 +263,44 @@ window.iniciarLogout = () => {
     firebase.auth().signOut()
         .then(() => {
             showCustomAlert('Sesión cerrada.', 'info');
-            // La UI se actualizará automáticamente gracias al listener onAuthStateChanged
         })
         .catch((error) => {
             console.error("Error Logout:", error);
         });
 };
 
+// --- HELPER PARA ACTUALIZAR TODOS LOS HEADERS SIMULTÁNEAMENTE ---
+// Esta función busca TODOS los elementos con ese ID (aunque estén duplicados)
+window.updateAllHeaders = (user, statusType = 'offline') => {
+    const nameEls = document.querySelectorAll('[id="navUserName"]');
+    const statusEls = document.querySelectorAll('[id="navDbStatus"]');
+    
+    // 1. Actualizar Nombres
+    const nameText = user ? (user.displayName || 'Usuario') : 'Usuario';
+    nameEls.forEach(el => el.textContent = nameText);
+
+    // 2. Definir HTML del Estado
+    let statusHtml = '';
+    if (statusType === 'connected') {
+        statusHtml = `<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Conectado`;
+    } else if (statusType === 'syncing') {
+        statusHtml = `<span class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span> Sincronizando...`;
+    } else {
+        statusHtml = `<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado`;
+    }
+
+    // 3. Actualizar Estados
+    statusEls.forEach(el => el.innerHTML = statusHtml);
+};
+
 // --- INICIALIZACIÓN DEL DOM ---
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v7.4 Loaded (Collapsible Sidebar)');
+    console.log('App v7.4 Loaded (Multi-Header Support)');
     
-    // InitTheme
     initTheme();
 
     // --- SIDEBAR TOGGLE & PERSISTENCIA ---
     const sidebarBtn = document.getElementById('sidebarToggleBtn');
-    
-    // Recuperar estado al cargar (para evitar parpadeo)
     if (localStorage.getItem('sidebarState') === 'collapsed') {
         document.body.classList.add('sidebar-collapsed');
     }
@@ -288,8 +308,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebarBtn) {
         sidebarBtn.addEventListener('click', () => {
             document.body.classList.toggle('sidebar-collapsed');
-            
-            // Guardar preferencia
             const isCollapsed = document.body.classList.contains('sidebar-collapsed');
             localStorage.setItem('sidebarState', isCollapsed ? 'collapsed' : 'expanded');
         });
@@ -297,11 +315,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Listeners de Auth ---
     const btnLogin = document.getElementById('loginButton');
-    if(btnLogin) btnLogin.addEventListener('click', window.iniciarLoginConGoogle); // Usamos window. para asegurar referencia
+    if(btnLogin) btnLogin.addEventListener('click', window.iniciarLoginConGoogle);
     
     const btnLogout = document.getElementById('logoutNavBtn');
     if(btnLogout) btnLogout.addEventListener('click', window.iniciarLogout);
 
+    // --- LISTENER PRINCIPAL DE ESTADO (LOGIN/LOGOUT) ---
     firebase.auth().onAuthStateChanged((user) => {
         const login = document.getElementById('loginSection');
         const upload = document.getElementById('uploadSection');
@@ -310,7 +329,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (user) {
             usuarioActual = user;
-            if(document.getElementById('navUserName')) document.getElementById('navUserName').textContent = user.displayName;
+            
+            // >>> AQUÍ USAMOS LA NUEVA LÓGICA PARA ACTUALIZAR TODOS LOS HEADERS <<<
+            window.updateAllHeaders(user, 'syncing'); 
+
+            // Verificar Rol de Admin
             const userEmail = user.email.toLowerCase();
             db_firestore.collection('users').doc(userEmail).get().then((doc) => {
                 if (doc.exists && doc.data().role === 'admin') {
@@ -329,21 +352,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 upload.style.display = 'block'; main.style.display = 'none'; nav.style.display = 'none'; main.classList.remove('main-content-shifted');
             } else {
                 upload.style.display = 'none'; main.style.display = 'block'; nav.style.display = 'flex'; main.classList.add('main-content-shifted');
-                // Al entrar, asegurar que el sidebar respete el estado guardado
                 setTimeout(() => {
                    document.getElementById('mainNavigation').style.transform = 'translateX(0)';
                 }, 50);
             }
             conectarDatosDeFirebase();
         } else {
-            desconectarDatosDeFirebase(); usuarioActual = null; isExcelLoaded = false; userRole = 'user';
+            desconectarDatosDeFirebase(); 
+            usuarioActual = null; 
+            isExcelLoaded = false; 
+            userRole = 'user';
+            
+            // Resetear headers al salir
+            window.updateAllHeaders(null, 'offline');
+
             login.style.display = 'flex'; upload.style.display = 'none'; main.style.display = 'none'; nav.style.display = 'none'; main.classList.remove('main-content-shifted');
         }
     });
 
-    // Filtros
+    // Filtros e Interfaz (Event Listeners)
     const searchInp = document.getElementById('searchInput');
     if(searchInp) searchInp.addEventListener('input', debounce((e) => { currentSearch = e.target.value; currentPage = 1; updateTable(); }, 300));
+    
+    // Listeners genéricos para filtros
     ['clientFilter', 'styleFilter', 'teamFilter', 'departamentoFilter', 'designerFilter', 'customStatusFilter', 'dateFrom', 'dateTo'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.addEventListener('change', debounce((e) => {
@@ -359,6 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 150));
     });
 
+    // Drag & Drop de Archivos
     const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput');
     if(dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
@@ -367,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     }
 
+    // Delegación de eventos para elementos dinámicos
     const delegate = (id, sel, cb) => { const el = document.getElementById(id); if(el) el.addEventListener('click', e => { const t = e.target.closest(sel); if(t) cb(t, e); }); };
     delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
     delegate('metricsSidebarList', '.filter-btn', (btn) => {
@@ -384,17 +417,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function conectarDatosDeFirebase() {
     if (!usuarioActual) return;
-    const navDbStatus = document.getElementById('navDbStatus'); 
 
+    // Función interna para actualizar el estado en TODOS los headers
     const setStatus = (connected) => {
-        if(navDbStatus) {
-            navDbStatus.innerHTML = connected 
-            ? `<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Conectado`
-            : `<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> Sincronizando...`;
+        // Usamos la función global que definimos en el Módulo 4
+        if (typeof window.updateAllHeaders === 'function') {
+            window.updateAllHeaders(usuarioActual, connected ? 'connected' : 'syncing');
         }
     };
 
-    setStatus(false);
+    setStatus(false); // Iniciar como "Sincronizando..."
     
     // ESTRATEGIA HÍBRIDA: Carga única de maestros + Realtime de cambios
     loadMasterOrders().then(() => {
@@ -418,7 +450,7 @@ async function loadMasterOrders() {
         
         // Si hay datos en la nube, reconstruimos la memoria local
         if (masterOrdersMap.size > 0) {
-            rebuildAllOrders(); // <--- Esta función ahora está definida más abajo
+            rebuildAllOrders(); 
             
             // Transiciones de UI
             document.getElementById('uploadSection').style.display = 'none';
@@ -446,7 +478,9 @@ function setupRealtimeListeners(statusCallback) {
         s.forEach(d => firebaseAssignmentsMap.set(d.id, d.data()));
         
         if(masterOrdersLoaded) mergeYActualizar(); 
-        statusCallback(true);
+        
+        // ¡IMPORTANTE! Al recibir datos, confirmamos conexión en verde
+        statusCallback(true); 
     });
 
     // 2. Historial
@@ -507,7 +541,7 @@ function setupRealtimeListeners(statusCallback) {
     });
 
     // 6. Notificaciones
-    listenToMyNotifications(); // <--- Ahora definida abajo
+    listenToMyNotifications(); 
 }
 
 function desconectarDatosDeFirebase() {
@@ -517,7 +551,7 @@ function desconectarDatosDeFirebase() {
     if(unsubscribeDesigners) unsubscribeDesigners();
     if(unsubscribeWeeklyPlan) unsubscribeWeeklyPlan();
     if(unsubscribeNotifications) unsubscribeNotifications();
-    if(unsubscribeChat) unsubscribeChat(); // Limpieza del chat
+    if(unsubscribeChat) unsubscribeChat(); 
     
     autoCompletedOrderIds.clear();
     masterOrdersLoaded = false;
@@ -538,7 +572,7 @@ function listenToMyNotifications() {
         .onSnapshot(snapshot => { 
             updateNotificationUI(snapshot.docs); 
         }, error => {
-            console.log("Info notificaciones:", error.code); // Ignoramos error de permisos iniciales
+            console.log("Info notificaciones:", error.code); 
         });
 }
 
@@ -602,10 +636,8 @@ function rebuildAllOrders() {
     let processed = [];
     
     masterOrdersMap.forEach((masterData) => {
-        // Convertir fecha string a objeto Date
         let fdLocal = masterData.fechaDespacho ? new Date(masterData.fechaDespacho) : null;
         
-        // Cálculos de fecha
         const today = new Date(); today.setHours(0,0,0,0);
         const dl = (fdLocal && fdLocal < today) ? Math.ceil((today - fdLocal) / 86400000) : 0;
 
@@ -617,33 +649,30 @@ function rebuildAllOrders() {
             isAboutToExpire: fdLocal && !dl && ((fdLocal - today) / 86400000) <= 2,
             daysLate: dl,
             
-            // Valores por defecto que se llenarán en mergeYActualizar
             designer: '', customStatus: '', receivedDate: '', notes: '', completedDate: null, complexity: 'Media'
         });
     });
     
     allOrders = processed;
-    mergeYActualizar(); // Llamada inicial para cruzar con assignments
+    mergeYActualizar(); 
 }
 
 function mergeYActualizar() {
     if (!masterOrdersLoaded) return;
     
-    // FIX DE RENDIMIENTO: Recalcular hijas solo si es necesario
     if (needsRecalculation) {
         recalculateChildPieces(); 
         needsRecalculation = false;
     }
     
     autoCompleteBatchWrites = []; 
-    filteredCache.key = null; // Invalidar caché de búsqueda
+    filteredCache.key = null; 
 
     for (let i = 0; i < allOrders.length; i++) {
         const o = allOrders[i];
         const fb = firebaseAssignmentsMap.get(o.orderId);
         
         if (fb) {
-            // Si hay datos en Firebase, sobreescribimos los del Excel
             o.designer = fb.designer || '';
             o.customStatus = fb.customStatus || '';
             o.receivedDate = fb.receivedDate || '';
@@ -651,11 +680,9 @@ function mergeYActualizar() {
             o.completedDate = fb.completedDate || null;
             o.complexity = fb.complexity || 'Media'; 
         } else {
-            // Si no, valores limpios
             o.designer = ''; o.customStatus = ''; o.receivedDate = ''; o.notes = ''; o.completedDate = null; o.complexity = 'Media';
         }
 
-        // Lógica de Autocompletado (Si salió de Arte en el Excel nuevo)
         if (fb && o.departamento !== CONFIG.DEPARTMENTS.ART && o.departamento !== CONFIG.DEPARTMENTS.NONE) {
             if (fb.customStatus !== CONFIG.STATUS.COMPLETED && !autoCompletedOrderIds.has(o.orderId)) {
                 autoCompleteBatchWrites.push({
@@ -669,12 +696,10 @@ function mergeYActualizar() {
         }
     }
     
-    // Actualizar UI solo si el Dashboard es visible
     if (document.getElementById('dashboard').style.display === 'block') {
         updateDashboard();
     }
     
-    // Ejecutar autocompletado si aplica
     if (autoCompleteBatchWrites.length > 0) confirmAutoCompleteBatch();
 }
 
@@ -692,33 +717,30 @@ function recalculateChildPieces() {
 
 // --- E. OPERACIONES BATCH ---
 
-async function ejecutarAutoCompleteBatch() {
-    if (!usuarioActual || autoCompleteBatchWrites.length === 0) return;
+async function ejecutarAutoCompleteBatch(itemsParam) {
+    const items = itemsParam || autoCompleteBatchWrites;
+
+    if (!usuarioActual || items.length === 0) return;
+    
     document.body.classList.add('processing-batch');
     
     await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
         const user = usuarioActual.displayName;
         
-        // Procesar máximo 400 escrituras por lote (límite Firestore 500)
-        autoCompleteBatchWrites.slice(0, 400).forEach(w => {
-            batch.set(db_firestore.collection('assignments').doc(w.orderId), w.data, { merge: true });
-            batch.set(db_firestore.collection('history').doc(), { orderId: w.orderId, change: w.history[0], user, timestamp: new Date().toISOString() });
+        items.slice(0, 400).forEach(w => {
+            const ref = db_firestore.collection('assignments').doc(w.orderId);
+            batch.set(ref, w.data, { merge: true });
+            const hRef = db_firestore.collection('history').doc();
+            batch.set(hRef, { orderId: w.orderId, change: w.history[0], user, timestamp: new Date().toISOString() });
+            
             autoCompletedOrderIds.add(w.orderId);
         });
 
         await batch.commit();
         autoCompleteBatchWrites = []; 
-        
-        // Limpieza de memoria (Set infinito fix)
-        if (autoCompletedOrderIds.size > 1000) {
-            const arr = Array.from(autoCompletedOrderIds);
-            autoCompletedOrderIds.clear();
-            // Mantener solo los últimos 500
-            arr.slice(-500).forEach(id => autoCompletedOrderIds.add(id));
-        }
         return true;
-    }, 'Sincronizando...', 'Estados actualizados.');
+    }, 'Sincronizando estados...', 'Estados actualizados correctamente.');
     
     document.body.classList.remove('processing-batch');
 }
