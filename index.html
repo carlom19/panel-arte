@@ -41,7 +41,7 @@
     <nav id="mainNavigation" class="fixed left-0 top-0 h-full w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 z-50 flex flex-col shadow-sm transition-all duration-300" style="display: none;">
         
         <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col gap-4">
-            <div class="flex items-center justify-between">
+            <div id="sidebarHeader" class="flex items-center justify-between transition-all duration-300">
                 <div class="flex items-center gap-3 overflow-hidden whitespace-nowrap">
                     <div class="w-8 h-8 min-w-[2rem] bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30">
                         <i class="fa-solid fa-layer-group"></i>
@@ -55,18 +55,7 @@
                 </button>
             </div>
 
-            <div class="flex items-center gap-3 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden whitespace-nowrap">
-                <div class="w-8 h-8 min-w-[2rem] rounded-full bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-200 shadow-sm">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-                <div class="nav-text overflow-hidden transition-opacity duration-300">
-                    <p class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate" id="navUserName">Usuario</p>
-                    <p class="text-[10px] text-slate-400 flex items-center gap-1 truncate" id="navDbStatus">
-                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
-                    </p>
-                </div>
             </div>
-        </div>
 
         <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1 overflow-x-hidden scrollbar-thin">
             <p class="nav-text px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 transition-opacity duration-300">Principal</p>
@@ -148,6 +137,7 @@
     </div>
 
     <div id="appMainContainer" class="transition-all duration-300 min-h-screen bg-slate-50 dark:bg-slate-900">
+        
         <div id="dashboard" class="main-view w-full" style="display: none;">
             <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
                 <div>
@@ -164,8 +154,23 @@
                         </div>
                     </div>
                     <div class="h-6 w-px bg-slate-200 dark:bg-slate-600"></div>
-                    <button onclick="exportTableToExcel()" class="text-slate-500 dark:text-slate-400 hover:text-green-600 transition text-xs font-medium flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"><i class="fa-solid fa-file-excel"></i> Exportar</button>
+                    <button onclick="exportTableToExcel()" class="hidden md:flex text-slate-500 dark:text-slate-400 hover:text-green-600 transition text-xs font-medium items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"><i class="fa-solid fa-file-excel"></i> Exportar</button>
                     <button onclick="openLegendModal()" class="text-slate-400 hover:text-slate-600 transition px-2" title="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
+                    
+                    <div class="h-6 w-px bg-slate-200 dark:bg-slate-600 mx-2"></div>
+                    
+                    <div class="flex items-center gap-3 pl-2">
+                        <div class="text-right hidden md:block">
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
+                            <p class="text-[10px] text-slate-400 flex items-center justify-end gap-1 leading-tight" id="navDbStatus">
+                                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
+                            </p>
+                        </div>
+                        <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-sm">
+                             <i class="fa-solid fa-user"></i>
+                        </div>
+                    </div>
+
                 </div>
             </header>
             
@@ -245,6 +250,19 @@
                 <div class="flex gap-3 items-center">
                     <div class="relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i></div><input type="text" id="kanbanSearchInput" oninput="filterKanbanCards()" class="block w-48 rounded-lg border-0 py-1.5 pl-9 text-slate-900 dark:text-white dark:bg-slate-700 ring-1 ring-inset ring-slate-300 dark:ring-slate-600 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs shadow-sm" placeholder="Buscar en tablero..."></div>
                     <select id="kanbanDesignerFilter" onchange="updateKanban()" class="text-xs border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg py-1.5 shadow-sm focus:ring-pink-500"><option value="">Todos los Diseñadores</option></select>
+                    
+                    <div class="h-6 w-px bg-slate-200 dark:bg-slate-600 mx-2"></div>
+                    <div class="flex items-center gap-3 pl-2">
+                        <div class="text-right hidden md:block">
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
+                            <p class="text-[10px] text-slate-400 flex items-center justify-end gap-1 leading-tight" id="navDbStatus">
+                                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
+                            </p>
+                        </div>
+                        <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-sm">
+                             <i class="fa-solid fa-user"></i>
+                        </div>
+                    </div>
                 </div>
             </header>
             <div class="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-slate-50/50 dark:bg-slate-900/50">
@@ -258,17 +276,59 @@
         </div>
 
         <div id="designerMetricsView" class="main-view w-full" style="display: none;">
-            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center"><h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas por Diseñador</h1></header>
+            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
+                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas por Diseñador</h1>
+                
+                <div class="flex items-center gap-3 pl-2">
+                    <div class="text-right hidden md:block">
+                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
+                        <p class="text-[10px] text-slate-400 flex items-center justify-end gap-1 leading-tight" id="navDbStatus">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
+                        </p>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-sm">
+                            <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+            </header>
             <div class="w-full px-6 py-8"><div class="grid grid-cols-1 lg:grid-cols-4 gap-6"><div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 h-fit"><h3 class="font-bold mb-4 text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wide">Seleccionar Diseñador</h3><div id="metricsSidebarList" class="space-y-1 max-h-[600px] overflow-y-auto scrollbar-thin pr-1"></div></div><div id="metricsDetail" class="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 min-h-[400px]"><div class="flex items-center justify-center h-full text-slate-400"><p>Selecciona un diseñador para ver sus estadísticas</p></div></div></div></div>
         </div>
         
         <div id="departmentMetricsView" class="main-view w-full" style="display: none;">
-            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center"><h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas Globales del Departamento</h1></header>
+            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
+                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Métricas Globales del Departamento</h1>
+                
+                <div class="flex items-center gap-3 pl-2">
+                    <div class="text-right hidden md:block">
+                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
+                        <p class="text-[10px] text-slate-400 flex items-center justify-end gap-1 leading-tight" id="navDbStatus">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
+                        </p>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-sm">
+                            <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+            </header>
             <div class="w-full px-6 py-8"><div id="departmentMetricsContent" class="space-y-6"></div></div>
         </div>
         
         <div id="workPlanView" class="main-view w-full" style="display: none;">
-            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between"><h1 class="text-lg font-bold text-slate-800 dark:text-white">Plan de Trabajo Semanal</h1></header>
+            <header class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm px-6 h-16 flex items-center justify-between">
+                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Plan de Trabajo Semanal</h1>
+                
+                <div class="flex items-center gap-3 pl-2">
+                    <div class="text-right hidden md:block">
+                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight" id="navUserName">Usuario</p>
+                        <p class="text-[10px] text-slate-400 flex items-center justify-end gap-1 leading-tight" id="navDbStatus">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Desconectado
+                        </p>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-sm">
+                            <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+            </header>
             <div class="w-full px-6 py-8"><div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6"><div class="flex flex-wrap gap-4 mb-6 items-end border-b border-slate-100 dark:border-slate-700 pb-6"><div class="w-full sm:w-auto"><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Semana Objetivo</label><input type="week" id="view-workPlanWeekSelector" onchange="generateWorkPlan()" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white py-2 text-sm focus:ring-blue-500 focus:border-blue-500 text-slate-700"></div><button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 text-xs font-bold shadow-sm transition-colors flex items-center gap-2" onclick="loadUrgentOrdersToPlan()"><i class="fa-solid fa-bolt"></i> Cargar Urgentes</button><span id="view-workPlanSummary" class="ml-auto text-xs text-slate-600 dark:text-slate-300 font-bold bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600"></span></div><div id="view-workPlanContent" class="space-y-6"></div></div></div>
         </div>
 
