@@ -275,7 +275,7 @@ window.iniciarLogout = () => {
 };
 
 // --- HELPER PARA ACTUALIZAR TODOS LOS HEADERS SIMULTÁNEAMENTE ---
-// Esta función busca TODOS los elementos con ese ID (aunque estén duplicados)
+// Esta función busca TODOS los elementos con ese ID (aunque estén duplicados en el HTML)
 window.updateAllHeaders = (user, statusType = 'offline') => {
     const nameEls = document.querySelectorAll('[id="navUserName"]');
     const statusEls = document.querySelectorAll('[id="navDbStatus"]');
@@ -300,7 +300,7 @@ window.updateAllHeaders = (user, statusType = 'offline') => {
 
 // --- INICIALIZACIÓN DEL DOM ---
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v7.4 Loaded (Multi-Header Support)');
+    console.log('App v7.4 Loaded (Multi-Header & Roles Support)');
     
     initTheme();
 
@@ -335,22 +335,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) {
             usuarioActual = user;
             
-            // >>> AQUÍ USAMOS LA NUEVA LÓGICA PARA ACTUALIZAR TODOS LOS HEADERS <<<
+            // Actualizar headers visualmente
             window.updateAllHeaders(user, 'syncing'); 
 
-            // Verificar Rol de Admin
+            // --- GESTIÓN DE ROLES (ADMIN / AUDITOR / USER) ---
             const userEmail = user.email.toLowerCase();
             db_firestore.collection('users').doc(userEmail).get().then((doc) => {
+                
+                // Reset inicial de visibilidad
+                const btnReset = document.getElementById('nav-resetApp');
+                const btnTeam = document.getElementById('nav-manageTeam');
+                const btnRoles = document.getElementById('nav-adminRoles'); // Nuevo botón
+
                 if (doc.exists && doc.data().role === 'admin') {
                     userRole = 'admin';
-                    if(document.getElementById('nav-resetApp')) document.getElementById('nav-resetApp').style.display = 'flex';
-                    if(document.getElementById('nav-manageTeam')) document.getElementById('nav-manageTeam').style.display = 'flex';
+                    // MOSTRAR TODO A ADMINS
+                    if(btnReset) btnReset.style.display = 'flex';
+                    if(btnTeam) btnTeam.style.display = 'flex';
+                    if(btnRoles) btnRoles.style.display = 'flex';
                 } else {
-                    userRole = 'user';
-                    if(document.getElementById('nav-resetApp')) document.getElementById('nav-resetApp').style.display = 'none';
-                    if(document.getElementById('nav-manageTeam')) document.getElementById('nav-manageTeam').style.display = 'none';
+                    userRole = 'user'; // Por defecto
+                    
+                    // Si es auditor, asignamos el rol pero NO mostramos herramientas de admin técnico
+                    if (doc.exists && doc.data().role === 'auditor') {
+                        userRole = 'auditor';
+                    }
+
+                    // OCULTAR HERRAMIENTAS ADMINISTRATIVAS
+                    if(btnReset) btnReset.style.display = 'none';
+                    if(btnTeam) btnTeam.style.display = 'none';
+                    if(btnRoles) btnRoles.style.display = 'none';
                 }
-            }).catch(() => { userRole = 'user'; });
+            }).catch((err) => { 
+                console.warn("Error verificando rol:", err);
+                userRole = 'user'; 
+            });
 
             login.style.display = 'none';
             if (!isExcelLoaded) {
@@ -406,13 +425,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Delegación de eventos para elementos dinámicos
     const delegate = (id, sel, cb) => { const el = document.getElementById(id); if(el) el.addEventListener('click', e => { const t = e.target.closest(sel); if(t) cb(t, e); }); };
+    
     delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
+    
     delegate('metricsSidebarList', '.filter-btn', (btn) => {
         document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-50', 'border-blue-200'));
         btn.classList.add('active', 'bg-blue-50', 'border-blue-200');
         generateDesignerMetrics(btn.dataset.designer);
     });
+    
     delegate('childOrdersList', '.btn-delete-child', (btn, e) => { e.stopPropagation(); deleteChildOrder(btn.dataset.childId, btn.dataset.childCode); });
+    
     delegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
 });
 
@@ -3205,51 +3228,97 @@ function renderQualityCharts(logs) {
 }
 
 // ======================================================
-// ===== 23. HERRAMIENTAS ADMINISTRATIVAS (SOLO CONSOLA) =====
+// ===== 23. HERRAMIENTAS ADMINISTRATIVAS (UI VISUAL) =====
 // ======================================================
 
-/**
- * Función para crear o actualizar roles de usuario.
- * Uso desde Consola (F12): window.crearUsuario('correo@ejemplo.com', 'admin');
- * Roles permitidos: 'admin', 'auditor', 'user'
- */
-window.crearUsuario = async (email, rol = 'user') => {
-    // 1. Verificar si quien ejecuta es Admin
-    if (!usuarioActual || userRole !== 'admin') {
-        console.error("⛔ ERROR DE PERMISOS: Solo un administrador actual puede crear otros usuarios.");
-        alert("⛔ No tienes permisos de Administrador para realizar esta acción.");
-        return;
-    }
+// 1. Abrir Modal y Cargar Lista
+window.openUserRoleManager = async () => {
+    if (userRole !== 'admin') return showCustomAlert('Acceso denegado: Solo administradores.', 'error');
+    
+    openModalById('userRoleModal');
+    renderUserRoleList();
+};
 
-    // 2. Validaciones básicas
-    if (!email || !email.includes('@')) {
-        console.error("⚠️ Email inválido.");
-        return;
-    }
-
-    const validRoles = ['admin', 'auditor', 'user'];
-    if (!validRoles.includes(rol)) {
-        console.error(`⚠️ Rol inválido. Usa: ${validRoles.join(', ')}`);
-        return;
-    }
+// 2. Renderizar Lista de Usuarios desde Firestore
+async function renderUserRoleList() {
+    const list = document.getElementById('userRoleList');
+    list.innerHTML = '<tr><td colspan="3" class="p-4 text-center"><div class="spinner"></div></td></tr>';
 
     try {
-        const emailLimpio = email.trim().toLowerCase();
+        const snapshot = await db_firestore.collection('users').orderBy('email').get();
         
-        // 3. Guardar en Firestore (Colección 'users')
-        await db_firestore.collection('users').doc(emailLimpio).set({
-            email: emailLimpio,
-            role: rol,
+        if (snapshot.empty) {
+            list.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400 italic">No hay usuarios con roles asignados.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        snapshot.forEach(doc => {
+            const u = doc.data();
+            const badgeColor = u.role === 'admin' ? 'bg-red-100 text-red-700' : u.role === 'auditor' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
+            
+            html += `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 group">
+                <td class="p-3">
+                    <div class="font-bold text-slate-800 dark:text-white">${escapeHTML(u.email)}</div>
+                    <div class="text-[10px] text-slate-400">Actualizado: ${new Date(u.updatedAt || u.createdAt || Date.now()).toLocaleDateString()}</div>
+                </td>
+                <td class="p-3">
+                    <span class="px-2 py-1 rounded text-xs font-bold uppercase ${badgeColor} border border-opacity-20">${escapeHTML(u.role)}</span>
+                </td>
+                <td class="p-3 text-right">
+                    <button onclick="deleteUserRole('${doc.id}')" class="text-slate-400 hover:text-red-500 transition p-2" title="Revocar permisos">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+        });
+        
+        list.innerHTML = html;
+
+    } catch (e) {
+        console.error(e);
+        list.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Error cargando usuarios.</td></tr>';
+    }
+}
+
+// 3. Guardar (Agregar o Editar) Usuario
+window.saveUserRole = async () => {
+    const email = document.getElementById('roleUserEmail').value.trim().toLowerCase();
+    const role = document.getElementById('roleUserType').value;
+
+    if (!email || !email.includes('@')) return showCustomAlert('Ingresa un correo válido.', 'error');
+    if (userRole !== 'admin') return showCustomAlert('No tienes permisos.', 'error');
+
+    await safeFirestoreOperation(async () => {
+        await db_firestore.collection('users').doc(email).set({
+            email: email,
+            role: role,
             updatedAt: new Date().toISOString(),
             updatedBy: usuarioActual.email
         }, { merge: true });
+        
+        // Limpiar input y recargar lista
+        document.getElementById('roleUserEmail').value = '';
+        renderUserRoleList();
+        return true;
+    }, 'Guardando permisos...', `Usuario ${email} ahora es ${role.toUpperCase()}`);
+};
 
-        // 4. Feedback
-        console.log(`✅ ÉXITO: Usuario ${emailLimpio} guardado con rol '${rol}'`);
-        alert(`✅ Usuario actualizado correctamente:\n\nEmail: ${emailLimpio}\nRol: ${rol.toUpperCase()}`);
-
-    } catch (e) {
-        console.error("Error creando usuario:", e);
-        alert("Error al guardar en base de datos: " + e.message);
+// 4. Eliminar Usuario (Revocar Permisos)
+window.deleteUserRole = async (emailId) => {
+    if (userRole !== 'admin') return showCustomAlert('No tienes permisos.', 'error');
+    
+    // Protección: No borrarte a ti mismo si eres el único admin (básico)
+    if (emailId === usuarioActual.email.toLowerCase()) {
+        return showCustomAlert('No puedes eliminar tu propio rol de administrador.', 'error');
     }
+
+    showConfirmModal(`¿Revocar permisos a ${emailId}?`, async () => {
+        await safeFirestoreOperation(async () => {
+            await db_firestore.collection('users').doc(emailId).delete();
+            renderUserRoleList();
+            return true;
+        }, 'Eliminando...', 'Permisos revocados.');
+    });
 };
