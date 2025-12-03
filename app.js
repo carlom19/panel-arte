@@ -798,7 +798,11 @@ async function processAndUploadFile(file) {
 
             if (!currentClient || !currentContrato) continue;
 
-            let qty = 0, dept = CONFIG.DEPARTMENTS.NONE;
+            // =========================================================================
+            // MODIFICACIÓN APLICADA: Asignar 'ART' por defecto en lugar de 'NONE'
+            // =========================================================================
+            let qty = 0, dept = CONFIG.DEPARTMENTS.ART; 
+
             for (let i = deptCols.length - 1; i >= 0; i--) {
                 const val = r[deptCols[i].idx];
                 if (val) { 
