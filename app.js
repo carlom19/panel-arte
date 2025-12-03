@@ -19,7 +19,6 @@ if (typeof firebase !== 'undefined' && !firebase.apps.length) {
 }
 
 const db_firestore = firebase.firestore(); 
-// Habilitar persistencia offline para velocidad
 db_firestore.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('Persistencia:', err.code));
 
 // --- Configuración Global ---
@@ -79,8 +78,6 @@ let autoCompleteBatchWrites = [];
 let autoCompletedOrderIds = new Set(); 
 let masterOrdersLoaded = false;
 let pendingRejection = null; 
-
-// ✅ CORRECCIÓN #3: Flag global para evitar Race Conditions en operaciones masivas
 let batchProcessing = false; 
 
 // Suscripciones de Firebase
@@ -93,7 +90,7 @@ let unsubscribeNotifications = null;
 let unsubscribeChat = null;
 let unsubscribeQualityLogs = null;
 
-// Mapas de Datos en Memoria
+// Mapas de Datos
 let masterOrdersMap = new Map();
 let firebaseAssignmentsMap = new Map();
 let firebaseHistoryMap = new Map();
@@ -120,10 +117,8 @@ const modalStack = [];
 function openModalById(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
-
     modal.style.zIndex = 2000 + (modalStack.length * 10);
     if (modalId === 'confirmModal') modal.style.zIndex = parseInt(modal.style.zIndex) + 1000;
-
     modal.classList.add('active');
     modalStack.push(modalId);
     document.body.classList.add('modal-open');
@@ -131,17 +126,13 @@ function openModalById(modalId) {
 
 function closeTopModal() {
     if (modalStack.length === 0) return;
-
     const modalId = modalStack.pop(); 
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.remove('active');
-
-    // Limpieza de seguridad del chat para evitar Memory Leaks
     if (modalId === 'assignModal' && unsubscribeChat) {
         unsubscribeChat();
         unsubscribeChat = null;
     }
-
     if (modalStack.length === 0) document.body.classList.remove('modal-open');
 }
 
@@ -149,18 +140,13 @@ function closeAllModals() {
     document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
     modalStack.length = 0;
     document.body.classList.remove('modal-open');
-
-    if (unsubscribeChat) {
-        unsubscribeChat();
-        unsubscribeChat = null;
-    }
+    if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
 }
 
 document.addEventListener('keydown', (e) => { 
     if (e.key === 'Escape' && modalStack.length > 0) closeTopModal(); 
 });
 
-// Exponer funciones al scope global
 window.closeModal = () => closeTopModal(); 
 window.closeConfirmModal = () => closeTopModal(); 
 window.closeMultiModal = () => closeTopModal(); 
@@ -170,10 +156,9 @@ window.closeCompareModals = () => closeAllModals();
 window.closeWeeklyReportModal = () => closeTopModal(); 
 
 // ======================================================
-// ===== 3. UTILIDADES (CORREGIDAS) =====
+// ===== 3. UTILIDADES =====
 // ======================================================
 
-// ✅ CORRECCIÓN #1: initTheme definido ANTES de usarse en DOMContentLoaded
 function initTheme() {
     if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
@@ -191,7 +176,6 @@ function updateThemeIcon() {
     }
 }
 
-// ✅ CORRECCIÓN #11: toggleTheme ahora actualiza los gráficos al cambiar de modo
 window.toggleTheme = () => {
     const html = document.documentElement;
     if (html.classList.contains('dark')) {
@@ -202,8 +186,8 @@ window.toggleTheme = () => {
         localStorage.setItem('theme', 'dark');
     }
     updateThemeIcon();
-
-    // Actualización reactiva de gráficos según la vista activa
+    
+    // Actualizar gráficos activos
     const visibleView = document.querySelector('.main-view[style*="display: block"]');
     if (visibleView) {
         if (visibleView.id === 'designerMetricsView' && typeof generateDesignerMetrics === 'function') {
@@ -217,7 +201,6 @@ window.toggleTheme = () => {
     }
 };
 
-// ✅ CORRECCIÓN #5: Función centralizada de seguridad para acciones administrativas
 function requireAdmin() {
     if (userRole !== 'admin') {
         showCustomAlert('Acceso denegado: Solo administradores.', 'error');
@@ -262,7 +245,7 @@ function hideLoading() { const o = document.getElementById('loadingOverlay'); if
 let debounceTimer;
 function debounce(func, delay) { return function() { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => func.apply(this, arguments), delay); } }
 function preventDefaults(e){ e.preventDefault(); e.stopPropagation(); }
-function escapeHTML(str) { return !str ? '' : String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function escapeHTML(str) { return !str ? '' : String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&gt;').replace(/"/g, '&quot;'); }
 function formatDate(d) { return d ? d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'; }
 function getWeekIdentifierString(d) { const date = new Date(d.getTime()); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7); var week1 = new Date(date.getFullYear(), 0, 4); return `${date.getFullYear()}-W${String(1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)).padStart(2, '0')}`; }
 async function createNotification(recipientEmail, type, title, message, orderId) { try { await db_firestore.collection('notifications').add({ recipientEmail: recipientEmail.toLowerCase().trim(), type, title, message, orderId, read: false, timestamp: new Date().toISOString() }); } catch (e) { console.error("Error notify:", e); } }
@@ -299,11 +282,11 @@ window.updateAllHeaders = (user, statusType = 'offline') => {
 
 // --- INICIALIZACIÓN DEL DOM ---
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v7.5 Patched (Stability & Security)');
+    console.log('App v7.5 Loaded (Initialization Fixes)');
 
-    initTheme(); // Ahora es seguro llamarlo aquí
+    initTheme(); 
 
-    // ✅ CORRECCIÓN #10: Sidebar asíncrono para asegurar DOM listo
+    // ✅ CORRECCIÓN: Inicialización asíncrona de Sidebar
     setTimeout(() => {
         const sidebarBtn = document.getElementById('sidebarToggleBtn');
         if (localStorage.getItem('sidebarState') === 'collapsed') {
@@ -318,14 +301,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 0);
 
-    // --- Listeners de Auth ---
     const btnLogin = document.getElementById('loginButton');
     if(btnLogin) btnLogin.addEventListener('click', window.iniciarLoginConGoogle);
 
     const btnLogout = document.getElementById('logoutNavBtn');
     if(btnLogout) btnLogout.addEventListener('click', window.iniciarLogout);
 
-    // --- ESTADO Y ROLES ---
     firebase.auth().onAuthStateChanged((user) => {
         const login = document.getElementById('loginSection');
         const upload = document.getElementById('uploadSection');
@@ -336,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
             usuarioActual = user;
             window.updateAllHeaders(user, 'syncing'); 
 
-            // Gestión de Roles
+            // Rol check
             const userEmail = user.email.toLowerCase();
             db_firestore.collection('users').doc(userEmail).get().then((doc) => {
                 const btnReset = document.getElementById('nav-resetApp');
@@ -356,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(btnRoles) btnRoles.style.display = 'none';
                 }
             }).catch((err) => { 
-                console.warn("Error verificando rol:", err);
+                console.warn("Error rol:", err);
                 userRole = 'user'; 
             });
 
@@ -376,7 +357,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Filtros e Interfaz (Event Listeners)
     const searchInp = document.getElementById('searchInput');
     if(searchInp) searchInp.addEventListener('input', debounce((e) => { currentSearch = e.target.value; currentPage = 1; updateTable(); }, 300));
 
@@ -395,18 +375,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 150));
     });
 
-    // Drag & Drop
+    // ✅ CORRECCIÓN DRAG & DROP: Eliminar listener de 'click' duplicado
     const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput');
     if(dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
-        dropZone.addEventListener('drop', (e) => { dropZone.classList.remove('border-blue-500','bg-blue-50'); handleFiles(e.dataTransfer.files); });
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+        
+        dropZone.addEventListener('drop', (e) => { 
+            dropZone.classList.remove('border-blue-500','bg-blue-50'); 
+            handleFiles(e.dataTransfer.files); 
+        });
+
+        // ❌ SE ELIMINÓ dropZone.addEventListener('click', ...); 
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFiles(e.target.files);
+            }
+            e.target.value = ''; // Limpiar para permitir re-subir
+        });
     }
 
-    // Delegación de Eventos
     const delegate = (id, sel, cb) => { const el = document.getElementById(id); if(el) el.addEventListener('click', e => { const t = e.target.closest(sel); if(t) cb(t, e); }); };
-
     delegate('designerManagerList', '.btn-delete-designer', (btn) => deleteDesigner(btn.dataset.id, btn.dataset.name));
     delegate('metricsSidebarList', '.filter-btn', (btn) => {
         document.querySelectorAll('#metricsSidebarList .filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-50', 'border-blue-200'));
@@ -1892,7 +1881,6 @@ window.exportMonthlyReport = (designerName) => {
             "CANT. MONTADA": "", 
             "PROOF": "", 
             "APROBACION": "", 
-            // ✅ CORRECCIÓN #9: Formato YYYY-MM-DD para Excel
             "PRODUCCION": o.completedDate ? o.completedDate.split('T')[0] : ''
         };
     });
@@ -1938,7 +1926,6 @@ function generateDepartmentMetrics() {
         const designer = o.designer || 'Sin asignar';
         if (CONFIG.EXCLUDED_DESIGNERS.includes(designer)) return;
 
-        // A. Lead Time
         if (o.customStatus === CONFIG.STATUS.COMPLETED && o.receivedDate && o.completedDate) {
             const start = new Date(o.receivedDate);
             const end = new Date(o.completedDate);
@@ -1950,11 +1937,9 @@ function generateDepartmentMetrics() {
             leadTimes[designer].count++;
         }
 
-        // B. Complejidad
         const comp = o.complexity || 'Media'; 
         if (complexityDist[comp] !== undefined) complexityDist[comp]++;
 
-        // C. Retrabajo
         const hist = firebaseHistoryMap.get(o.orderId) || [];
         const hasRework = hist.some(h => {
             const t = h.change.toLowerCase();
@@ -3030,5 +3015,39 @@ window.deleteUserRole = async (emailId) => {
             renderUserRoleList();
             return true;
         }, 'Eliminando...', 'Permisos revocados.');
+    });
+};
+
+window.resetApp = () => {
+    // ✅ CORRECCIÓN: Debug logs y validación admin explícita
+    console.log("Intento de resetear app. Rol actual:", userRole);
+
+    if (userRole !== 'admin') {
+        showCustomAlert(`Acceso denegado. Tu rol es: ${userRole}. Contacta a soporte.`, 'error');
+        return;
+    }
+
+    showConfirmModal("¿Subir nuevo archivo? Se borrarán los datos de la memoria local (no de la nube).", () => {
+        console.log("Reseteando interfaz...");
+        
+        const main = document.getElementById('appMainContainer');
+        const nav = document.getElementById('mainNavigation');
+        const upload = document.getElementById('uploadSection');
+
+        if(main) main.style.display = 'none';
+        if(nav) nav.style.display = 'none';
+        if(upload) upload.style.display = 'block';
+        
+        allOrders = []; 
+        isExcelLoaded = false;
+        masterOrdersLoaded = false;
+        document.getElementById('fileInput').value = ''; 
+        document.getElementById('fileName').textContent = '';
+        
+        desconectarDatosDeFirebase(); 
+        
+        if (typeof destroyAllCharts === 'function') destroyAllCharts();
+
+        showCustomAlert("Listo para cargar nuevo archivo.", "info");
     });
 };
