@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v7.5 (System-Driven)</title>
+    <title>Panel de Control - Arte v7.5 (Interactive Dashboard)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -28,7 +28,15 @@
             theme: {
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: { slate: { 850: '#1e293b' } }
+                    colors: { slate: { 850: '#1e293b' } },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out forwards',
+                        'fade-in-up': 'fadeInUp 0.3s ease-out forwards'
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        fadeInUp: { '0%': { opacity: '0', transform: 'translateY(5px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+                    }
                 }
             }
         }
@@ -182,13 +190,32 @@
             <main class="w-full px-6 py-6 pb-24">
                  <div class="w-full space-y-6">
                     <div id="summaryBox" class="hidden"></div> 
+                    
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-blue-200 transition-all"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total P_Art</p><i class="fa-solid fa-box-open text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors"></i></div><div class="text-2xl font-bold text-slate-900 dark:text-white" id="statTotal">0</div></div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-purple-200 transition-all"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Piezas</p><i class="fa-solid fa-layer-group text-slate-300 dark:text-slate-600 group-hover:text-purple-500 transition-colors"></i></div><div class="text-2xl font-bold text-slate-900 dark:text-white" id="statTotalPieces">0</div></div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-red-200 hover:bg-red-50/30 dark:hover:bg-red-900/20 transition-all cursor-pointer" onclick="setFilter('veryLate')"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-red-600 uppercase tracking-wide">Atrasadas</p><i class="fa-solid fa-triangle-exclamation text-red-200 dark:text-red-900 group-hover:text-red-500 transition-colors"></i></div><div class="text-2xl font-bold text-red-600" id="statLate">0</div></div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-yellow-200 hover:bg-yellow-50/30 dark:hover:bg-yellow-900/20 transition-all cursor-pointer" onclick="setFilter('aboutToExpire')"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-yellow-600 uppercase tracking-wide">Por Vencer</p><i class="fa-solid fa-hourglass-half text-yellow-200 dark:text-yellow-900 group-hover:text-yellow-500 transition-colors"></i></div><div class="text-2xl font-bold text-yellow-600" id="statExpiring">0</div></div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-green-200 transition-all"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-green-600 uppercase tracking-wide">A Tiempo</p><i class="fa-solid fa-circle-check text-green-200 dark:text-green-900 group-hover:text-green-500 transition-colors"></i></div><div class="text-2xl font-bold text-green-600" id="statOnTime">0</div></div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-orange-200 transition-all"><div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Esta Semana</p><i class="fa-solid fa-calendar-week text-slate-300 dark:text-slate-600 group-hover:text-orange-500 transition-colors"></i></div><div class="text-2xl font-bold text-orange-600" id="statThisWeek">0</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-blue-200 transition-all cursor-pointer" onclick="clearBreadcrumbs()">
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total P_Art</p><i class="fa-solid fa-box-open text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors"></i></div>
+                            <div class="text-2xl font-bold text-slate-900 dark:text-white" id="statTotal">0</div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-purple-200 transition-all cursor-default">
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Piezas</p><i class="fa-solid fa-layer-group text-slate-300 dark:text-slate-600 group-hover:text-purple-500 transition-colors"></i></div>
+                            <div class="text-2xl font-bold text-slate-900 dark:text-white" id="statTotalPieces">0</div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-red-200 hover:bg-red-50/30 dark:hover:bg-red-900/20 transition-all cursor-pointer" onclick="handleDrillDown('late', 'veryLate', '⚠️ Muy Atrasadas')">
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-red-600 uppercase tracking-wide">Atrasadas</p><i class="fa-solid fa-triangle-exclamation text-red-200 dark:text-red-900 group-hover:text-red-500 transition-colors"></i></div>
+                            <div class="text-2xl font-bold text-red-600" id="statLate">0</div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-yellow-200 hover:bg-yellow-50/30 dark:hover:bg-yellow-900/20 transition-all cursor-pointer" onclick="handleDrillDown('late', 'aboutToExpire', '⏳ Por Vencer')">
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-yellow-600 uppercase tracking-wide">Por Vencer</p><i class="fa-solid fa-hourglass-half text-yellow-200 dark:text-yellow-900 group-hover:text-yellow-500 transition-colors"></i></div>
+                            <div class="text-2xl font-bold text-yellow-600" id="statExpiring">0</div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-green-200 transition-all cursor-pointer" onclick="handleDrillDown('late', 'onTime', '✅ A Tiempo')">
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-green-600 uppercase tracking-wide">A Tiempo</p><i class="fa-solid fa-circle-check text-green-200 dark:text-green-900 group-hover:text-green-500 transition-colors"></i></div>
+                            <div class="text-2xl font-bold text-green-600" id="statOnTime">0</div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between h-24 group hover:border-orange-200 transition-all">
+                            <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Esta Semana</p><i class="fa-solid fa-calendar-week text-slate-300 dark:text-slate-600 group-hover:text-orange-500 transition-colors"></i></div>
+                            <div class="text-2xl font-bold text-orange-600" id="statThisWeek">0</div>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -212,6 +239,17 @@
                             <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Hasta Fecha</label><input type="date" id="dateTo" class="filter-input dark:bg-slate-700 dark:text-white dark:border-slate-600"></div>
                             <div class="col-span-2 lg:col-span-2"><button class="w-full rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-800 transition border border-slate-200 dark:border-slate-600" onclick="clearAllFilters()"><i class="fa-solid fa-eraser mr-1"></i> Limpiar Filtros</button></div>
                         </div>
+                    </div>
+
+                    <div id="activeFiltersContainer" class="hidden w-full items-center gap-3 animate-fade-in pl-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-filter"></i> Filtros Activos:
+                        </span>
+                        <ul id="filterBreadcrumbsList" class="flex flex-wrap gap-2 items-center">
+                            </ul>
+                        <button onclick="clearBreadcrumbs()" class="ml-auto text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline transition">
+                            Limpiar Todo
+                        </button>
                     </div>
 
                     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">

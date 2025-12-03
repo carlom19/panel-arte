@@ -1211,9 +1211,11 @@ function updateAlerts(stats) {
     if (!container) return;
 
     let html = '';
+    
+    // ACTUALIZADO: Usa handleDrillDown en lugar de setFilter
     if (stats.veryLate > 0) {
         html += `
-        <div onclick="setFilter('veryLate'); toggleNotifications();" class="p-3 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800">
+        <div onclick="handleDrillDown('late', 'veryLate', '⚠️ Muy Atrasadas'); toggleNotifications();" class="p-3 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800">
             <div class="mt-1 text-red-500"><i class="fa-solid fa-circle-exclamation"></i></div>
             <div>
                 <p class="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-red-600 dark:group-hover:text-red-400">Muy Atrasadas (>7 días)</p>
@@ -1221,9 +1223,11 @@ function updateAlerts(stats) {
             </div>
         </div>`;
     }
+    
+    // ACTUALIZADO: Usa handleDrillDown en lugar de setFilter
     if (stats.aboutToExpire > 0) {
         html += `
-        <div onclick="setFilter('aboutToExpire'); toggleNotifications();" class="p-3 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800">
+        <div onclick="handleDrillDown('late', 'aboutToExpire', '⏳ Por Vencer'); toggleNotifications();" class="p-3 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 cursor-pointer border-b border-slate-50 dark:border-slate-700 group transition flex gap-3 items-start bg-white dark:bg-slate-800">
             <div class="mt-1 text-yellow-500"><i class="fa-solid fa-stopwatch"></i></div>
             <div>
                 <p class="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-yellow-600 dark:group-hover:text-yellow-400">Por Vencer (≤2 días)</p>
@@ -1244,9 +1248,11 @@ function updateWidgets(artOrders) {
 
     const clientReport = document.getElementById('clientReport');
     if (clientReport) {
+        // ACTUALIZADO: Clickeable con handleDrillDown
         clientReport.innerHTML = topClients.map(([c, n], i) => `
-            <div class="flex justify-between py-2 border-b border-slate-50 dark:border-slate-700 last:border-0 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-2 rounded transition">
-                <span class="text-slate-600 dark:text-slate-300 truncate w-40 font-medium" title="${c}">${i+1}. ${c}</span>
+            <div onclick="handleDrillDown('client', '${escapeHTML(c)}', 'Cliente: ${escapeHTML(c)}')" 
+                 class="flex justify-between py-2 border-b border-slate-50 dark:border-slate-700 last:border-0 text-xs hover:bg-blue-50 dark:hover:bg-slate-700 px-2 rounded transition cursor-pointer group">
+                <span class="text-slate-600 dark:text-slate-300 truncate w-40 font-medium group-hover:text-blue-600 transition-colors" title="${c}">${i+1}. ${c}</span>
                 <span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">${n}</span>
             </div>`).join('');
     }
@@ -1276,9 +1282,11 @@ function updateWidgets(artOrders) {
                 const isExcluded = CONFIG.EXCLUDED_DESIGNERS.includes(designer);
                 const pct = (totalWorkload > 0 && !isExcluded) ? ((pieces / totalWorkload) * 100).toFixed(1) : 0;
 
+                // ACTUALIZADO: Clickeable con handleDrillDown
                 return `
-                <div class="mb-3 ${isExcluded ? 'opacity-50' : ''}">
-                    <div class="flex justify-between text-xs mb-1">
+                <div onclick="handleDrillDown('designer', '${escapeHTML(designer)}', 'Diseñador: ${escapeHTML(designer)}')" 
+                     class="mb-3 group cursor-pointer ${isExcluded ? 'opacity-50' : ''}">
+                    <div class="flex justify-between text-xs mb-1 group-hover:text-blue-600 transition-colors">
                         <span class="text-slate-700 dark:text-slate-300 font-bold truncate w-32">${designer} ${isExcluded ? '(Excl)' : ''}</span>
                         <span class="text-slate-500 dark:text-slate-400">${pieces.toLocaleString()} ${!isExcluded ? `(${pct}%)` : ''}</span>
                     </div>
@@ -2868,6 +2876,245 @@ function updateAllDesignerDropdowns() {
     const compareHtml = '<option value="">Seleccionar...</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
     if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
 }
+
+// ======================================================
+// ===== 20. SISTEMA DE DRILL-DOWN Y NAVEGACIÓN =====
+// ======================================================
+
+// Estado de filtros activos (Mapeo a variables globales existentes)
+const FILTER_STATE = {
+    labels: [], // Para breadcrumbs visuales
+    active: false
+};
+
+/**
+ * Función Maestra de Drill-Down
+ * Aplica filtros, actualiza la URL, la UI y navega a la tabla.
+ * @param {string} filterType - Tipo de filtro: 'status', 'client', 'designer', 'late', 'team', etc.
+ * @param {string} value - Valor a filtrar.
+ * @param {string} description - Texto para el breadcrumb (Ej: "Cliente: Nike").
+ */
+function handleDrillDown(filterType, value, description) {
+    // 1. Limpiar filtros previos si es un drill-down nuevo (opcional, depende de UX deseada)
+    // clearAllFilters(false); // false = no refrescar tabla aún
+
+    // 2. Mapear drill-down a variables globales existentes en app.js
+    switch (filterType) {
+        case 'client':
+            document.getElementById('clientFilter').value = value;
+            currentClientFilter = value;
+            break;
+        case 'designer':
+            document.getElementById('designerFilter').value = value;
+            currentDesignerFilter = value;
+            break;
+        case 'status':
+            // Mapeo especial para estados internos
+            document.getElementById('customStatusFilter').value = value;
+            currentCustomStatusFilter = value;
+            break;
+        case 'team':
+            document.getElementById('teamFilter').value = value;
+            currentTeamFilter = value;
+            break;
+        case 'late':
+            // Filtros predefinidos de estado
+            currentFilter = value; 
+            break;
+        case 'week':
+             // Lógica para filtrar por fecha (semana actual)
+             // Implementación simplificada: set date range
+             break;
+    }
+
+    // 3. Agregar a Breadcrumbs
+    addBreadcrumb(description, filterType);
+
+    // 4. Sincronizar URL (Query Params)
+    updateURLParams();
+
+    // 5. Navegar a la vista de dashboard si no estamos ahí
+    if (document.getElementById('dashboard').style.display === 'none') {
+        navigateTo('dashboard');
+    }
+
+    // 6. Ejecutar filtro y scroll a la tabla
+    currentPage = 1;
+    updateTable();
+    
+    // Smooth scroll a la tabla
+    const tableElement = document.querySelector('.table-container');
+    if (tableElement) {
+        tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+/**
+ * Gestión de Breadcrumbs (Migas de Pan)
+ */
+function addBreadcrumb(label, type) {
+    const container = document.getElementById('activeFiltersContainer');
+    const list = document.getElementById('filterBreadcrumbsList');
+    
+    if (!container || !list) return;
+
+    // Mostrar contenedor si estaba oculto
+    container.classList.remove('hidden');
+    container.classList.add('flex');
+
+    // Evitar duplicados visuales
+    const existing = Array.from(list.children).find(li => li.innerText.includes(label));
+    if (existing) return;
+
+    const li = document.createElement('li');
+    li.className = "flex items-center text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 px-3 py-1 rounded-full shadow-sm border border-slate-200 dark:border-slate-600 animate-fade-in-up";
+    li.innerHTML = `
+        <span class="mr-2">${label}</span>
+        <button onclick="removeBreadcrumb(this, '${type}')" class="text-slate-400 hover:text-red-500 transition">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    `;
+    list.appendChild(li);
+}
+
+window.removeBreadcrumb = (element, type) => {
+    // Remover visualmente
+    element.closest('li').remove();
+
+    // Revertir lógica de filtro global
+    switch (type) {
+        case 'client': document.getElementById('clientFilter').value = ''; currentClientFilter = ''; break;
+        case 'designer': document.getElementById('designerFilter').value = ''; currentDesignerFilter = ''; break;
+        case 'status': document.getElementById('customStatusFilter').value = ''; currentCustomStatusFilter = ''; break;
+        case 'team': document.getElementById('teamFilter').value = ''; currentTeamFilter = ''; break;
+        case 'late': currentFilter = 'all'; break;
+    }
+
+    // Si no quedan breadcrumbs, ocultar contenedor
+    const list = document.getElementById('filterBreadcrumbsList');
+    if (list.children.length === 0) {
+        document.getElementById('activeFiltersContainer').classList.add('hidden');
+        document.getElementById('activeFiltersContainer').classList.remove('flex');
+    }
+
+    updateURLParams();
+    updateTable();
+};
+
+window.clearBreadcrumbs = () => {
+    const list = document.getElementById('filterBreadcrumbsList');
+    if (list) list.innerHTML = '';
+    document.getElementById('activeFiltersContainer')?.classList.add('hidden');
+    document.getElementById('activeFiltersContainer')?.classList.remove('flex');
+    
+    // Llamar a la función original de limpieza
+    clearAllFilters();
+    
+    // Limpiar URL
+    const url = new URL(window.location);
+    url.search = "";
+    window.history.pushState({}, '', url);
+};
+
+/**
+ * Persistencia de Estado en URL
+ */
+function updateURLParams() {
+    const params = new URLSearchParams();
+    if (currentClientFilter) params.set('client', currentClientFilter);
+    if (currentDesignerFilter) params.set('designer', currentDesignerFilter);
+    if (currentCustomStatusFilter) params.set('status', currentCustomStatusFilter);
+    if (currentFilter !== 'all') params.set('filter', currentFilter);
+    
+    // Actualizar URL sin recargar
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+}
+
+function loadFiltersFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    let hasFilters = false;
+
+    if (params.has('client')) {
+        const val = params.get('client');
+        handleDrillDown('client', val, `Cliente: ${val}`);
+        hasFilters = true;
+    }
+    if (params.has('designer')) {
+        const val = params.get('designer');
+        handleDrillDown('designer', val, `Diseñador: ${val}`);
+        hasFilters = true;
+    }
+    if (params.has('status')) {
+        const val = params.get('status');
+        handleDrillDown('status', val, `Estado: ${val}`);
+        hasFilters = true;
+    }
+    if (params.has('filter')) {
+        const val = params.get('filter');
+        let label = val === 'late' ? 'Atrasadas' : val === 'veryLate' ? 'Muy Atrasadas' : 'Filtro';
+        handleDrillDown('late', val, label);
+        hasFilters = true;
+    }
+
+    if (hasFilters) updateTable();
+}
+
+/**
+ * Chart.js Click Handler (Integración)
+ * Esta función se debe asignar a la propiedad onClick de tus gráficos Chart.js
+ */
+function chartClickHandler(evt, elements, chartInstance) {
+    if (!elements || elements.length === 0) return;
+
+    const index = elements[0].index;
+    
+    // Obtener etiqueta y dataset
+    const label = chartInstance.data.labels[index];
+    const datasetLabel = chartInstance.data.datasets[elements[0].datasetIndex].label;
+
+    // Lógica inteligente según el ID del canvas
+    const canvasId = chartInstance.canvas.id;
+
+    if (canvasId === 'designerDoughnutChart') {
+        // Grafico de Pastel (Estado)
+        handleDrillDown('status', label, `Estado: ${label}`);
+    } 
+    else if (canvasId === 'designerBarChart') {
+        // Grafico de Barras (Eficiencia)
+        if (label === 'Atrasadas') handleDrillDown('late', 'late', 'Solo Atrasadas');
+        else if (label === 'Muy Atrasadas') handleDrillDown('late', 'veryLate', 'Críticas (>7 días)');
+        // 'A Tiempo' es más complejo filtrar directamente con la lógica actual, omitimos o creamos filtro custom
+    }
+    else if (canvasId === 'deptLoadBarChart') {
+        // Grafico de Lead Time (Nombres de Diseñadores en eje Y/X)
+        handleDrillDown('designer', label, `Diseñador: ${label}`);
+    }
+}
+
+// ======================================================
+// ===== INTEGRACIÓN EN INICIALIZACIÓN =====
+// ======================================================
+
+// Sobrescribir la función existing loadMasterOrders para chequear URL al final
+const originalLoadMasterOrders = loadMasterOrders;
+loadMasterOrders = async function() {
+    await originalLoadMasterOrders();
+    // Una vez cargados los datos, aplicamos filtros de URL si existen
+    setTimeout(loadFiltersFromURL, 500);
+};
+
+// Modificar configuración de ChartJS (inyectar dinámicamente)
+const originalChartConstructor = Chart;
+Chart = function(ctx, config) {
+    // Inyectar onClick si no existe y es uno de nuestros gráficos objetivo
+    if (!config.options.onClick) {
+        config.options.onClick = (e, els) => chartClickHandler(e, els, this);
+    }
+    return new originalChartConstructor(ctx, config);
+}
+// Copiar prototipo para mantener compatibilidad
+Object.assign(Chart, originalChartConstructor);
 
 // ======================================================
 // ===== 23. HERRAMIENTAS ADMINISTRATIVAS (USUARIOS) =====
