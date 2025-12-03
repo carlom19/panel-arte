@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Arte v7.4 (Enterprise)</title>
+    <title>Panel de Control - Arte v7.5 (System-Driven)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -147,7 +147,7 @@
                     <div>
                         <div class="flex items-center gap-2">
                             <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-tight">Panel Arte</h1>
-                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.4</span>
+                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.5</span>
                         </div>
                         <p class="text-[11px] text-slate-400 font-medium">Dashboard de Producción</p>
                     </div>
@@ -207,7 +207,7 @@
                             <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Team</label><select id="teamFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select></div>
                             <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Departamento</label><select id="departamentoFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select></div>
                             <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Diseñador</label><select id="designerFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"></select></div>
-                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Estado</label><select id="customStatusFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"><option value="">Todos</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option><option value="Completada">Completada</option></select></div>
+                            <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Estado</label><select id="customStatusFilter" class="filter-select dark:bg-slate-700 dark:text-white dark:border-slate-600"><option value="">Todos</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select></div>
                             <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Desde Fecha</label><input type="date" id="dateFrom" class="filter-input dark:bg-slate-700 dark:text-white dark:border-slate-600"></div>
                             <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Hasta Fecha</label><input type="date" id="dateTo" class="filter-input dark:bg-slate-700 dark:text-white dark:border-slate-600"></div>
                             <div class="col-span-2 lg:col-span-2"><button class="w-full rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-800 transition border border-slate-200 dark:border-slate-600" onclick="clearAllFilters()"><i class="fa-solid fa-eraser mr-1"></i> Limpiar Filtros</button></div>
@@ -259,7 +259,7 @@
                     <div>
                         <div class="flex items-center gap-2">
                             <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-tight">Panel Arte</h1>
-                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.4</span>
+                            <span class="text-blue-600 text-[10px] bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-bold">v7.5</span>
                         </div>
                         <p class="text-[11px] text-slate-400 font-medium">Flujo de Trabajo (Kanban)</p>
                     </div>
@@ -289,7 +289,6 @@
                     <div class="kanban-column flex flex-col w-80 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 h-full max-h-full shadow-sm"><div class="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-200/50 dark:bg-slate-700/50 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0"><h3 class="font-bold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-inbox text-slate-400"></i> Bandeja</h3><span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-600 dark:text-slate-200 border border-slate-300 dark:border-slate-500" id="count-Bandeja">0</span></div><div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Bandeja" ondragover="allowDrop(event)" ondrop="drop(event)"></div></div>
                     <div class="kanban-column flex flex-col w-80 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 h-full max-h-full shadow-sm"><div class="p-3 border-b border-blue-100 dark:border-blue-900 bg-blue-100/50 dark:bg-blue-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0"><h3 class="font-bold text-xs text-blue-800 dark:text-blue-300 uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-palette text-blue-400"></i> Producción</h3><span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-blue-600 dark:text-blue-200 border border-blue-200 dark:border-blue-800" id="count-Producción">0</span></div><div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Producción" ondragover="allowDrop(event)" ondrop="drop(event)"></div></div>
                     <div class="kanban-column flex flex-col w-80 bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900 h-full max-h-full shadow-sm"><div class="p-3 border-b border-purple-100 dark:border-purple-900 bg-purple-100/50 dark:bg-purple-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0"><h3 class="font-bold text-xs text-purple-800 dark:text-purple-300 uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-purple-400"></i> Auditoría</h3><span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-purple-600 dark:text-purple-200 border border-purple-200 dark:border-purple-800" id="count-Auditoría">0</span></div><div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Auditoría" ondragover="allowDrop(event)" ondrop="drop(event)"></div></div>
-                    <div class="kanban-column flex flex-col w-80 bg-green-50/50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900 h-full max-h-full opacity-90 shadow-sm"><div class="p-3 border-b border-green-100 dark:border-green-900 bg-green-100/50 dark:bg-green-900/30 rounded-t-xl flex justify-between items-center backdrop-blur-sm sticky top-0"><h3 class="font-bold text-xs text-green-800 dark:text-green-300 uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-check-circle text-green-500"></i> Completada</h3><span class="bg-white dark:bg-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold text-green-600 dark:text-green-200 border border-green-200 dark:border-green-800" id="count-Completada">0</span></div><div class="flex-1 overflow-y-auto p-2 space-y-2 kanban-dropzone scrollbar-thin" data-status="Completada" ondragover="allowDrop(event)" ondrop="drop(event)"></div></div>
                 </div>
             </div>
         </div>
@@ -501,7 +500,7 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Diseñador Asignado</label><select id="modalDesigner" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500"></select></div>
-                        <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Estado Interno</label><select id="modalStatus" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500"><option value="">Sin estado</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option><option value="Completada">Completada</option></select></div>
+                        <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Estado Interno</label><select id="modalStatus" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500"><option value="">Sin estado</option><option value="Bandeja">Bandeja</option><option value="Producción">Producción</option><option value="Auditoría">Auditoría</option></select></div>
                     </div>
                     <div class="grid grid-cols-1 gap-4"><div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Fecha Recibida</label><input type="date" id="modalReceivedDate" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-xs py-2 focus:ring-blue-500"></div></div>
                     <div class="pt-2"><div class="flex justify-between items-center mb-2"><label class="text-xs font-bold text-slate-700 dark:text-slate-300">Órdenes Hijas (<span id="childOrderCount">0</span>)</label><button id="addChildOrderBtn" class="text-blue-600 dark:text-blue-400 text-[10px] font-bold hover:underline" onclick="openAddChildModal()">+ Agregar Hija</button></div><div id="childOrdersList" class="bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 p-2 max-h-24 overflow-y-auto space-y-1"></div></div>
@@ -622,6 +621,6 @@
         .filter-input { display: block; width: 100%; border-radius: 0.5rem; border: 0; padding-top: 0.4rem; padding-bottom: 0.4rem; font-size: 0.75rem; background-color: #F8FAFC; color: #0F172A; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); ring: 1px inset #E2E8F0; }
     </style>
 
-    <script src="app.js?v=7.4"></script>
+    <script src="app.js?v=7.5"></script>
 </body>
 </html>

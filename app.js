@@ -1370,7 +1370,7 @@ function updateTable() {
 }
 
 // ======================================================
-// ===== 11. MODALES Y ACCIONES (CON SEGURIDAD Y FIXES) =====
+// ===== 11. MODALES Y ACCIONES (CON BLOQUEO DE "COMPLETADA") =====
 // ======================================================
 
 window.loadChildOrders = async () => {
@@ -1386,7 +1386,6 @@ window.loadChildOrders = async () => {
         </div>`).join('') || '<p class="text-slate-400 italic text-xs p-2 text-center">No hay órdenes hijas.</p>';
 };
 
-// ✅ CORRECCIÓN #1 (Fix Parcial): Carga de Historial bajo demanda
 window.openAssignModal = async (id) => {
     currentEditingOrderId = id;
     const o = allOrders.find(x => x.orderId === id);
@@ -1415,8 +1414,15 @@ window.openAssignModal = async (id) => {
         }
     }
 
+    // 🔴 LIMPIEZA FORZADA: Eliminar opción "Completada" del HTML
+    for (let i = statusSelect.options.length - 1; i >= 0; i--) {
+        if (statusSelect.options[i].value === 'Completada') {
+            statusSelect.remove(i);
+        }
+    }
+
     // Valores Inputs
-    document.getElementById('modalStatus').value = o.customStatus || 'Bandeja';
+    statusSelect.value = (o.customStatus === 'Completada') ? 'Bandeja' : (o.customStatus || 'Bandeja'); // Si estaba completada, forzar visualmente a Bandeja para que no se vea error
     document.getElementById('modalReceivedDate').value = o.receivedDate || new Date().toISOString().split('T')[0];
     if(document.getElementById('modalComplexity')) document.getElementById('modalComplexity').value = o.complexity || 'Media';
 
@@ -1456,11 +1462,10 @@ window.openAssignModal = async (id) => {
         }
     }
 
-    // ✅ CORRECCIÓN #1 (Completa): Cargar Historial REAL de esta orden
+    // Historial
     const histContainer = document.getElementById('modalHistory');
     histContainer.innerHTML = '<div class="flex justify-center p-4"><div class="spinner border-2 border-slate-200 border-t-blue-500 rounded-full w-6 h-6 animate-spin"></div></div>';
 
-    // Fetch bajo demanda
     db_firestore.collection('history')
         .where('orderId', '==', id)
         .orderBy('timestamp', 'desc')
@@ -1498,7 +1503,7 @@ window.saveAssignment = async () => {
     const rd = document.getElementById('modalReceivedDate').value;
     const comp = document.getElementById('modalComplexity') ? document.getElementById('modalComplexity').value : 'Media';
 
-    // Intercepción de Calidad (Auditoría -> Bandeja/Prod)
+    // Intercepción de Calidad
     if (o.customStatus === CONFIG.STATUS.AUDIT && (stat === CONFIG.STATUS.PROD || stat === CONFIG.STATUS.TRAY)) {
         window.pendingRejection = {
             orderId: currentEditingOrderId,
@@ -1567,34 +1572,20 @@ window.confirmRejection = async () => {
 
     await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
-
         const orderRef = db_firestore.collection('assignments').doc(orderId);
         batch.set(orderRef, { customStatus: newStatus, lastModified: new Date().toISOString() }, { merge: true });
 
         const logRef = db_firestore.collection('quality_logs').doc();
         batch.set(logRef, {
-            orderId: orderId,
-            designer: designer || 'Sin asignar',
-            auditor: usuarioActual.displayName || 'Auditor',
-            auditorEmail: usuarioActual.email,
-            category: category,
-            reason: reason,
-            timestamp: new Date().toISOString(),
-            statusFrom: prevStatus,
-            statusTo: newStatus,
-            week: getWeekIdentifierString(new Date())
+            orderId: orderId, designer: designer || 'Sin asignar', auditor: usuarioActual.displayName || 'Auditor',
+            auditorEmail: usuarioActual.email, category: category, reason: reason, timestamp: new Date().toISOString(),
+            statusFrom: prevStatus, statusTo: newStatus, week: getWeekIdentifierString(new Date())
         });
 
         const histRef = db_firestore.collection('history').doc();
-        batch.set(histRef, {
-            orderId: orderId,
-            change: `🛑 RECHAZADO (${category}): ${reason}`,
-            user: usuarioActual.displayName,
-            timestamp: new Date().toISOString()
-        });
+        batch.set(histRef, { orderId: orderId, change: `🛑 RECHAZADO (${category}): ${reason}`, user: usuarioActual.displayName, timestamp: new Date().toISOString() });
 
         await batch.commit();
-
         document.getElementById('rejectCategory').value = '';
         document.getElementById('rejectReason').value = '';
         window.pendingRejection = null;
@@ -1603,8 +1594,6 @@ window.confirmRejection = async () => {
 
     closeTopModal();
 };
-
-// --- Funciones de soporte con Seguridad ---
 
 window.openAddChildModal = () => {
     const o = allOrders.find(x => x.orderId === currentEditingOrderId);
@@ -1637,13 +1626,21 @@ window.saveChildOrder = async () => {
 };
 
 window.deleteChildOrder = async (id, code) => {
-    // ✅ CORREGIDO #5: Validación de Admin
     if (!requireAdmin()) return;
     showConfirmModal(`¿Eliminar ${code}?`, async () => { await safeFirestoreOperation(() => db_firestore.collection('childOrders').doc(id).delete(), 'Eliminando...', 'Eliminada'); });
 };
 
 window.openMultiAssignModal = () => { 
     if (selectedOrders.size === 0) return showCustomAlert('Selecciona órdenes', 'info');
+    
+    // 🔴 LIMPIEZA FORZADA EN MULTI-MODAL TAMBIÉN
+    const multiSelect = document.getElementById('multiModalStatus');
+    if(multiSelect) {
+        for (let i = multiSelect.options.length - 1; i >= 0; i--) {
+            if (multiSelect.options[i].value === 'Completada') multiSelect.remove(i);
+        }
+    }
+
     document.getElementById('multiModalCount').textContent = selectedOrders.size;
     openModalById('multiAssignModal');
 };
@@ -1682,7 +1679,6 @@ function populateDesignerManagerModal() {
 }
 
 window.addDesigner = async () => {
-    // ✅ CORREGIDO #5: Validación de Admin
     if (!requireAdmin()) return;
     const name = document.getElementById('newDesignerName').value.trim();
     const email = document.getElementById('newDesignerEmail').value.trim().toLowerCase();
@@ -1692,7 +1688,6 @@ window.addDesigner = async () => {
 };
 
 window.deleteDesigner = (id, name) => {
-    // ✅ CORREGIDO #5: Validación de Admin
     if (!requireAdmin()) return;
     showConfirmModal(`¿Eliminar a ${name}?`, async () => { await safeFirestoreOperation(() => db_firestore.collection('designers').doc(id).delete(), 'Eliminando...', 'Eliminado'); });
 };
@@ -2388,7 +2383,7 @@ window.openWeeklyReportModal = () => {
 };
 
 // ======================================================
-// ===== 17. KANBAN (CON CORRECCIÓN DE RACE CONDITION) =====
+// ===== 17. KANBAN (SIN COLUMNA "COMPLETADA") =====
 // ======================================================
 
 function updateKanban() {
@@ -2402,16 +2397,26 @@ function updateKanban() {
         designerFilterSelect.style.display = 'block';
     }
 
+    // 🔴 OCULTAR FORZOSAMENTE LA COLUMNA "COMPLETADA" DEL DOM
+    // Buscamos cualquier contenedor que tenga el header "Completada" o el data-status="Completada"
+    const completedZone = document.querySelector('.kanban-dropzone[data-status="Completada"]');
+    if (completedZone) {
+        const parentCol = completedZone.closest('.kanban-column');
+        if (parentCol) parentCol.style.display = 'none';
+    }
+
+    // 1. Filtrar solo órdenes que ESTÁN en Arte
     let orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     if(targetDesigner) {
         orders = orders.filter(o => o.designer === targetDesigner);
     }
 
+    // 2. Solo definimos 3 columnas activas
     const columns = {
         'Bandeja': document.querySelector('.kanban-dropzone[data-status="Bandeja"]'),
         'Producción': document.querySelector('.kanban-dropzone[data-status="Producción"]'),
-        'Auditoría': document.querySelector('.kanban-dropzone[data-status="Auditoría"]'),
-        'Completada': document.querySelector('.kanban-dropzone[data-status="Completada"]')
+        'Auditoría': document.querySelector('.kanban-dropzone[data-status="Auditoría"]')
+        // Completada se ignora aquí
     };
 
     Object.keys(columns).forEach(k => {
@@ -2420,11 +2425,14 @@ function updateKanban() {
         if(countEl) countEl.textContent = '0';
     });
 
-    const counts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0, 'Completada': 0 };
+    const counts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0 };
 
     orders.forEach(o => {
         let status = o.customStatus || 'Bandeja';
-        if (!columns[status]) status = 'Bandeja'; 
+        
+        // Si el estado es 'Completada', NO lo mostramos en el tablero (porque ya no debe ser visible)
+        // Opcional: Si quieres que aparezca en 'Auditoría' temporalmente, cambia esto.
+        if (!columns[status]) return; 
 
         counts[status]++;
 
@@ -2502,7 +2510,6 @@ function drag(ev) {
     ev.dataTransfer.effectAllowed = "move";
 }
 
-// ✅ CORRECCIÓN #2 (Parcial): Rollback en caso de error
 async function drop(ev) {
     ev.preventDefault();
     const zone = ev.currentTarget;
@@ -2511,13 +2518,11 @@ async function drop(ev) {
     const orderId = ev.dataTransfer.getData("text");
     const newStatus = zone.dataset.status;
 
-    // 1. Actualización Optimista
     const card = document.querySelector(`div[data-id="${orderId}"]`);
-    const originalParent = card.parentNode; // Guardar referencia para rollback
+    const originalParent = card.parentNode; 
 
     if(card) { zone.appendChild(card); }
 
-    // 2. Guardado en Firebase
     try {
         await safeFirestoreOperation(async () => {
             const batch = db_firestore.batch();
@@ -2546,7 +2551,6 @@ async function drop(ev) {
             await batch.commit();
         }, 'Moviendo...', null);
     } catch (e) {
-        // ROLLBACK si falla
         console.error("Error moviendo tarjeta, revirtiendo UI");
         if(originalParent) originalParent.appendChild(card);
     }
@@ -2798,6 +2802,7 @@ function getStatusBadge(order) {
 function getCustomStatusBadge(status) {
     const base = "px-3 py-1 rounded-full text-xs font-medium border inline-block min-w-[90px] text-center shadow-sm";
     const safeStatus = escapeHTML(status || 'Sin estado');
+    // Si está completada pero sigue en Arte, la marcamos como "En Espera de Salida" o similar, o simplemente mantenemos el badge verde.
     if (status === 'Completada') return `<span class="${base} bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-600">${safeStatus}</span>`;
     if (status === 'Bandeja') return `<span class="${base} bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800">${safeStatus}</span>`;
     if (status === 'Producción') return `<span class="${base} bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800">${safeStatus}</span>`;
@@ -2824,6 +2829,15 @@ function populateFilterDropdowns() {
     const populate = (id, key) => {
         const sel = document.getElementById(id);
         if(!sel) return;
+        
+        // 🔴 LIMPIEZA FORZADA PARA EL FILTRO SUPERIOR
+        if (id === 'customStatusFilter') {
+            for (let i = sel.options.length - 1; i >= 0; i--) {
+                if (sel.options[i].value === 'Completada') sel.remove(i);
+            }
+            return; // No repoblar, usar lo del HTML menos "Completada"
+        }
+
         const currentVal = sel.value;
         const options = [...new Set(allOrders.map(o => o[key]).filter(Boolean))].sort();
         if(id === 'departamentoFilter') {
@@ -2833,7 +2847,12 @@ function populateFilterDropdowns() {
         }
         sel.value = currentVal;
     };
-    populate('clientFilter', 'cliente'); populate('styleFilter', 'estilo'); populate('teamFilter', 'teamName'); populate('departamentoFilter', 'departamento'); updateAllDesignerDropdowns();
+    populate('clientFilter', 'cliente'); populate('styleFilter', 'estilo'); populate('teamFilter', 'teamName'); populate('departamentoFilter', 'departamento'); 
+    
+    // Llamar explícitamente al de estado para limpiarlo
+    populate('customStatusFilter', 'customStatus');
+    
+    updateAllDesignerDropdowns();
 }
 
 function updateAllDesignerDropdowns() {
@@ -2844,119 +2863,6 @@ function updateAllDesignerDropdowns() {
     if(document.getElementById('multiModalDesigner')) document.getElementById('multiModalDesigner').innerHTML = modalHtml;
     const compareHtml = '<option value="">Seleccionar...</option>' + designerList.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join('');
     if(document.getElementById('compareDesignerSelect')) document.getElementById('compareDesignerSelect').innerHTML = compareHtml;
-}
-
-// ✅ CORRECCIÓN #8: KPI de Calidad Preciso (Ordenes Auditadas)
-function updateQualityView() {
-    const logs = Array.from(firebaseQualityLogsMap.values());
-    const now = new Date();
-    const currentMonthLogs = logs.filter(l => new Date(l.timestamp).getMonth() === now.getMonth());
-
-    let auditedCount = 0;
-    firebaseHistoryMap.forEach((historyList) => {
-        if (historyList.some(h => h.change && h.change.includes('Auditoría'))) {
-            auditedCount++;
-        }
-    });
-    const baseCount = auditedCount > 0 ? auditedCount : allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART).length;
-    const rejectRate = baseCount > 0 ? ((logs.length / baseCount) * 100).toFixed(1) : 0;
-
-    const catCounts = {};
-    logs.forEach(l => catCounts[l.category] = (catCounts[l.category] || 0) + 1);
-    const topCat = Object.entries(catCounts).sort((a,b) => b[1] - a[1])[0];
-
-    document.getElementById('kpiRejectRate').textContent = rejectRate + '%';
-    document.getElementById('kpiTotalErrors').textContent = currentMonthLogs.length;
-    document.getElementById('kpiTopCategory').textContent = topCat ? `${topCat[0]} (${topCat[1]})` : '-';
-
-    const tbody = document.getElementById('qualityLogTableBody');
-    if (tbody) {
-        tbody.innerHTML = logs.slice(0, 20).map(l => {
-            const orderInfo = allOrders.find(o => o.orderId === l.orderId);
-            const orderCode = orderInfo ? orderInfo.codigoContrato : 'Desconocida';
-            return `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700">
-                <td class="px-4 py-3 font-mono">${new Date(l.timestamp).toLocaleDateString()}</td>
-                <td class="px-4 py-3 font-bold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline" onclick="openAssignModal('${l.orderId}')">${escapeHTML(orderCode)}</td>
-                <td class="px-4 py-3 font-medium text-slate-800 dark:text-white">${escapeHTML(l.designer)}</td>
-                <td class="px-4 py-3"><span class="px-2 py-1 rounded text-[10px] bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800">${escapeHTML(l.category)}</span></td>
-                <td class="px-4 py-3 text-slate-500 italic truncate max-w-[200px]" title="${escapeHTML(l.reason)}">${escapeHTML(l.reason)}</td>
-                <td class="px-4 py-3 text-slate-400">${escapeHTML(l.auditor)}</td>
-            </tr>`;
-        }).join('');
-    }
-    renderQualityCharts(logs);
-}
-
-function renderQualityCharts(logs) {
-    if (typeof Chart === 'undefined') return;
-    const isDark = document.documentElement.classList.contains('dark');
-    const textColor = isDark ? '#cbd5e1' : '#666';
-
-    const catCounts = {};
-    logs.forEach(l => catCounts[l.category] = (catCounts[l.category] || 0) + 1);
-    const sortedCats = Object.entries(catCounts).sort((a,b) => b[1] - a[1]);
-
-    const ctx1 = document.getElementById('qualityParetoChart');
-    if (ctx1) {
-        if (qualityParetoChart) qualityParetoChart.destroy();
-        qualityParetoChart = new Chart(ctx1, {
-            type: 'bar',
-            data: {
-                labels: sortedCats.map(x => x[0]),
-                datasets: [{
-                    label: 'Cantidad de Errores',
-                    data: sortedCats.map(x => x[1]),
-                    backgroundColor: '#f87171',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { ticks: { color: textColor }, grid: { display: false } },
-                    y: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-
-    const desCounts = {};
-    logs.forEach(l => {
-        if(l.designer !== 'Sin asignar') {
-            desCounts[l.designer] = (desCounts[l.designer] || 0) + 1;
-        }
-    });
-    const sortedDes = Object.entries(desCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
-
-    const ctx2 = document.getElementById('qualityDesignerChart');
-    if (ctx2) {
-        if (qualityDesignerChart) qualityDesignerChart.destroy();
-        qualityDesignerChart = new Chart(ctx2, {
-            type: 'bar',
-            data: {
-                labels: sortedDes.map(x => x[0]),
-                datasets: [{
-                    label: 'Errores Totales',
-                    data: sortedDes.map(x => x[1]),
-                    backgroundColor: '#fbbf24',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { ticks: { color: textColor }, grid: { display: false } },
-                    y: { ticks: { color: textColor }, grid: { color: isDark ? '#334155' : '#e5e5e5' } }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
 }
 
 // ======================================================
