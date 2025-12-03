@@ -1926,22 +1926,35 @@ function generateDepartmentMetrics() {
         const designer = o.designer || 'Sin asignar';
         if (CONFIG.EXCLUDED_DESIGNERS.includes(designer)) return;
 
-        if (o.customStatus === CONFIG.STATUS.COMPLETED && o.receivedDate && o.completedDate) {
-            const start = new Date(o.receivedDate);
-            const end = new Date(o.completedDate);
-            const diffTime = Math.abs(end - start);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        // ✅ CÁLCULO DE LEAD TIME REAL (HISTORIAL)
+        const history = firebaseHistoryMap.get(o.orderId) || [];
+        
+        if (history.length > 0) {
+            const sortedHistory = [...history].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-            if (!leadTimes[designer]) leadTimes[designer] = { totalDays: 0, count: 0 };
-            leadTimes[designer].totalDays += diffDays;
-            leadTimes[designer].count++;
+            // Buscar primer asignación
+            const startLog = sortedHistory.find(h => h.change.includes('Diseñador:') && !h.change.includes('-> Sin asignar'));
+            
+            // Buscar completado posterior
+            const endLog = sortedHistory.find(h => 
+                h.change.includes('-> Completada') && 
+                (startLog ? new Date(h.timestamp) > new Date(startLog.timestamp) : true)
+            );
+
+            if (startLog && endLog) {
+                const diffTime = new Date(endLog.timestamp) - new Date(startLog.timestamp);
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+                if (!leadTimes[designer]) leadTimes[designer] = { totalDays: 0, count: 0 };
+                leadTimes[designer].totalDays += diffDays;
+                leadTimes[designer].count++;
+            }
         }
 
         const comp = o.complexity || 'Media'; 
         if (complexityDist[comp] !== undefined) complexityDist[comp]++;
 
-        const hist = firebaseHistoryMap.get(o.orderId) || [];
-        const hasRework = hist.some(h => {
+        const hasRework = history.some(h => {
             const t = h.change.toLowerCase();
             return (t.includes('auditoría -> producción') || 
                     t.includes('completada -> producción') || 
@@ -1964,9 +1977,9 @@ function generateDepartmentMetrics() {
                 <div class="flex justify-between items-start mb-4">
                     <div>
                         <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                            <i class="fa-solid fa-stopwatch text-blue-500"></i> Lead Time Promedio
+                            <i class="fa-solid fa-stopwatch text-blue-500"></i> Lead Time Real
                         </h3>
-                        <p class="text-[10px] text-slate-400">Días desde "Recibida" hasta "Completada"</p>
+                        <p class="text-[10px] text-slate-400">Tiempo promedio: Asignación ➔ Completada</p>
                     </div>
                 </div>
                 <div class="relative h-64 w-full">
@@ -3019,7 +3032,7 @@ window.deleteUserRole = async (emailId) => {
 };
 
 window.resetApp = () => {
-    // ✅ CORRECCIÓN: Debug logs y validación admin explícita
+    // ✅ CORRECCIÓN: Debug logs y validación admin explícita para que el botón responda
     console.log("Intento de resetear app. Rol actual:", userRole);
 
     if (userRole !== 'admin') {
