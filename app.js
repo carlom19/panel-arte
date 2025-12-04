@@ -785,7 +785,7 @@ async function processAndUploadFile(file) {
             if (cols.fecha >= 0 && r[cols.fecha]) { 
                 const v = r[cols.fecha]; 
                 let dObj = null;
-                // Parseo básico de fechas (Mejora futura: usar parse_date_code)
+                // Parseo básico de fechas
                 if (typeof v === 'number') dObj = new Date((v - 25569) * 86400 * 1000);
                 else { const parsed = new Date(v); if (!isNaN(parsed.getTime())) dObj = parsed; }
                 if (dObj) currentDate = new Date(Date.UTC(dObj.getFullYear(), dObj.getMonth(), dObj.getDate()));
@@ -799,9 +799,13 @@ async function processAndUploadFile(file) {
             if (!currentClient || !currentContrato) continue;
 
             // =========================================================================
-            // MODIFICACIÓN APLICADA: Asignar 'ART' por defecto en lugar de 'NONE'
+            // ✅ LÓGICA CORREGIDA:
+            // 1. Iniciamos en 'NONE' (Sin Departamento).
+            // 2. Solo si hay cantidad > 0, cambiamos al departamento correspondiente.
+            // 3. Si Arte es 0, se queda en NONE y sale de la vista.
             // =========================================================================
-            let qty = 0, dept = CONFIG.DEPARTMENTS.ART; 
+            let qty = 0; 
+            let dept = CONFIG.DEPARTMENTS.NONE; 
 
             for (let i = deptCols.length - 1; i >= 0; i--) {
                 const val = r[deptCols[i].idx];
@@ -1382,7 +1386,7 @@ function updateTable() {
 }
 
 // ======================================================
-// ===== 11. MODALES Y ACCIONES (CON BLOQUEO DE "COMPLETADA") =====
+// ===== 11. MODALES Y ACCIONES (CON BLOQUEO DE "COMPLETADA" Y GESTIÓN DE DEPTO ADMIN) =====
 // ======================================================
 
 window.loadChildOrders = async () => {
@@ -1434,7 +1438,7 @@ window.openAssignModal = async (id) => {
     }
 
     // Valores Inputs
-    statusSelect.value = (o.customStatus === 'Completada') ? 'Bandeja' : (o.customStatus || 'Bandeja'); // Si estaba completada, forzar visualmente a Bandeja para que no se vea error
+    statusSelect.value = (o.customStatus === 'Completada') ? 'Bandeja' : (o.customStatus || 'Bandeja'); // Si estaba completada, forzar visualmente a Bandeja
     document.getElementById('modalReceivedDate').value = o.receivedDate || new Date().toISOString().split('T')[0];
     if(document.getElementById('modalComplexity')) document.getElementById('modalComplexity').value = o.complexity || 'Media';
 
@@ -1446,6 +1450,7 @@ window.openAssignModal = async (id) => {
     designerSelect.disabled = false;
     designerSelect.value = o.designer || '';
 
+    // LÓGICA DE USUARIO / ADMIN PARA DISEÑADOR
     if (currentDesignerName && userRole !== 'admin') {
         if (o.designer && o.designer !== 'Sin asignar' && o.designer !== currentDesignerName) {
             designerSelect.style.display = 'none';
@@ -1471,6 +1476,20 @@ window.openAssignModal = async (id) => {
             btn.innerHTML = `<i class="fa-solid fa-hand-point-up"></i> Tomar Orden`;
             btn.onclick = () => { designerSelect.value = currentDesignerName; saveAssignment(); };
             container.appendChild(btn);
+        }
+    }
+
+    // ======================================================
+    // LOGICA NUEVA: DEPARTAMENTO ADMIN
+    // ======================================================
+    const deptSelect = document.getElementById('modalDepartamento');
+    if (deptSelect) {
+        deptSelect.value = o.departamento || 'Sin Departamento';
+        
+        const deptWrapper = document.getElementById('adminDeptWrapper');
+        if (deptWrapper) {
+            // Mostrar solo si es Admin
+            deptWrapper.style.display = (userRole === 'admin') ? 'block' : 'none';
         }
     }
 
@@ -1514,6 +1533,9 @@ window.saveAssignment = async () => {
     const stat = document.getElementById('modalStatus').value.trim();
     const rd = document.getElementById('modalReceivedDate').value;
     const comp = document.getElementById('modalComplexity') ? document.getElementById('modalComplexity').value : 'Media';
+    
+    // NUEVO: Obtener nuevo departamento
+    const newDept = document.getElementById('modalDepartamento') ? document.getElementById('modalDepartamento').value : o.departamento;
 
     // Intercepción de Calidad
     if (o.customStatus === CONFIG.STATUS.AUDIT && (stat === CONFIG.STATUS.PROD || stat === CONFIG.STATUS.TRAY)) {
@@ -1554,19 +1576,51 @@ window.saveAssignment = async () => {
     if((o.receivedDate || '') !== rd) { changes.push(`Fecha Rx: ${rd}`); data.receivedDate = rd; }
     if((o.complexity || 'Media') !== comp) { changes.push(`Complejidad: ${o.complexity || 'Media'} -> ${comp}`); data.complexity = comp; o.complexity = comp; }
 
+    // NUEVO: Detectar cambio de departamento
+    let deptChanged = false;
+    if (newDept && newDept !== o.departamento) {
+        changes.push(`Departamento: ${o.departamento} -> ${newDept}`);
+        deptChanged = true;
+        // Importante: Actualizamos el objeto local inmediatamente para que la tabla se refresque bien
+        o.departamento = newDept; 
+    }
+
     if(changes.length === 0) return showCustomAlert('No realizaste ningún cambio.', 'info');
 
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
-        const updatePayload = { ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION };
-        batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), updatePayload, { merge: true });
+        
+        // 1. Guardar cambios normales en 'assignments'
+        if (Object.keys(data).length > 0) {
+            const updatePayload = { ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION };
+            batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), updatePayload, { merge: true });
+        }
+
+        // 2. NUEVO: Si cambió el departamento, actualizar 'master_orders'
+        if (deptChanged) {
+            batch.update(db_firestore.collection('master_orders').doc(currentEditingOrderId), { 
+                departamento: newDept,
+                lastModified: new Date().toISOString()
+            });
+        }
+
+        // 3. Guardar historial
         changes.forEach(c => {
             batch.set(db_firestore.collection('history').doc(), { orderId: currentEditingOrderId, change: c, user: usuarioActual.displayName || 'Usuario', timestamp: new Date().toISOString() });
         });
+        
         await batch.commit();
+        
+        // Actualizar objeto local en memoria
         if (data.customStatus) o.customStatus = data.customStatus;
         if (data.designer !== undefined) o.designer = data.designer;
         if (data.completedDate !== undefined) o.completedDate = data.completedDate;
+        
+        // Si cambió el departamento, refrescar filtros
+        if (deptChanged) {
+            if (typeof filteredCache !== 'undefined') filteredCache.key = null;
+        }
+
         updateTable(); 
     }, 'Guardando...', 'Orden actualizada');
 
