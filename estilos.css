@@ -224,3 +224,34 @@ html.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 html.dark .chat-bubble.other { background-color: #334155; color: #e2e8f0; border-color: #475569; }
 html.dark .chat-bubble.me { background-color: #1e40af; color: #dbeafe; border-color: #1e3a8a; }
 html.dark .shadow, html.dark .shadow-sm, html.dark .shadow-lg { box-shadow: none !important; border: 1px solid #334155; }
+
+/* ====================================================== */
+/* ===== AJUSTES PARA VISTA PLAN SEMANAL (NUEVO) ===== */
+/* ====================================================== */
+
+/* 1. Scrollbars finos para las columnas del Calendario */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 4px; /* Más delgado que el scroll normal */
+    height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #CBD5E1;
+    border-radius: 10px;
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #475569;
+}
+
+/* 2. Ajuste para que el Select de edición rápida no tenga borde azul al hacer click */
+select:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* 3. Animación suave para el cambio de vista */
+#view-workPlanContent {
+    transition: all 0.3s ease-in-out;
+}

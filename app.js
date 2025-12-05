@@ -49,7 +49,8 @@ let selectedOrders = new Set();
 let usuarioActual = null; 
 let isExcelLoaded = false;
 let userRole = 'user'; 
-let currentDesignerName = null; 
+let currentDesignerName = null;
+let currentPlanView = 'list'; 
 
 // Filtros y Paginación
 let currentFilter = 'all';
@@ -286,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initTheme(); 
 
-    // ✅ CORRECCIÓN: Inicialización asíncrona de Sidebar
+    // Inicialización asíncrona de Sidebar
     setTimeout(() => {
         const sidebarBtn = document.getElementById('sidebarToggleBtn');
         if (localStorage.getItem('sidebarState') === 'collapsed') {
@@ -307,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLogout = document.getElementById('logoutNavBtn');
     if(btnLogout) btnLogout.addEventListener('click', window.iniciarLogout);
 
+    // --- LISTENER DE AUTH Y ROLES ---
     firebase.auth().onAuthStateChanged((user) => {
         const login = document.getElementById('loginSection');
         const upload = document.getElementById('uploadSection');
@@ -317,35 +319,29 @@ document.addEventListener('DOMContentLoaded', () => {
             usuarioActual = user;
             window.updateAllHeaders(user, 'syncing'); 
 
-            // Rol check
+            // 1. Obtener Rol y Configurar UI
             const userEmail = user.email.toLowerCase();
             db_firestore.collection('users').doc(userEmail).get().then((doc) => {
-                const btnReset = document.getElementById('nav-resetApp');
-                const btnTeam = document.getElementById('nav-manageTeam');
-                const btnRoles = document.getElementById('nav-adminRoles');
-
-                if (doc.exists && doc.data().role === 'admin') {
-                    userRole = 'admin';
-                    if(btnReset) btnReset.style.display = 'flex';
-                    if(btnTeam) btnTeam.style.display = 'flex';
-                    if(btnRoles) btnRoles.style.display = 'flex';
+                if (doc.exists) {
+                    userRole = doc.data().role || 'user';
                 } else {
                     userRole = 'user';
-                    if (doc.exists && doc.data().role === 'auditor') userRole = 'auditor';
-                    if(btnReset) btnReset.style.display = 'none';
-                    if(btnTeam) btnTeam.style.display = 'none';
-                    if(btnRoles) btnRoles.style.display = 'none';
                 }
-            }).catch((err) => { 
-                console.warn("Error rol:", err);
-                userRole = 'user'; 
+                
+                // Aplicar permisos visuales (Ocultar menú a Auditores)
+                applyRolePermissions(userRole);
+
+            }).catch((err) => {
+                console.warn("Error obteniendo rol:", err);
+                userRole = 'user';
+                applyRolePermissions('user');
             });
 
             login.style.display = 'none';
             if (!isExcelLoaded) {
                 upload.style.display = 'block'; main.style.display = 'none'; nav.style.display = 'none'; main.classList.remove('main-content-shifted');
             } else {
-                upload.style.display = 'none'; main.style.display = 'block'; nav.style.display = 'flex'; main.classList.add('main-content-shifted');
+                upload.style.display = 'block'; main.style.display = 'block'; nav.style.display = 'flex'; main.classList.add('main-content-shifted');
                 setTimeout(() => { document.getElementById('mainNavigation').style.transform = 'translateX(0)'; }, 50);
             }
             conectarDatosDeFirebase();
@@ -375,23 +371,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 150));
     });
 
-    // ✅ CORRECCIÓN DRAG & DROP: Eliminar listener de 'click' duplicado
     const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput');
     if(dropZone && fileInput) {
         ['dragenter','dragover','dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, preventDefaults, false));
-        
         dropZone.addEventListener('drop', (e) => { 
             dropZone.classList.remove('border-blue-500','bg-blue-50'); 
             handleFiles(e.dataTransfer.files); 
         });
-
-        // ❌ SE ELIMINÓ dropZone.addEventListener('click', ...); 
-        
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFiles(e.target.files);
-            }
-            e.target.value = ''; // Limpiar para permitir re-subir
+            if (e.target.files.length > 0) handleFiles(e.target.files);
+            e.target.value = ''; 
         });
     }
 
@@ -405,6 +394,46 @@ document.addEventListener('DOMContentLoaded', () => {
     delegate('childOrdersList', '.btn-delete-child', (btn, e) => { e.stopPropagation(); deleteChildOrder(btn.dataset.childId, btn.dataset.childCode); });
     delegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
 });
+
+// --- FUNCIÓN DE PERMISOS POR ROL ---
+function applyRolePermissions(role) {
+    const navIds = [
+        'nav-dashboard', 'nav-kanbanView', 'nav-workPlanView', 
+        'nav-qualityView', 'nav-designerMetricsView', 'nav-departmentMetricsView', 
+        'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
+    ];
+
+    // 1. Resetear visibilidad
+    navIds.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'flex';
+    });
+
+    // 2. Aplicar restricciones
+    if (role === 'auditor') {
+        const hideForAuditor = [
+            'nav-dashboard', 'nav-workPlanView', 'nav-designerMetricsView', 
+            'nav-departmentMetricsView', 'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
+        ];
+        
+        hideForAuditor.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
+
+        // Redirección forzada si está en Dashboard
+        const currentView = document.querySelector('.main-view[style*="display: block"]');
+        if (!currentView || currentView.id === 'dashboard') {
+            navigateTo('kanbanView');
+        }
+
+    } else if (role === 'user') {
+        ['nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
+    }
+}
 
 // ======================================================
 // ===== 5. LÓGICA DE DATOS (FIREBASE LISTENERS & SYNC) =====
@@ -1386,7 +1415,7 @@ function updateTable() {
 }
 
 // ======================================================
-// ===== 11. MODALES Y ACCIONES (CON BLOQUEO DE "COMPLETADA" Y GESTIÓN DE DEPTO ADMIN) =====
+// ===== 11. MODALES Y ACCIONES =====
 // ======================================================
 
 window.loadChildOrders = async () => {
@@ -1430,15 +1459,13 @@ window.openAssignModal = async (id) => {
         }
     }
 
-    // 🔴 LIMPIEZA FORZADA: Eliminar opción "Completada" del HTML
+    // Limpieza de opción "Completada"
     for (let i = statusSelect.options.length - 1; i >= 0; i--) {
-        if (statusSelect.options[i].value === 'Completada') {
-            statusSelect.remove(i);
-        }
+        if (statusSelect.options[i].value === 'Completada') statusSelect.remove(i);
     }
 
     // Valores Inputs
-    statusSelect.value = (o.customStatus === 'Completada') ? 'Bandeja' : (o.customStatus || 'Bandeja'); // Si estaba completada, forzar visualmente a Bandeja
+    statusSelect.value = (o.customStatus === 'Completada') ? 'Bandeja' : (o.customStatus || 'Bandeja');
     document.getElementById('modalReceivedDate').value = o.receivedDate || new Date().toISOString().split('T')[0];
     if(document.getElementById('modalComplexity')) document.getElementById('modalComplexity').value = o.complexity || 'Media';
 
@@ -1479,18 +1506,12 @@ window.openAssignModal = async (id) => {
         }
     }
 
-    // ======================================================
-    // LOGICA NUEVA: DEPARTAMENTO ADMIN
-    // ======================================================
+    // Departamento Admin
     const deptSelect = document.getElementById('modalDepartamento');
     if (deptSelect) {
         deptSelect.value = o.departamento || 'Sin Departamento';
-        
         const deptWrapper = document.getElementById('adminDeptWrapper');
-        if (deptWrapper) {
-            // Mostrar solo si es Admin
-            deptWrapper.style.display = (userRole === 'admin') ? 'block' : 'none';
-        }
+        if (deptWrapper) deptWrapper.style.display = (userRole === 'admin') ? 'block' : 'none';
     }
 
     // Historial
@@ -1533,8 +1554,6 @@ window.saveAssignment = async () => {
     const stat = document.getElementById('modalStatus').value.trim();
     const rd = document.getElementById('modalReceivedDate').value;
     const comp = document.getElementById('modalComplexity') ? document.getElementById('modalComplexity').value : 'Media';
-    
-    // NUEVO: Obtener nuevo departamento
     const newDept = document.getElementById('modalDepartamento') ? document.getElementById('modalDepartamento').value : o.departamento;
 
     // Intercepción de Calidad
@@ -1576,12 +1595,10 @@ window.saveAssignment = async () => {
     if((o.receivedDate || '') !== rd) { changes.push(`Fecha Rx: ${rd}`); data.receivedDate = rd; }
     if((o.complexity || 'Media') !== comp) { changes.push(`Complejidad: ${o.complexity || 'Media'} -> ${comp}`); data.complexity = comp; o.complexity = comp; }
 
-    // NUEVO: Detectar cambio de departamento
     let deptChanged = false;
     if (newDept && newDept !== o.departamento) {
         changes.push(`Departamento: ${o.departamento} -> ${newDept}`);
         deptChanged = true;
-        // Importante: Actualizamos el objeto local inmediatamente para que la tabla se refresque bien
         o.departamento = newDept; 
     }
 
@@ -1590,13 +1607,11 @@ window.saveAssignment = async () => {
     const ok = await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
         
-        // 1. Guardar cambios normales en 'assignments'
         if (Object.keys(data).length > 0) {
             const updatePayload = { ...data, lastModified: new Date().toISOString(), schemaVersion: CONFIG.DB_VERSION };
             batch.set(db_firestore.collection('assignments').doc(currentEditingOrderId), updatePayload, { merge: true });
         }
 
-        // 2. NUEVO: Si cambió el departamento, actualizar 'master_orders'
         if (deptChanged) {
             batch.update(db_firestore.collection('master_orders').doc(currentEditingOrderId), { 
                 departamento: newDept,
@@ -1604,19 +1619,16 @@ window.saveAssignment = async () => {
             });
         }
 
-        // 3. Guardar historial
         changes.forEach(c => {
             batch.set(db_firestore.collection('history').doc(), { orderId: currentEditingOrderId, change: c, user: usuarioActual.displayName || 'Usuario', timestamp: new Date().toISOString() });
         });
         
         await batch.commit();
         
-        // Actualizar objeto local en memoria
         if (data.customStatus) o.customStatus = data.customStatus;
         if (data.designer !== undefined) o.designer = data.designer;
         if (data.completedDate !== undefined) o.completedDate = data.completedDate;
         
-        // Si cambió el departamento, refrescar filtros
         if (deptChanged) {
             if (typeof filteredCache !== 'undefined') filteredCache.key = null;
         }
@@ -1627,6 +1639,7 @@ window.saveAssignment = async () => {
     if(ok) closeTopModal();
 };
 
+// ✅ FUNCIÓN CORREGIDA PARA CALIDAD
 window.confirmRejection = async () => {
     const category = document.getElementById('rejectCategory').value;
     const reason = document.getElementById('rejectReason').value.trim();
@@ -1638,27 +1651,47 @@ window.confirmRejection = async () => {
 
     await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
+        
+        // 1. Actualizar estado
         const orderRef = db_firestore.collection('assignments').doc(orderId);
         batch.set(orderRef, { customStatus: newStatus, lastModified: new Date().toISOString() }, { merge: true });
 
-        const logRef = db_firestore.collection('quality_logs').doc();
-        batch.set(logRef, {
+        // 2. Crear Log
+        const logData = {
             orderId: orderId, designer: designer || 'Sin asignar', auditor: usuarioActual.displayName || 'Auditor',
             auditorEmail: usuarioActual.email, category: category, reason: reason, timestamp: new Date().toISOString(),
             statusFrom: prevStatus, statusTo: newStatus, week: getWeekIdentifierString(new Date())
-        });
+        };
+        const logRef = db_firestore.collection('quality_logs').doc();
+        batch.set(logRef, logData);
 
+        // 3. Crear Historial
         const histRef = db_firestore.collection('history').doc();
         batch.set(histRef, { orderId: orderId, change: `🛑 RECHAZADO (${category}): ${reason}`, user: usuarioActual.displayName, timestamp: new Date().toISOString() });
 
         await batch.commit();
+
+        // Actualizar UI Localmente Inmediatamente
         document.getElementById('rejectCategory').value = '';
         document.getElementById('rejectReason').value = '';
-        window.pendingRejection = null;
+        
+        const localOrder = allOrders.find(o => o.orderId === orderId);
+        if(localOrder) localOrder.customStatus = newStatus;
+        
+        firebaseQualityLogsMap.set(logRef.id, logData); // Agregar a memoria local
+
         return true;
     }, 'Registrando No Conformidad...', 'Orden rechazada y reportada.');
 
+    window.pendingRejection = null;
     closeTopModal();
+    
+    // Forzar renderizado
+    if(document.getElementById('qualityView').style.display === 'block') {
+        if(typeof updateQualityView === 'function') updateQualityView();
+    } else if (document.getElementById('kanbanView').style.display === 'block') {
+        updateKanban();
+    }
 };
 
 window.openAddChildModal = () => {
@@ -1698,15 +1731,12 @@ window.deleteChildOrder = async (id, code) => {
 
 window.openMultiAssignModal = () => { 
     if (selectedOrders.size === 0) return showCustomAlert('Selecciona órdenes', 'info');
-    
-    // 🔴 LIMPIEZA FORZADA EN MULTI-MODAL TAMBIÉN
     const multiSelect = document.getElementById('multiModalStatus');
     if(multiSelect) {
         for (let i = multiSelect.options.length - 1; i >= 0; i--) {
             if (multiSelect.options[i].value === 'Completada') multiSelect.remove(i);
         }
     }
-
     document.getElementById('multiModalCount').textContent = selectedOrders.size;
     openModalById('multiAssignModal');
 };
@@ -2150,7 +2180,7 @@ function generateDepartmentMetrics() {
 }
 
 // ======================================================
-// ===== 14. GRÁFICOS Y PLAN SEMANAL =====
+// ===== 14. GRÁFICOS Y PLAN SEMANAL (MEJORADO V2) =====
 // ======================================================
 
 function destroyAllCharts() {
@@ -2160,6 +2190,12 @@ function destroyAllCharts() {
     if (deptLoadBarChart) { deptLoadBarChart.destroy(); deptLoadBarChart = null; }
     if (compareChart) { compareChart.destroy(); compareChart = null; }
 }
+
+// Función auxiliar para cambiar vista
+window.togglePlanView = (view) => {
+    currentPlanView = view;
+    generateWorkPlan(); // Re-renderizar
+};
 
 function generateWorkPlan() {
     const container = document.getElementById('view-workPlanContent');
@@ -2173,106 +2209,280 @@ function generateWorkPlan() {
 
     setTimeout(() => {
         const planData = firebaseWeeklyPlanMap.get(weekIdentifier) || [];
+        const summary = document.getElementById('view-workPlanSummary');
+        if(summary) summary.textContent = `${planData.length} órdenes`;
 
         if (planData.length === 0) {
             container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                 <i class="fa-regular fa-calendar-xmark text-3xl text-slate-300 dark:text-slate-600 mb-2"></i>
                 <p class="text-slate-400 font-medium">El plan para la semana ${weekIdentifier} está vacío.</p>
             </div>`;
-            const summary = document.getElementById('view-workPlanSummary');
-            if(summary) summary.textContent = "0 órdenes";
             return;
         }
 
-        let totalPzs = 0, doneCount = 0;
-
-        planData.sort((a, b) => {
-            const oa = allOrders.find(x => x.orderId === a.orderId);
-            const da = oa && oa.customStatus === CONFIG.STATUS.COMPLETED;
-            const db = allOrders.find(x => x.orderId === b.orderId) && allOrders.find(x => x.orderId === b.orderId).customStatus === CONFIG.STATUS.COMPLETED;
-
-            if (da && !db) return 1;
-            if (!da && db) return -1;
-            return (a.isLate === b.isLate) ? 0 : a.isLate ? -1 : 1;
-        });
-
-        let html = `
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs">
-                <thead class="bg-slate-50 dark:bg-slate-700 font-bold text-slate-500 dark:text-slate-300 uppercase">
-                    <tr>
-                        <th class="px-4 py-3 text-left">Estado</th>
-                        <th class="px-4 py-3 text-left">Orden</th>
-                        <th class="px-4 py-3 text-left">Diseñador</th>
-                        <th class="px-4 py-3 text-left">Entrega</th>
-                        <th class="px-4 py-3 text-right">Piezas</th>
-                        <th class="px-4 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">`;
+        // --- 1. CÁLCULO DE CARGA DE TRABAJO (WORKLOAD BAR) ---
+        const workload = {};
+        let maxLoad = 0;
+        let doneCount = 0;
 
         planData.forEach(item => {
-            const liveOrder = allOrders.find(o => o.orderId === item.orderId);
+            const liveOrder = allOrders.find(x => x.orderId === item.orderId);
             const isCompleted = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
-            const pzs = (item.cantidad || 0) + (item.childPieces || 0);
-            totalPzs += pzs; 
             if (isCompleted) doneCount++;
 
-            let badge = isCompleted 
-                ? `<span class="bg-slate-600 text-white px-2 py-1 rounded font-bold flex items-center gap-1 w-fit shadow-sm"><i class="fa-solid fa-check"></i> LISTO</span>` 
-                : item.isLate 
-                    ? `<span class="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded font-bold border border-red-200 dark:border-red-800">ATRASADA</span>` 
-                    : `<span class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-bold border border-blue-100 dark:border-blue-800">En Proceso</span>`;
-
-            let rowClasses = isCompleted ? 'bg-slate-50 dark:bg-slate-900 opacity-60 grayscale' : 'hover:bg-slate-50 dark:hover:bg-slate-700';
-
-            html += `
-            <tr class="${rowClasses} transition-colors">
-                <td class="px-4 py-3">${badge}</td>
-                <td class="px-4 py-3">
-                    <div class="font-bold text-slate-800 dark:text-white text-sm">${escapeHTML(item.cliente)}</div>
-                    <div class="text-slate-500 dark:text-slate-400 text-[11px]">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
-                </td>
-                <td class="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">${escapeHTML(item.designer || 'Sin asignar')}</td>
-                <td class="px-4 py-3 text-slate-600 dark:text-slate-400">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
-                <td class="px-4 py-3 text-right font-bold text-slate-800 dark:text-white">${pzs.toLocaleString()}</td>
-                <td class="px-4 py-3 text-right">
-                    <button class="btn-remove-from-plan text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </td>
-            </tr>`;
+            const d = item.designer || 'Sin asignar';
+            const pzs = (Number(item.cantidad) || 0) + (Number(item.childPieces) || 0);
+            
+            if (!workload[d]) workload[d] = { count: 0, pieces: 0 };
+            workload[d].count++;
+            workload[d].pieces += pzs;
+            if (workload[d].pieces > maxLoad) maxLoad = workload[d].pieces;
         });
 
-        html += `</tbody></table></div>`;
+        const progressTotal = Math.round((doneCount / planData.length) * 100);
 
-        const progress = planData.length > 0 ? Math.round((doneCount / planData.length) * 100) : 0;
-
-        container.innerHTML = `
-        <div class="mb-6 bg-white dark:bg-slate-800 border border-blue-100 dark:border-slate-700 p-4 rounded-xl shadow-sm flex items-center justify-between gap-6">
-            <div class="flex-1">
-                <div class="flex justify-between mb-2">
-                    <span class="font-bold text-slate-700 dark:text-slate-300 text-xs uppercase">Progreso Semanal</span>
-                    <span class="font-bold text-blue-600 dark:text-blue-400 text-xs">${progress}%</span>
+        // Renderizar Barra de Carga
+        let workloadHtml = `
+        <div class="mb-6 space-y-4">
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl shadow-sm flex items-center gap-4">
+                <div class="flex-1">
+                    <div class="flex justify-between mb-1">
+                        <span class="font-bold text-slate-700 dark:text-slate-300 text-xs uppercase">Progreso de la Semana</span>
+                        <span class="font-bold text-blue-600 dark:text-blue-400 text-xs">${progressTotal}%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: ${progressTotal}%"></div>
+                    </div>
                 </div>
-                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+                <div class="flex gap-2">
+                    <button onclick="togglePlanView('list')" class="${currentPlanView === 'list' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'} px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-list"></i> Lista</button>
+                    <button onclick="togglePlanView('calendar')" class="${currentPlanView === 'calendar' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'} px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-calendar-days"></i> Días</button>
                 </div>
             </div>
-            <div class="text-right border-l border-slate-100 dark:border-slate-700 pl-6">
-                 <div class="text-2xl font-bold text-slate-800 dark:text-white">${doneCount} <span class="text-slate-400 text-sm font-normal">/ ${planData.length}</span></div>
-                 <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wide">Órdenes Listas</div>
-            </div>
-        </div>
-        ${html}
-        `;
 
-        const summary = document.getElementById('view-workPlanSummary');
-        if(summary) summary.textContent = `${planData.length} órdenes`;
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">`;
+        
+        Object.entries(workload).forEach(([name, data]) => {
+            const percent = maxLoad > 0 ? Math.round((data.pieces / maxLoad) * 100) : 0;
+            const color = percent > 80 ? 'bg-red-500' : percent > 50 ? 'bg-yellow-500' : 'bg-green-500';
+            workloadHtml += `
+                <div class="bg-slate-50 dark:bg-slate-700/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-600">
+                    <div class="flex justify-between text-[10px] mb-1">
+                        <span class="font-bold text-slate-700 dark:text-slate-200 truncate pr-2">${name}</span>
+                        <span class="text-slate-500 font-mono">${data.pieces}p</span>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5">
+                        <div class="${color} h-1.5 rounded-full" style="width: ${percent}%"></div>
+                    </div>
+                    <div class="text-[9px] text-slate-400 mt-0.5 text-right">${data.count} órds</div>
+                </div>`;
+        });
+        workloadHtml += `</div></div>`;
 
-    }, 100);
+        // --- 2. RENDERIZADO DE VISTAS (LISTA O CALENDARIO) ---
+        let contentHtml = '';
+
+        if (currentPlanView === 'list') {
+            // === VISTA LISTA (CON QUICK EDIT) ===
+            // Ordenar: Completadas al final, luego por fecha
+            planData.sort((a, b) => {
+                const oa = allOrders.find(x => x.orderId === a.orderId);
+                const da = oa && oa.customStatus === CONFIG.STATUS.COMPLETED;
+                const db = allOrders.find(x => x.orderId === b.orderId) && allOrders.find(x => x.orderId === b.orderId).customStatus === CONFIG.STATUS.COMPLETED;
+                if (da && !db) return 1; if (!da && db) return -1;
+                return new Date(a.fechaDespacho || 0) - new Date(b.fechaDespacho || 0);
+            });
+
+            contentHtml = `
+            <div class="bg-white dark:bg-slate-800 rounded-lg shadow border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs">
+                    <thead class="bg-slate-50 dark:bg-slate-700 font-bold text-slate-500 dark:text-slate-300 uppercase">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Estado</th>
+                            <th class="px-4 py-3 text-left">Orden</th>
+                            <th class="px-4 py-3 text-left">Diseñador (Edición Rápida)</th>
+                            <th class="px-4 py-3 text-left">Entrega</th>
+                            <th class="px-4 py-3 text-right">Piezas</th>
+                            <th class="px-4 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">`;
+
+            planData.forEach(item => {
+                const liveOrder = allOrders.find(o => o.orderId === item.orderId);
+                const isCompleted = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
+                const pzs = (Number(item.cantidad) || 0) + (Number(item.childPieces) || 0);
+                
+                // Generar dropdown de diseñadores
+                const currentDes = item.designer || '';
+                const designerOptions = ['<option value="">Sin asignar</option>', ...designerList.map(d => 
+                    `<option value="${escapeHTML(d)}" ${d === currentDes ? 'selected' : ''}>${escapeHTML(d)}</option>`
+                )].join('');
+
+                const designerSelect = isCompleted ? 
+                    `<span class="text-slate-400 font-medium">${currentDes}</span>` :
+                    `<select onchange="quickUpdatePlanDesigner('${item.orderId}', this.value)" 
+                        class="bg-transparent border-0 border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:ring-0 text-xs font-bold text-slate-700 dark:text-slate-200 py-1 pl-0 pr-8 cursor-pointer transition-colors w-full max-w-[150px]">
+                        ${designerOptions}
+                    </select>`;
+
+                let badge = isCompleted ? `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 text-[10px] font-bold">COMPLETADA</span>` :
+                            item.isLate ? `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 text-[10px] font-bold">ATRASADA</span>` :
+                            `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 text-[10px] font-bold">EN PROCESO</span>`;
+                
+                let rowClasses = isCompleted ? 'bg-slate-50 dark:bg-slate-900 opacity-60' : 'hover:bg-slate-50 dark:hover:bg-slate-700';
+
+                contentHtml += `
+                <tr class="${rowClasses} transition-colors">
+                    <td class="px-4 py-3">${badge}</td>
+                    <td class="px-4 py-3" onclick="openAssignModal('${item.orderId}')" style="cursor:pointer">
+                        <div class="font-bold text-slate-800 dark:text-white">${escapeHTML(item.cliente)}</div>
+                        <div class="text-[10px] text-slate-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
+                    </td>
+                    <td class="px-4 py-3">${designerSelect}</td>
+                    <td class="px-4 py-3 text-slate-600 dark:text-slate-400">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
+                    <td class="px-4 py-3 text-right font-bold font-mono">${pzs.toLocaleString()}</td>
+                    <td class="px-4 py-3 text-right">
+                        <button class="btn-remove-from-plan text-slate-300 hover:text-red-500 transition" data-plan-entry-id="${item.planEntryId}" data-order-code="${item.codigoContrato}">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            contentHtml += `</tbody></table></div>`;
+
+        } else {
+            // === VISTA CALENDARIO (COLUMNAS) ===
+            const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Otros'];
+            const cols = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] }; // 0=Lun, 4=Vie, 5=Otros
+
+            planData.forEach(item => {
+                if (!item.fechaDespacho) { cols[5].push(item); return; }
+                
+                // Ajustar día de la semana (getDay: 0=Dom, 1=Lun...)
+                const d = new Date(item.fechaDespacho);
+                let dayIdx = d.getDay(); // 0(Sun) - 6(Sat)
+                
+                // Mapeo: Lun(1)->0, Mar(2)->1, ..., Vie(5)->4, Sab/Dom/Otros -> 5
+                let colIdx = (dayIdx >= 1 && dayIdx <= 5) ? dayIdx - 1 : 5;
+                cols[colIdx].push(item);
+            });
+
+            contentHtml = `<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 min-h-[500px]">`;
+            
+            days.forEach((dayName, idx) => {
+                const ordersInDay = cols[idx] || [];
+                const isToday = (new Date().getDay() - 1) === idx;
+                
+                contentHtml += `
+                <div class="flex flex-col bg-slate-100 dark:bg-slate-800/50 rounded-xl border ${isToday ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-200 dark:border-slate-700'} h-full">
+                    <div class="p-2 border-b border-slate-200 dark:border-slate-700 font-bold text-center text-xs uppercase text-slate-600 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-700 rounded-t-xl sticky top-0 backdrop-blur-sm">
+                        ${dayName} <span class="ml-1 bg-white dark:bg-slate-600 px-1.5 rounded-full text-[10px]">${ordersInDay.length}</span>
+                    </div>
+                    <div class="p-2 space-y-2 flex-1 overflow-y-auto max-h-[600px] scrollbar-thin">`;
+
+                if (ordersInDay.length === 0) {
+                    contentHtml += `<div class="text-center text-[10px] text-slate-400 italic mt-4">- Libre -</div>`;
+                } else {
+                    ordersInDay.forEach(item => {
+                        const liveOrder = allOrders.find(o => o.orderId === item.orderId);
+                        const isDone = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
+                        const pzs = (Number(item.cantidad) || 0) + (Number(item.childPieces) || 0);
+                        
+                        // Card
+                        contentHtml += `
+                        <div onclick="openAssignModal('${item.orderId}')" class="bg-white dark:bg-slate-800 p-2 rounded border shadow-sm cursor-pointer hover:shadow-md transition group ${isDone ? 'opacity-50 border-slate-200' : 'border-l-4 border-l-blue-400 border-t-slate-100 border-r-slate-100 border-b-slate-100'}">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[9px] font-bold bg-slate-50 dark:bg-slate-700 px-1 rounded truncate max-w-[80px]">${escapeHTML(item.cliente)}</span>
+                                ${isDone ? '<i class="fa-solid fa-check text-green-500"></i>' : ''}
+                            </div>
+                            <div class="font-bold text-[10px] leading-tight mb-1 text-slate-800 dark:text-white line-clamp-2" title="${escapeHTML(item.estilo)}">${escapeHTML(item.estilo)}</div>
+                            <div class="flex justify-between items-end mt-2">
+                                <div class="flex items-center gap-1">
+                                    <div class="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[9px] font-bold" title="${item.designer}">
+                                        ${item.designer ? item.designer.substring(0,1) : '?'}
+                                    </div>
+                                </div>
+                                <span class="font-mono text-[9px] text-slate-500">${pzs}p</span>
+                            </div>
+                        </div>`;
+                    });
+                }
+                contentHtml += `</div></div>`;
+            });
+            contentHtml += `</div>`;
+        }
+
+        container.innerHTML = workloadHtml + contentHtml;
+
+    }, 50);
 }
 
+// ✅ NUEVO: Edición Rápida desde la Tabla
+window.quickUpdatePlanDesigner = async (orderId, newDesigner) => {
+    // Feedback visual inmediato (opcional: poner spinner)
+    showCustomAlert(`Asignando a ${newDesigner || 'Sin asignar'}...`, 'info');
+
+    await safeFirestoreOperation(async () => {
+        const batch = db_firestore.batch();
+        
+        // 1. Actualizar Orden Principal (Assignments)
+        const assignRef = db_firestore.collection('assignments').doc(orderId);
+        let desEmail = null;
+        if (newDesigner) {
+            const dObj = Array.from(firebaseDesignersMap.values()).find(d => d.name === newDesigner);
+            if (dObj) desEmail = dObj.email;
+        }
+
+        batch.set(assignRef, { 
+            designer: newDesigner, 
+            designerEmail: desEmail,
+            lastModified: new Date().toISOString() 
+        }, { merge: true });
+
+        // 2. Actualizar también el Plan Semanal (WeeklyPlan) para que no parpadee al refrescar
+        // Nota: Esto busca en memoria el ID del plan activo para esa orden
+        const weekInput = document.getElementById('view-workPlanWeekSelector');
+        if (weekInput && weekInput.value) {
+            const planItems = firebaseWeeklyPlanMap.get(weekInput.value) || [];
+            const planItem = planItems.find(p => p.orderId === orderId);
+            if (planItem) {
+                batch.update(db_firestore.collection('weeklyPlan').doc(planItem.planEntryId), { designer: newDesigner });
+            }
+        }
+
+        // 3. Historial
+        const histRef = db_firestore.collection('history').doc();
+        batch.set(histRef, {
+            orderId: orderId,
+            change: `Reasignado (Plan Rápido) a ${newDesigner}`,
+            user: usuarioActual.displayName,
+            timestamp: new Date().toISOString()
+        });
+
+        await batch.commit();
+
+        // Actualización local optimista
+        const localOrder = allOrders.find(o => o.orderId === orderId);
+        if(localOrder) localOrder.designer = newDesigner;
+
+        return true;
+    }, 'Actualizando...', 'Diseñador actualizado.');
+    
+    // Recargar plan para reflejar cambios en gráficas
+    setTimeout(generateWorkPlan, 500); 
+};
+
+// Función de eliminar (mantenida del paso anterior)
+window.removeOrderFromPlan = async (planEntryId, orderCode) => {
+    showConfirmModal(`¿Retirar la orden ${orderCode} del plan semanal?`, async () => {
+        await safeFirestoreOperation(async () => {
+            await db_firestore.collection('weeklyPlan').doc(planEntryId).delete();
+            return true;
+        }, 'Eliminando...', 'Orden retirada del plan.');
+        if(typeof generateWorkPlan === 'function') generateWorkPlan();
+    });
+};
 // ======================================================
 // ===== 15. COMPARACIÓN Y REPORTES =====
 // ======================================================
@@ -3275,3 +3485,217 @@ window.resetApp = () => {
         showCustomAlert("Listo para cargar nuevo archivo.", "info");
     });
 };
+
+// ======================================================
+// ===== 24. LOGICA DE CALIDAD Y GESTION DE PERMISOS POR ROL =====
+// ======================================================
+
+// --- GESTIÓN DE PERMISOS POR ROL ---
+function applyRolePermissions(role) {
+    // 1. Lista de todos los elementos de navegación a controlar
+    const navIds = [
+        'nav-dashboard', 'nav-kanbanView', 'nav-workPlanView', 
+        'nav-qualityView', 'nav-designerMetricsView', 'nav-departmentMetricsView', 
+        'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
+    ];
+
+    // 2. Primero mostramos todo (reset)
+    navIds.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'flex';
+    });
+
+    // 3. Aplicar restricciones
+    if (role === 'auditor') {
+        // El auditor NO puede ver estas vistas:
+        const hideForAuditor = [
+            'nav-dashboard', 'nav-workPlanView', 'nav-designerMetricsView', 
+            'nav-departmentMetricsView', 'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
+        ];
+        
+        hideForAuditor.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
+
+        // Si el auditor está en una vista prohibida (ej: dashboard al inicio), redirigir a Kanban
+        const currentView = document.querySelector('.main-view[style*="display: block"]');
+        if (!currentView || currentView.id === 'dashboard') {
+            navigateTo('kanbanView');
+        }
+
+    } else if (role === 'user') {
+        // Usuario normal no ve paneles administrativos
+        ['nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
+    }
+    // 'admin' ve todo, no entra en los if anteriores.
+}
+
+// --- GESTIÓN DE PERMISOS POR ROL ---
+function applyRolePermissions(role) {
+    // 1. Lista de todos los elementos de navegación a controlar
+    const navIds = [
+        'nav-dashboard', 'nav-kanbanView', 'nav-workPlanView', 
+        'nav-qualityView', 'nav-designerMetricsView', 'nav-departmentMetricsView', 
+        'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
+    ];
+
+    // 2. Primero mostramos todo (reset)
+    navIds.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'flex';
+    });
+
+    // 3. Aplicar restricciones
+    if (role === 'auditor') {
+        // El auditor NO puede ver estas vistas:
+        const hideForAuditor = [
+            'nav-dashboard', 'nav-workPlanView', 'nav-designerMetricsView', 
+            'nav-departmentMetricsView', 'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
+        ];
+        
+        hideForAuditor.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
+
+        // Si el auditor está en una vista prohibida (ej: dashboard al inicio), redirigir a Kanban
+        const currentView = document.querySelector('.main-view[style*="display: block"]');
+        if (!currentView || currentView.id === 'dashboard') {
+            navigateTo('kanbanView');
+        }
+
+    } else if (role === 'user') {
+        // Usuario normal no ve paneles administrativos
+        ['nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
+    }
+    // 'admin' ve todo, no entra en los if anteriores.
+}
+
+// ======================================================
+// ===== FUNCIONES NUEVAS PARA CALIDAD (PEGAR AL FINAL) =====
+// ======================================================
+
+window.updateQualityView = () => {
+    const view = document.getElementById('qualityView');
+    if (!view || view.style.display === 'none') return;
+
+    // Obtener logs ordenados por fecha descendente
+    const logs = Array.from(firebaseQualityLogsMap.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // 1. Calcular KPIs
+    const totalErrors = logs.length;
+    const artOrdersCount = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART).length;
+    const rejectRate = artOrdersCount > 0 ? ((totalErrors / artOrdersCount) * 100).toFixed(1) : 0;
+
+    const categories = {};
+    logs.forEach(l => categories[l.category] = (categories[l.category] || 0) + 1);
+    const topCategoryEntry = Object.entries(categories).sort((a,b) => b[1] - a[1])[0];
+    const topCategoryName = topCategoryEntry ? topCategoryEntry[0] : '-';
+
+    // 2. Actualizar DOM KPIs
+    if(document.getElementById('kpiRejectRate')) document.getElementById('kpiRejectRate').textContent = rejectRate + '%';
+    if(document.getElementById('kpiTotalErrors')) document.getElementById('kpiTotalErrors').textContent = totalErrors;
+    if(document.getElementById('kpiTopCategory')) document.getElementById('kpiTopCategory').textContent = topCategoryName;
+
+    // 3. Renderizar Tabla
+    const tbody = document.getElementById('qualityLogTableBody');
+    if (tbody) {
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400 italic">No hay registros de rechazos aún.</td></tr>';
+        } else {
+            tbody.innerHTML = logs.map(log => {
+                const order = allOrders.find(o => o.orderId === log.orderId);
+                const clientName = order ? order.cliente : 'Orden Archivada';
+                const styleName = order ? order.estilo : log.orderId;
+
+                return `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700 transition border-b border-slate-100 dark:border-slate-700">
+                    <td class="px-4 py-3 text-slate-500 dark:text-slate-400">
+                        ${new Date(log.timestamp).toLocaleDateString()} 
+                        <span class="text-[10px] opacity-70">${new Date(log.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="font-bold text-slate-700 dark:text-slate-200">${escapeHTML(clientName)}</div>
+                        <div class="text-[10px] text-slate-400">${escapeHTML(styleName)}</div>
+                    </td>
+                    <td class="px-4 py-3 font-medium text-blue-600 dark:text-blue-400">${escapeHTML(log.designer)}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-[10px] font-bold border border-red-100 dark:border-red-900">
+                            ${escapeHTML(log.category)}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600 dark:text-slate-300 italic">"${escapeHTML(log.reason)}"</td>
+                    <td class="px-4 py-3 text-slate-500 dark:text-slate-400 text-[11px]">${escapeHTML(log.auditor)}</td>
+                </tr>`;
+            }).join('');
+        }
+    }
+
+    // 4. Renderizar Gráficos
+    if (typeof Chart !== 'undefined') {
+        renderQualityCharts(logs, categories);
+    }
+};
+
+function renderQualityCharts(logs, categoryCounts) {
+    if (window.qualityParetoChart instanceof Chart) { window.qualityParetoChart.destroy(); window.qualityParetoChart = null; }
+    if (window.qualityDesignerChart instanceof Chart) { window.qualityDesignerChart.destroy(); window.qualityDesignerChart = null; }
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const textColor = isDark ? '#cbd5e1' : '#666';
+
+    const ctxPareto = document.getElementById('qualityParetoChart');
+    if (ctxPareto) {
+        window.qualityParetoChart = new Chart(ctxPareto, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(categoryCounts),
+                datasets: [{
+                    label: 'Cantidad',
+                    data: Object.values(categoryCounts),
+                    backgroundColor: '#ef4444',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: { 
+                    x: { ticks: { color: textColor } }, 
+                    y: { ticks: { color: textColor } } 
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    const designerErrors = {};
+    logs.forEach(l => designerErrors[l.designer] = (designerErrors[l.designer] || 0) + 1);
+
+    const ctxDesigner = document.getElementById('qualityDesignerChart');
+    if (ctxDesigner) {
+        window.qualityDesignerChart = new Chart(ctxDesigner, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(designerErrors),
+                datasets: [{
+                    data: Object.values(designerErrors),
+                    backgroundColor: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#6366f1'],
+                    borderColor: isDark ? '#1e293b' : '#fff'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'right', labels: { color: textColor, boxWidth: 10 } } }
+            }
+        });
+    }
+}
+
