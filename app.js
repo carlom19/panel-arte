@@ -283,7 +283,7 @@ window.updateAllHeaders = (user, statusType = 'offline') => {
 
 // --- INICIALIZACIÓN DEL DOM ---
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App v7.5 Loaded (Initialization Fixes)');
+    console.log('App v7.5 Loaded (Fixed Roles)');
 
     initTheme(); 
 
@@ -395,22 +395,24 @@ document.addEventListener('DOMContentLoaded', () => {
     delegate('view-workPlanContent', '.btn-remove-from-plan', (btn, e) => { e.stopPropagation(); removeOrderFromPlan(btn.dataset.planEntryId, btn.dataset.orderCode); });
 });
 
-// --- FUNCIÓN DE PERMISOS POR ROL ---
+// ✅ FUNCIÓN ÚNICA DE GESTIÓN DE PERMISOS
 function applyRolePermissions(role) {
+    // 1. Lista de todos los elementos de navegación
     const navIds = [
         'nav-dashboard', 'nav-kanbanView', 'nav-workPlanView', 
         'nav-qualityView', 'nav-designerMetricsView', 'nav-departmentMetricsView', 
         'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
     ];
 
-    // 1. Resetear visibilidad
+    // 2. Resetear visibilidad (mostrar todo por defecto)
     navIds.forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'flex';
     });
 
-    // 2. Aplicar restricciones
+    // 3. Aplicar restricciones según Rol
     if (role === 'auditor') {
+        // El auditor NO puede ver estas vistas:
         const hideForAuditor = [
             'nav-dashboard', 'nav-workPlanView', 'nav-designerMetricsView', 
             'nav-departmentMetricsView', 'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
@@ -421,13 +423,14 @@ function applyRolePermissions(role) {
             if(el) el.style.display = 'none';
         });
 
-        // Redirección forzada si está en Dashboard
+        // Redirección forzada si entra en Dashboard
         const currentView = document.querySelector('.main-view[style*="display: block"]');
         if (!currentView || currentView.id === 'dashboard') {
             navigateTo('kanbanView');
         }
 
     } else if (role === 'user') {
+        // Usuario normal no ve paneles administrativos
         ['nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.style.display = 'none';
@@ -3487,99 +3490,7 @@ window.resetApp = () => {
 };
 
 // ======================================================
-// ===== 24. LOGICA DE CALIDAD Y GESTION DE PERMISOS POR ROL =====
-// ======================================================
-
-// --- GESTIÓN DE PERMISOS POR ROL ---
-function applyRolePermissions(role) {
-    // 1. Lista de todos los elementos de navegación a controlar
-    const navIds = [
-        'nav-dashboard', 'nav-kanbanView', 'nav-workPlanView', 
-        'nav-qualityView', 'nav-designerMetricsView', 'nav-departmentMetricsView', 
-        'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
-    ];
-
-    // 2. Primero mostramos todo (reset)
-    navIds.forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.style.display = 'flex';
-    });
-
-    // 3. Aplicar restricciones
-    if (role === 'auditor') {
-        // El auditor NO puede ver estas vistas:
-        const hideForAuditor = [
-            'nav-dashboard', 'nav-workPlanView', 'nav-designerMetricsView', 
-            'nav-departmentMetricsView', 'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
-        ];
-        
-        hideForAuditor.forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.style.display = 'none';
-        });
-
-        // Si el auditor está en una vista prohibida (ej: dashboard al inicio), redirigir a Kanban
-        const currentView = document.querySelector('.main-view[style*="display: block"]');
-        if (!currentView || currentView.id === 'dashboard') {
-            navigateTo('kanbanView');
-        }
-
-    } else if (role === 'user') {
-        // Usuario normal no ve paneles administrativos
-        ['nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.style.display = 'none';
-        });
-    }
-    // 'admin' ve todo, no entra en los if anteriores.
-}
-
-// --- GESTIÓN DE PERMISOS POR ROL ---
-function applyRolePermissions(role) {
-    // 1. Lista de todos los elementos de navegación a controlar
-    const navIds = [
-        'nav-dashboard', 'nav-kanbanView', 'nav-workPlanView', 
-        'nav-qualityView', 'nav-designerMetricsView', 'nav-departmentMetricsView', 
-        'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
-    ];
-
-    // 2. Primero mostramos todo (reset)
-    navIds.forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.style.display = 'flex';
-    });
-
-    // 3. Aplicar restricciones
-    if (role === 'auditor') {
-        // El auditor NO puede ver estas vistas:
-        const hideForAuditor = [
-            'nav-dashboard', 'nav-workPlanView', 'nav-designerMetricsView', 
-            'nav-departmentMetricsView', 'nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'
-        ];
-        
-        hideForAuditor.forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.style.display = 'none';
-        });
-
-        // Si el auditor está en una vista prohibida (ej: dashboard al inicio), redirigir a Kanban
-        const currentView = document.querySelector('.main-view[style*="display: block"]');
-        if (!currentView || currentView.id === 'dashboard') {
-            navigateTo('kanbanView');
-        }
-
-    } else if (role === 'user') {
-        // Usuario normal no ve paneles administrativos
-        ['nav-manageTeam', 'nav-adminRoles', 'nav-resetApp'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.style.display = 'none';
-        });
-    }
-    // 'admin' ve todo, no entra en los if anteriores.
-}
-
-// ======================================================
-// ===== FUNCIONES NUEVAS PARA CALIDAD (PEGAR AL FINAL) =====
+// ===== 24. FUNCIONES DE CALIDAD =====
 // ======================================================
 
 window.updateQualityView = () => {
@@ -3651,6 +3562,7 @@ function renderQualityCharts(logs, categoryCounts) {
     const isDark = document.documentElement.classList.contains('dark');
     const textColor = isDark ? '#cbd5e1' : '#666';
 
+    // Gráfico de Barras (Pareto)
     const ctxPareto = document.getElementById('qualityParetoChart');
     if (ctxPareto) {
         window.qualityParetoChart = new Chart(ctxPareto, {
@@ -3676,6 +3588,7 @@ function renderQualityCharts(logs, categoryCounts) {
         });
     }
 
+    // Gráfico Donut (Diseñadores)
     const designerErrors = {};
     logs.forEach(l => designerErrors[l.designer] = (designerErrors[l.designer] || 0) + 1);
 
@@ -3698,4 +3611,3 @@ function renderQualityCharts(logs, categoryCounts) {
         });
     }
 }
-
