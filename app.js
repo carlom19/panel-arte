@@ -2662,7 +2662,7 @@ window.openWeeklyReportModal = () => {
 };
 
 // ======================================================
-// ===== 17. KANBAN (SIN COLUMNA "COMPLETADA") =====
+// ===== 17. KANBAN (CON RECHAZO Y CARGA DE TRABAJO) =====
 // ======================================================
 
 function updateKanban() {
@@ -2676,28 +2676,30 @@ function updateKanban() {
         designerFilterSelect.style.display = 'block';
     }
 
-    // 🔴 OCULTAR FORZOSAMENTE LA COLUMNA "COMPLETADA" DEL DOM
-    // Buscamos cualquier contenedor que tenga el header "Completada" o el data-status="Completada"
+    // Ocultar columna Completada
     const completedZone = document.querySelector('.kanban-dropzone[data-status="Completada"]');
     if (completedZone) {
         const parentCol = completedZone.closest('.kanban-column');
         if (parentCol) parentCol.style.display = 'none';
     }
 
-    // 1. Filtrar solo órdenes que ESTÁN en Arte
+    // 1. Filtrar órdenes
     let orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     if(targetDesigner) {
         orders = orders.filter(o => o.designer === targetDesigner);
     }
 
-    // 2. Solo definimos 3 columnas activas
+    // --- NUEVO: RENDERIZAR CARGA DE TRABAJO EN KANBAN ---
+    renderKanbanWorkload(orders);
+
+    // 2. Definir columnas
     const columns = {
         'Bandeja': document.querySelector('.kanban-dropzone[data-status="Bandeja"]'),
         'Producción': document.querySelector('.kanban-dropzone[data-status="Producción"]'),
         'Auditoría': document.querySelector('.kanban-dropzone[data-status="Auditoría"]')
-        // Completada se ignora aquí
     };
 
+    // Limpiar columnas
     Object.keys(columns).forEach(k => {
         if(columns[k]) columns[k].innerHTML = '';
         const countEl = document.getElementById(`count-${k}`);
@@ -2706,11 +2708,9 @@ function updateKanban() {
 
     const counts = { 'Bandeja': 0, 'Producción': 0, 'Auditoría': 0 };
 
+    // 3. Renderizar Tarjetas
     orders.forEach(o => {
         let status = o.customStatus || 'Bandeja';
-        
-        // Si el estado es 'Completada', NO lo mostramos en el tablero (porque ya no debe ser visible)
-        // Opcional: Si quieres que aparezca en 'Auditoría' temporalmente, cambia esto.
         if (!columns[status]) return; 
 
         counts[status]++;
@@ -2725,6 +2725,7 @@ function updateKanban() {
 
         card.draggable = true;
         card.dataset.id = o.orderId;
+        card.dataset.designer = o.designer || ''; // Guardamos diseñador para referencia
         card.ondragstart = drag;
         card.onclick = () => openAssignModal(o.orderId); 
 
@@ -2750,12 +2751,70 @@ function updateKanban() {
         if(columns[status]) columns[status].appendChild(card);
     });
 
+    // Actualizar contadores
     Object.keys(counts).forEach(k => {
         const countEl = document.getElementById(`count-${k}`);
         if(countEl) countEl.textContent = counts[k];
     });
 
     filterKanbanCards();
+}
+
+// --- FUNCIÓN NUEVA: Mostrar Carga de Trabajo en Header de Kanban ---
+function renderKanbanWorkload(orders) {
+    // Buscar o Crear contenedor
+    let workloadContainer = document.getElementById('kanbanWorkloadContainer');
+    if (!workloadContainer) {
+        const header = document.querySelector('#kanbanView header');
+        workloadContainer = document.createElement('div');
+        workloadContainer.id = 'kanbanWorkloadContainer';
+        workloadContainer.className = "w-full bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-2 flex gap-4 overflow-x-auto scrollbar-thin";
+        // Insertar después del header
+        if(header && header.nextSibling) {
+            header.parentNode.insertBefore(workloadContainer, header.nextSibling);
+        }
+    }
+
+    // Calcular Carga (Solo Producción y Auditoría cuentan como carga activa)
+    const activeOrders = orders.filter(o => o.customStatus === 'Producción' || o.customStatus === 'Auditoría');
+    const workload = {};
+    let maxLoad = 0;
+
+    activeOrders.forEach(o => {
+        const d = o.designer || 'Sin asignar';
+        const pzs = (Number(o.cantidad) || 0) + (Number(o.childPieces) || 0);
+        if (!workload[d]) workload[d] = { count: 0, pieces: 0 };
+        workload[d].count++;
+        workload[d].pieces += pzs;
+        if (workload[d].pieces > maxLoad) maxLoad = workload[d].pieces;
+    });
+
+    // Generar HTML
+    if (Object.keys(workload).length === 0) {
+        workloadContainer.innerHTML = '<span class="text-[10px] text-slate-400 italic">Sin carga activa en Producción/Auditoría</span>';
+        return;
+    }
+
+    let html = `<div class="flex items-center gap-2 mr-4 border-r border-slate-200 dark:border-slate-600 pr-4"><i class="fa-solid fa-chart-simple text-slate-400"></i> <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">Carga Activa</span></div>`;
+    
+    Object.entries(workload).sort((a,b) => b[1].pieces - a[1].pieces).forEach(([name, data]) => {
+        const percent = maxLoad > 0 ? Math.round((data.pieces / maxLoad) * 100) : 0;
+        // Color semáforo
+        const colorClass = percent > 80 ? 'bg-red-500' : percent > 50 ? 'bg-yellow-500' : 'bg-green-500';
+        
+        html += `
+        <div class="flex flex-col justify-center min-w-[100px]">
+            <div class="flex justify-between text-[9px] mb-0.5">
+                <span class="font-bold text-slate-700 dark:text-slate-300 truncate max-w-[70px]" title="${name}">${name}</span>
+                <span class="text-slate-500">${data.pieces}p</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
+                <div class="${colorClass} h-1.5 rounded-full" style="width: ${percent}%"></div>
+            </div>
+        </div>`;
+    });
+
+    workloadContainer.innerHTML = html;
 }
 
 window.filterKanbanCards = () => {
@@ -2789,6 +2848,7 @@ function drag(ev) {
     ev.dataTransfer.effectAllowed = "move";
 }
 
+// ✅ DROP CORREGIDO: INTERCEPTA RECHAZOS Y ABRE MODAL
 async function drop(ev) {
     ev.preventDefault();
     const zone = ev.currentTarget;
@@ -2797,9 +2857,38 @@ async function drop(ev) {
     const orderId = ev.dataTransfer.getData("text");
     const newStatus = zone.dataset.status;
 
+    // Obtener referencia a la tarjeta y su estado anterior
     const card = document.querySelector(`div[data-id="${orderId}"]`);
-    const originalParent = card.parentNode; 
+    if (!card) return;
 
+    const oldZone = card.closest('.kanban-dropzone');
+    const oldStatus = oldZone ? oldZone.dataset.status : '';
+    const designerName = card.dataset.designer;
+
+    // --- LOGICA DE INTERCEPCIÓN PARA AUDITORES (O ADMINS) ---
+    // Si se mueve de Auditoría -> Producción, se considera un RECHAZO.
+    if (newStatus === 'Producción' && oldStatus === 'Auditoría') {
+        
+        // 1. Guardar estado pendiente en memoria global
+        window.pendingRejection = {
+            orderId: orderId,
+            newStatus: newStatus,
+            prevStatus: oldStatus,
+            designer: designerName
+        };
+
+        // 2. Abrir Modal de Rechazo inmediatamente
+        // Asegurarse de que el modal de rechazo esté disponible en el HTML
+        if (document.getElementById('rejectionModal')) {
+            openModalById('rejectionModal');
+        } else {
+            showCustomAlert('Error: Modal de rechazo no encontrado en HTML.', 'error');
+        }
+
+        return; // 🛑 DETENER LA EJECUCIÓN AQUÍ (No mover la tarjeta visualmente aún)
+    }
+
+    // --- SI NO ES RECHAZO, PROCEDER NORMALMENTE ---
     if(card) { zone.appendChild(card); }
 
     try {
@@ -2831,7 +2920,7 @@ async function drop(ev) {
         }, 'Moviendo...', null);
     } catch (e) {
         console.error("Error moviendo tarjeta, revirtiendo UI");
-        if(originalParent) originalParent.appendChild(card);
+        if(oldZone) oldZone.appendChild(card); // Revertir si falla
     }
 }
 
