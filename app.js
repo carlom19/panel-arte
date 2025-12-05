@@ -3645,8 +3645,33 @@ window.updateQualityView = () => {
 };
 
 function renderQualityCharts(logs, categoryCounts) {
-    if (window.qualityParetoChart instanceof Chart) { window.qualityParetoChart.destroy(); window.qualityParetoChart = null; }
-    if (window.qualityDesignerChart instanceof Chart) { window.qualityDesignerChart.destroy(); window.qualityDesignerChart = null; }
+    // ============================================================
+    // CORRECCIÓN: Destrucción robusta usando Chart.getChart(id)
+    // ============================================================
+    
+    // 1. Limpiar Pareto Chart (Busca instancia en el DOM)
+    const existingPareto = Chart.getChart("qualityParetoChart");
+    if (existingPareto) {
+        existingPareto.destroy();
+    }
+    // Limpiar referencia de variable global por seguridad
+    if (window.qualityParetoChart instanceof Chart) {
+        window.qualityParetoChart = null;
+    }
+
+    // 2. Limpiar Designer Chart (Busca instancia en el DOM)
+    const existingDesigner = Chart.getChart("qualityDesignerChart");
+    if (existingDesigner) {
+        existingDesigner.destroy();
+    }
+    // Limpiar referencia de variable global por seguridad
+    if (window.qualityDesignerChart instanceof Chart) {
+        window.qualityDesignerChart = null;
+    }
+
+    // ============================================================
+    // RE-RENDERIZADO
+    // ============================================================
 
     const isDark = document.documentElement.classList.contains('dark');
     const textColor = isDark ? '#cbd5e1' : '#666';
