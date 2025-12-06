@@ -2183,7 +2183,7 @@ function generateDepartmentMetrics() {
 }
 
 // ======================================================
-// ===== 14. GRÁFICOS Y PLAN SEMANAL (MEJORADO V2) =====
+// ===== 14. GRÁFICOS Y PLAN SEMANAL (MEJORADO V3 - ESTADOS Y NOTAS) =====
 // ======================================================
 
 function destroyAllCharts() {
@@ -2286,8 +2286,7 @@ function generateWorkPlan() {
         let contentHtml = '';
 
         if (currentPlanView === 'list') {
-            // === VISTA LISTA (CON QUICK EDIT) ===
-            // Ordenar: Completadas al final, luego por fecha
+            // === VISTA LISTA (CON QUICK EDIT Y ESTADOS REALES) ===
             planData.sort((a, b) => {
                 const oa = allOrders.find(x => x.orderId === a.orderId);
                 const da = oa && oa.customStatus === CONFIG.STATUS.COMPLETED;
@@ -2303,7 +2302,8 @@ function generateWorkPlan() {
                         <tr>
                             <th class="px-4 py-3 text-left">Estado</th>
                             <th class="px-4 py-3 text-left">Orden</th>
-                            <th class="px-4 py-3 text-left">Diseñador (Edición Rápida)</th>
+                            <th class="px-4 py-3 text-left">Diseñador</th>
+                            <th class="px-4 py-3 text-left w-1/4">Notas (Edición Rápida)</th> 
                             <th class="px-4 py-3 text-left">Entrega</th>
                             <th class="px-4 py-3 text-right">Piezas</th>
                             <th class="px-4 py-3"></th>
@@ -2316,7 +2316,34 @@ function generateWorkPlan() {
                 const isCompleted = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
                 const pzs = (Number(item.cantidad) || 0) + (Number(item.childPieces) || 0);
                 
-                // Generar dropdown de diseñadores
+                // --- 1. LÓGICA DE ESTADO (BADGES REALES) ---
+                // Leemos el estado real desde allOrders, no asumimos "En Proceso"
+                const status = liveOrder ? (liveOrder.customStatus || 'Bandeja') : 'Bandeja';
+                let badge = '';
+                
+                if (isCompleted) {
+                    badge = `<span class="bg-gray-100 dark:bg-slate-600 text-gray-500 dark:text-slate-200 px-2 py-0.5 rounded border border-gray-200 dark:border-slate-500 text-[10px] font-bold">COMPLETADA</span>`;
+                } else {
+                    switch(status) {
+                        case 'Bandeja':
+                            badge = `<span class="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded border border-yellow-200 dark:border-yellow-800 text-[10px] font-bold">BANDEJA</span>`;
+                            break;
+                        case 'Producción':
+                            badge = `<span class="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[10px] font-bold">PRODUCCIÓN</span>`;
+                            break;
+                        case 'Auditoría':
+                            badge = `<span class="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800 text-[10px] font-bold">AUDITORÍA</span>`;
+                            break;
+                        default:
+                            badge = `<span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded border border-slate-200 text-[10px]">${status}</span>`;
+                    }
+                    // Si está atrasada, agregamos un indicador visual extra, pero mantenemos el estado real visible
+                    if (liveOrder && liveOrder.isLate) {
+                        badge += `<div class="mt-1 text-[9px] font-bold text-red-500"><i class="fa-solid fa-triangle-exclamation"></i> ATRASADA</div>`;
+                    }
+                }
+
+                // --- 2. DROPDOWN DISEÑADOR ---
                 const currentDes = item.designer || '';
                 const designerOptions = ['<option value="">Sin asignar</option>', ...designerList.map(d => 
                     `<option value="${escapeHTML(d)}" ${d === currentDes ? 'selected' : ''}>${escapeHTML(d)}</option>`
@@ -2329,10 +2356,17 @@ function generateWorkPlan() {
                         ${designerOptions}
                     </select>`;
 
-                let badge = isCompleted ? `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 text-[10px] font-bold">COMPLETADA</span>` :
-                            item.isLate ? `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 text-[10px] font-bold">ATRASADA</span>` :
-                            `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 text-[10px] font-bold">EN PROCESO</span>`;
-                
+                // --- 3. CAMPO DE NOTAS (NUEVO) ---
+                const currentNote = liveOrder ? (liveOrder.notes || '') : '';
+                // Input transparente que se guarda al perder el foco (onchange)
+                const noteInput = isCompleted ? 
+                    `<span class="text-slate-400 text-[10px] italic">${escapeHTML(currentNote)}</span>` :
+                    `<input type="text" 
+                        value="${escapeHTML(currentNote)}" 
+                        onchange="quickUpdatePlanNote('${item.orderId}', this.value)" 
+                        placeholder="+ Agregar nota..." 
+                        class="w-full bg-transparent border-0 border-b border-slate-100 dark:border-slate-700 hover:border-slate-300 focus:border-blue-500 focus:ring-0 text-[11px] text-slate-600 dark:text-slate-300 py-1 px-0 transition-colors placeholder:text-slate-300 dark:placeholder:text-slate-600">`;
+
                 let rowClasses = isCompleted ? 'bg-slate-50 dark:bg-slate-900 opacity-60' : 'hover:bg-slate-50 dark:hover:bg-slate-700';
 
                 contentHtml += `
@@ -2343,6 +2377,7 @@ function generateWorkPlan() {
                         <div class="text-[10px] text-slate-500">${escapeHTML(item.codigoContrato)} - ${escapeHTML(item.estilo)}</div>
                     </td>
                     <td class="px-4 py-3">${designerSelect}</td>
+                    <td class="px-4 py-3">${noteInput}</td>
                     <td class="px-4 py-3 text-slate-600 dark:text-slate-400">${item.fechaDespacho ? new Date(item.fechaDespacho).toLocaleDateString() : '-'}</td>
                     <td class="px-4 py-3 text-right font-bold font-mono">${pzs.toLocaleString()}</td>
                     <td class="px-4 py-3 text-right">
@@ -2357,16 +2392,12 @@ function generateWorkPlan() {
         } else {
             // === VISTA CALENDARIO (COLUMNAS) ===
             const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Otros'];
-            const cols = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] }; // 0=Lun, 4=Vie, 5=Otros
+            const cols = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
 
             planData.forEach(item => {
                 if (!item.fechaDespacho) { cols[5].push(item); return; }
-                
-                // Ajustar día de la semana (getDay: 0=Dom, 1=Lun...)
                 const d = new Date(item.fechaDespacho);
-                let dayIdx = d.getDay(); // 0(Sun) - 6(Sat)
-                
-                // Mapeo: Lun(1)->0, Mar(2)->1, ..., Vie(5)->4, Sab/Dom/Otros -> 5
+                let dayIdx = d.getDay(); 
                 let colIdx = (dayIdx >= 1 && dayIdx <= 5) ? dayIdx - 1 : 5;
                 cols[colIdx].push(item);
             });
@@ -2390,11 +2421,21 @@ function generateWorkPlan() {
                     ordersInDay.forEach(item => {
                         const liveOrder = allOrders.find(o => o.orderId === item.orderId);
                         const isDone = liveOrder && liveOrder.customStatus === CONFIG.STATUS.COMPLETED;
+                        const status = liveOrder ? (liveOrder.customStatus || 'Bandeja') : 'Bandeja';
                         const pzs = (Number(item.cantidad) || 0) + (Number(item.childPieces) || 0);
+                        
+                        // Color borde según estado
+                        let borderClass = 'border-l-slate-300';
+                        if (status === 'Producción') borderClass = 'border-l-blue-400';
+                        if (status === 'Auditoría') borderClass = 'border-l-purple-400';
+                        if (status === 'Bandeja') borderClass = 'border-l-yellow-400';
+
+                        // Icono si hay nota
+                        const hasNote = liveOrder && liveOrder.notes ? `<i class="fa-regular fa-note-sticky text-slate-400 ml-1" title="${liveOrder.notes}"></i>` : '';
                         
                         // Card
                         contentHtml += `
-                        <div onclick="openAssignModal('${item.orderId}')" class="bg-white dark:bg-slate-800 p-2 rounded border shadow-sm cursor-pointer hover:shadow-md transition group ${isDone ? 'opacity-50 border-slate-200' : 'border-l-4 border-l-blue-400 border-t-slate-100 border-r-slate-100 border-b-slate-100'}">
+                        <div onclick="openAssignModal('${item.orderId}')" class="bg-white dark:bg-slate-800 p-2 rounded border shadow-sm cursor-pointer hover:shadow-md transition group ${isDone ? 'opacity-50 border-slate-200' : `${borderClass} border-l-4 border-t-slate-100 border-r-slate-100 border-b-slate-100`}">
                             <div class="flex justify-between items-start mb-1">
                                 <span class="text-[9px] font-bold bg-slate-50 dark:bg-slate-700 px-1 rounded truncate max-w-[80px]">${escapeHTML(item.cliente)}</span>
                                 ${isDone ? '<i class="fa-solid fa-check text-green-500"></i>' : ''}
@@ -2405,6 +2446,7 @@ function generateWorkPlan() {
                                     <div class="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[9px] font-bold" title="${item.designer}">
                                         ${item.designer ? item.designer.substring(0,1) : '?'}
                                     </div>
+                                    ${hasNote}
                                 </div>
                                 <span class="font-mono text-[9px] text-slate-500">${pzs}p</span>
                             </div>
@@ -2421,10 +2463,10 @@ function generateWorkPlan() {
     }, 50);
 }
 
-// Edición Rápida desde la Tabla
+// Edición Rápida de Diseñador
 window.quickUpdatePlanDesigner = async (orderId, newDesigner) => {
-    // Feedback visual inmediato (opcional: poner spinner)
-    showCustomAlert(`Asignando a ${newDesigner || 'Sin asignar'}...`, 'info');
+    // Feedback visual ligero
+    // showCustomAlert(`Asignando...`, 'info'); // Opcional, puede ser molesto si es rápido
 
     await safeFirestoreOperation(async () => {
         const batch = db_firestore.batch();
@@ -2443,8 +2485,7 @@ window.quickUpdatePlanDesigner = async (orderId, newDesigner) => {
             lastModified: new Date().toISOString() 
         }, { merge: true });
 
-        // 2. Actualizar también el Plan Semanal (WeeklyPlan) para que no parpadee al refrescar
-        // Nota: Esto busca en memoria el ID del plan activo para esa orden
+        // 2. Actualizar WeeklyPlan
         const weekInput = document.getElementById('view-workPlanWeekSelector');
         if (weekInput && weekInput.value) {
             const planItems = firebaseWeeklyPlanMap.get(weekInput.value) || [];
@@ -2464,19 +2505,59 @@ window.quickUpdatePlanDesigner = async (orderId, newDesigner) => {
         });
 
         await batch.commit();
-
-        // Actualización local optimista
+        
+        // Optimista
         const localOrder = allOrders.find(o => o.orderId === orderId);
         if(localOrder) localOrder.designer = newDesigner;
 
         return true;
-    }, 'Actualizando...', 'Diseñador actualizado.');
+    }, 'Guardando...', 'Diseñador actualizado');
     
-    // Recargar plan para reflejar cambios en gráficas
-    setTimeout(generateWorkPlan, 500); 
+    // No recargamos toda la tabla para no perder foco, o podemos hacerlo si preferimos
+    // setTimeout(generateWorkPlan, 500); 
 };
 
-// Función de eliminar (mantenida del paso anterior)
+// ✅ NUEVO: Edición Rápida de Notas
+window.quickUpdatePlanNote = async (orderId, newNote) => {
+    
+    // Actualización silenciosa (sin bloquear pantalla completa) pero segura
+    try {
+        const batch = db_firestore.batch();
+        
+        // 1. Guardar nota en la colección principal (para que se vea en todos lados)
+        const assignRef = db_firestore.collection('assignments').doc(orderId);
+        batch.set(assignRef, { 
+            notes: newNote,
+            lastModified: new Date().toISOString() 
+        }, { merge: true });
+
+        // 2. Historial de cambio de nota
+        // (Opcional: Si quieres historial de cada nota, descomenta esto. Puede llenar mucho el historial)
+        /*
+        const histRef = db_firestore.collection('history').doc();
+        batch.set(histRef, {
+            orderId: orderId,
+            change: `Nota actualizada: ${newNote}`,
+            user: usuarioActual.displayName,
+            timestamp: new Date().toISOString()
+        });
+        */
+
+        await batch.commit();
+
+        // Actualización local
+        const localOrder = allOrders.find(o => o.orderId === orderId);
+        if(localOrder) localOrder.notes = newNote;
+
+        console.log("Nota guardada correctamente");
+
+    } catch (e) {
+        console.error("Error guardando nota:", e);
+        showCustomAlert("Error guardando nota", "error");
+    }
+};
+
+// Función de eliminar (mantenida)
 window.removeOrderFromPlan = async (planEntryId, orderCode) => {
     showConfirmModal(`¿Retirar la orden ${orderCode} del plan semanal?`, async () => {
         await safeFirestoreOperation(async () => {
@@ -2792,7 +2873,7 @@ window.openWeeklyReportModal = () => {
 };
 
 // ======================================================
-// ===== 17. KANBAN (CON RECHAZO Y CARGA DE TRABAJO) =====
+// ===== 17. KANBAN (CON RECHAZO, CARGA Y SCROLL) =====
 // ======================================================
 
 function updateKanban() {
@@ -2806,32 +2887,45 @@ function updateKanban() {
         designerFilterSelect.style.display = 'block';
     }
 
-    // Ocultar columna Completada
+    // Ocultar columna Completada (si existe residualmente)
     const completedZone = document.querySelector('.kanban-dropzone[data-status="Completada"]');
     if (completedZone) {
         const parentCol = completedZone.closest('.kanban-column');
         if (parentCol) parentCol.style.display = 'none';
     }
 
-    // 1. Filtrar órdenes
+    // 1. Filtrar órdenes (Solo Arte)
     let orders = allOrders.filter(o => o.departamento === CONFIG.DEPARTMENTS.ART);
     if(targetDesigner) {
         orders = orders.filter(o => o.designer === targetDesigner);
     }
 
-    // --- NUEVO: RENDERIZAR CARGA DE TRABAJO EN KANBAN ---
+    // --- MEJORA: ORDENAMIENTO AUTOMÁTICO POR PRIORIDAD ---
+    // Las fechas de entrega más cercanas aparecen primero (arriba)
+    orders.sort((a, b) => {
+        // Si alguna no tiene fecha, va al final
+        if (!a.fechaDespacho) return 1;
+        if (!b.fechaDespacho) return -1;
+        return new Date(a.fechaDespacho) - new Date(b.fechaDespacho);
+    });
+
+    // Renderizar barra de carga superior
     renderKanbanWorkload(orders);
 
-    // 2. Definir columnas
+    // 2. Definir columnas DOM
     const columns = {
         'Bandeja': document.querySelector('.kanban-dropzone[data-status="Bandeja"]'),
         'Producción': document.querySelector('.kanban-dropzone[data-status="Producción"]'),
         'Auditoría': document.querySelector('.kanban-dropzone[data-status="Auditoría"]')
     };
 
-    // Limpiar columnas
+    // Limpiar HTML de columnas
     Object.keys(columns).forEach(k => {
-        if(columns[k]) columns[k].innerHTML = '';
+        if(columns[k]) {
+            columns[k].innerHTML = '';
+            // Agregar listener para mejorar UX visual al arrastrar
+            columns[k].ondragleave = dragLeave; 
+        }
         const countEl = document.getElementById(`count-${k}`);
         if(countEl) countEl.textContent = '0';
     });
@@ -2845,8 +2939,23 @@ function updateKanban() {
 
         counts[status]++;
 
+        // --- MEJORA: CÁLCULO DE "ENVEJECIMIENTO" (AGING) ---
+        // Calculamos días desde que se recibió la orden
+        const today = new Date();
+        const startStr = o.fechaRecibida || o.timestamp; // Preferimos fecha recibida
+        const startDate = startStr ? new Date(startStr) : new Date();
+        const diffTime = Math.abs(today - startDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        
+        let agingBadge = '';
+        // Si lleva más de 3 días en Bandeja o Producción, mostramos alerta
+        if (diffDays > 3 && (status === 'Bandeja' || status === 'Producción')) {
+            agingBadge = `<div class="absolute top-[-6px] right-[-6px] bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10 animate-pulse" title="Días en proceso">⏳ ${diffDays}d</div>`;
+        }
+
         const card = document.createElement('div');
-        card.className = 'kanban-card bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 cursor-move hover:shadow-md transition group relative border-l-4';
+        // Agregamos 'relative' para posicionar el badge de aging
+        card.className = 'kanban-card bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 cursor-move hover:shadow-md transition group relative border-l-4 mb-2';
 
         if(o.isVeryLate) card.classList.add('border-l-red-500');
         else if(o.isLate) card.classList.add('border-l-orange-400');
@@ -2855,16 +2964,17 @@ function updateKanban() {
 
         card.draggable = true;
         card.dataset.id = o.orderId;
-        card.dataset.designer = o.designer || ''; // Guardamos diseñador para referencia
+        card.dataset.designer = o.designer || ''; 
         card.ondragstart = drag;
         card.onclick = () => openAssignModal(o.orderId); 
 
         card.innerHTML = `
+            ${agingBadge}
             <div class="flex justify-between items-start mb-1">
                 <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 rounded truncate max-w-[120px]">${escapeHTML(o.cliente)}</span>
                 ${o.childPieces > 0 ? '<span class="text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-1 rounded-full font-bold">+'+o.childPieces+'</span>' : ''}
             </div>
-            <div class="font-bold text-xs text-slate-800 dark:text-slate-200 mb-0.5 truncate" title="${escapeHTML(o.estilo)}">${escapeHTML(o.estilo)}</div>
+            <div class="font-bold text-xs text-slate-800 dark:text-slate-200 mb-0.5 truncate leading-tight" title="${escapeHTML(o.estilo)}">${escapeHTML(o.estilo)}</div>
             <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono mb-2">${escapeHTML(o.codigoContrato)}</div>
             
             <div class="flex justify-between items-end border-t border-slate-50 dark:border-slate-600 pt-2">
@@ -2872,9 +2982,9 @@ function updateKanban() {
                     <div class="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[9px] font-bold" title="${escapeHTML(o.designer)}">
                         ${o.designer ? o.designer.substring(0,2).toUpperCase() : '?'}
                     </div>
-                    <span class="text-[10px] text-slate-400 dark:text-slate-500">${formatDate(o.fechaDespacho).slice(0,5)}</span>
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500 ml-1">${o.fechaDespacho ? formatDate(o.fechaDespacho).slice(0,5) : '-'}</span>
                 </div>
-                <div class="font-bold text-xs text-slate-700 dark:text-slate-300">${(o.cantidad + o.childPieces).toLocaleString()} pzs</div>
+                <div class="font-bold text-xs text-slate-700 dark:text-slate-300">${(o.cantidad + (o.childPieces||0)).toLocaleString()} pzs</div>
             </div>
         `;
 
@@ -2890,22 +3000,20 @@ function updateKanban() {
     filterKanbanCards();
 }
 
-// --- FUNCIÓN NUEVA: Mostrar Carga de Trabajo en Header de Kanban ---
+// --- FUNCIÓN: Mostrar Carga de Trabajo en Header de Kanban ---
 function renderKanbanWorkload(orders) {
-    // Buscar o Crear contenedor
     let workloadContainer = document.getElementById('kanbanWorkloadContainer');
     if (!workloadContainer) {
         const header = document.querySelector('#kanbanView header');
         workloadContainer = document.createElement('div');
         workloadContainer.id = 'kanbanWorkloadContainer';
-        workloadContainer.className = "w-full bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-2 flex gap-4 overflow-x-auto scrollbar-thin";
+        workloadContainer.className = "w-full bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-2 flex gap-4 overflow-x-auto scrollbar-thin flex-shrink-0";
         // Insertar después del header
         if(header && header.nextSibling) {
             header.parentNode.insertBefore(workloadContainer, header.nextSibling);
         }
     }
 
-    // Calcular Carga (Solo Producción y Auditoría cuentan como carga activa)
     const activeOrders = orders.filter(o => o.customStatus === 'Producción' || o.customStatus === 'Auditoría');
     const workload = {};
     let maxLoad = 0;
@@ -2919,7 +3027,6 @@ function renderKanbanWorkload(orders) {
         if (workload[d].pieces > maxLoad) maxLoad = workload[d].pieces;
     });
 
-    // Generar HTML
     if (Object.keys(workload).length === 0) {
         workloadContainer.innerHTML = '<span class="text-[10px] text-slate-400 italic">Sin carga activa en Producción/Auditoría</span>';
         return;
@@ -2929,7 +3036,6 @@ function renderKanbanWorkload(orders) {
     
     Object.entries(workload).sort((a,b) => b[1].pieces - a[1].pieces).forEach(([name, data]) => {
         const percent = maxLoad > 0 ? Math.round((data.pieces / maxLoad) * 100) : 0;
-        // Color semáforo
         const colorClass = percent > 80 ? 'bg-red-500' : percent > 50 ? 'bg-yellow-500' : 'bg-green-500';
         
         html += `
@@ -2964,6 +3070,7 @@ window.filterKanbanCards = () => {
     });
 };
 
+// Eventos de Drag & Drop
 function allowDrop(ev) {
     ev.preventDefault();
     ev.currentTarget.classList.add('bg-blue-50/50', 'ring-2', 'ring-blue-300', 'ring-inset');
@@ -2978,7 +3085,7 @@ function drag(ev) {
     ev.dataTransfer.effectAllowed = "move";
 }
 
-// ✅ DROP CORREGIDO: INTERCEPTA RECHAZOS Y ABRE MODAL
+// DROP con lógica de Rechazo
 async function drop(ev) {
     ev.preventDefault();
     const zone = ev.currentTarget;
@@ -2987,7 +3094,6 @@ async function drop(ev) {
     const orderId = ev.dataTransfer.getData("text");
     const newStatus = zone.dataset.status;
 
-    // Obtener referencia a la tarjeta y su estado anterior
     const card = document.querySelector(`div[data-id="${orderId}"]`);
     if (!card) return;
 
@@ -2995,11 +3101,8 @@ async function drop(ev) {
     const oldStatus = oldZone ? oldZone.dataset.status : '';
     const designerName = card.dataset.designer;
 
-    // --- LOGICA DE INTERCEPCIÓN PARA AUDITORES (O ADMINS) ---
-    // Si se mueve de Auditoría -> Producción, se considera un RECHAZO.
+    // --- INTERCEPCIÓN RECHAZO (Auditoría -> Producción) ---
     if (newStatus === 'Producción' && oldStatus === 'Auditoría') {
-        
-        // 1. Guardar estado pendiente en memoria global
         window.pendingRejection = {
             orderId: orderId,
             newStatus: newStatus,
@@ -3007,18 +3110,15 @@ async function drop(ev) {
             designer: designerName
         };
 
-        // 2. Abrir Modal de Rechazo inmediatamente
-        // Asegurarse de que el modal de rechazo esté disponible en el HTML
         if (document.getElementById('rejectionModal')) {
             openModalById('rejectionModal');
         } else {
-            showCustomAlert('Error: Modal de rechazo no encontrado en HTML.', 'error');
+            showCustomAlert('Error: Modal de rechazo no encontrado.', 'error');
         }
-
-        return; // 🛑 DETENER LA EJECUCIÓN AQUÍ (No mover la tarjeta visualmente aún)
+        return; 
     }
 
-    // --- SI NO ES RECHAZO, PROCEDER NORMALMENTE ---
+    // Movimiento normal
     if(card) { zone.appendChild(card); }
 
     try {
@@ -3050,7 +3150,7 @@ async function drop(ev) {
         }, 'Moviendo...', null);
     } catch (e) {
         console.error("Error moviendo tarjeta, revirtiendo UI");
-        if(oldZone) oldZone.appendChild(card); // Revertir si falla
+        if(oldZone) oldZone.appendChild(card); // Revertir
     }
 }
 
