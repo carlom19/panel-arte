@@ -2421,7 +2421,7 @@ function generateWorkPlan() {
     }, 50);
 }
 
-// ✅ NUEVO: Edición Rápida desde la Tabla
+// Edición Rápida desde la Tabla
 window.quickUpdatePlanDesigner = async (orderId, newDesigner) => {
     // Feedback visual inmediato (opcional: poner spinner)
     showCustomAlert(`Asignando a ${newDesigner || 'Sin asignar'}...`, 'info');
@@ -2486,6 +2486,136 @@ window.removeOrderFromPlan = async (planEntryId, orderCode) => {
         if(typeof generateWorkPlan === 'function') generateWorkPlan();
     });
 };
+
+// ======================================================
+// ===== FUNCIÓN AUXILIAR: IMPORTAR FILTRO EXCEL AL PLAN =====
+// ======================================================
+
+async function filterAndAddToPlan(files) {
+    if (files.length === 0) return;
+
+    // 1. Verificar que tengamos una semana seleccionada
+    const weekInput = document.getElementById('view-workPlanWeekSelector');
+    if (!weekInput.value) {
+        showCustomAlert('Primero selecciona la Semana Objetivo en el calendario.', 'error');
+        document.getElementById('planFilterInput').value = ''; 
+        return;
+    }
+    const targetWeek = weekInput.value;
+
+    showLoading('Buscando coincidencias en la base de datos...');
+
+    try {
+        const file = files[0];
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data);
+        
+        // Leemos la primera hoja
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+        // 2. Localizar la columna "Po"
+        let headerRow = -1;
+        let poIndex = -1;
+
+        // Buscamos el encabezado en las primeras 20 filas
+        for (let i = 0; i < Math.min(jsonData.length, 20); i++) {
+            const row = jsonData[i].map(c => String(c).toLowerCase().trim());
+            // Buscamos 'po' o 'p.o.' o variantes
+            const idx = row.findIndex(c => c === 'po' || c === 'p.o.' || c === 'p.o' || c === 'corte'); 
+            if (idx !== -1) {
+                headerRow = i;
+                poIndex = idx;
+                break;
+            }
+        }
+
+        if (poIndex === -1) {
+            throw new Error('No encontré la columna "Po" (o Corte) en el archivo Excel.');
+        }
+
+        // 3. Cruzar datos (Excel vs Sistema)
+        const rows = jsonData.slice(headerRow + 1);
+        const matches = [];
+        let notFoundCount = 0;
+        let wrongDeptoCount = 0;
+
+        rows.forEach(row => {
+            const excelPo = row[poIndex];
+            if (!excelPo) return;
+
+            const searchKey = String(excelPo).trim();
+
+            // Búsqueda en memoria (allOrders)
+            const orderFound = allOrders.find(o => 
+                String(o.codigoContrato).trim() === searchKey || 
+                String(o.codigoContrato).includes(searchKey)
+            );
+
+            if (orderFound) {
+                // Verificamos que siga perteneciendo a Arte
+                if (orderFound.departamento === CONFIG.DEPARTMENTS.ART) {
+                    matches.push(orderFound);
+                } else {
+                    wrongDeptoCount++; 
+                }
+            } else {
+                notFoundCount++;
+            }
+        });
+
+        if (matches.length === 0) {
+            showCustomAlert(`No se encontraron coincidencias válidas en Arte. (${notFoundCount} no existen, ${wrongDeptoCount} en otros deptos).`, 'info');
+            hideLoading();
+            return;
+        }
+
+        // 4. Confirmar y Agregar al Plan
+        hideLoading();
+        
+        showConfirmModal(`Se encontraron ${matches.length} órdenes activas en Arte que coinciden con tu Excel. ¿Agregarlas al Plan ${targetWeek}?`, async () => {
+            
+            await safeFirestoreOperation(async () => {
+                const batch = db_firestore.batch();
+                
+                matches.forEach(o => {
+                    const pid = `${o.orderId}_${targetWeek}`;
+                    const ref = db_firestore.collection('weeklyPlan').doc(pid);
+                    
+                    batch.set(ref, {
+                        planEntryId: pid,
+                        orderId: o.orderId,
+                        weekIdentifier: targetWeek,
+                        // Copia de datos para visualización rápida
+                        cliente: o.cliente,
+                        codigoContrato: o.codigoContrato,
+                        estilo: o.estilo,
+                        designer: o.designer || '',
+                        fechaDespacho: o.fechaDespacho ? o.fechaDespacho.toISOString() : null,
+                        cantidad: Number(o.cantidad) || 0,
+                        childPieces: Number(o.childPieces) || 0,
+                        isLate: !!o.isLate,
+                        isAboutToExpire: !!o.isAboutToExpire,
+                        addedAt: new Date().toISOString(),
+                        schemaVersion: CONFIG.DB_VERSION
+                    }, { merge: true });
+                });
+
+                await batch.commit();
+                return true;
+            }, 'Actualizando Plan...', `¡Éxito! ${matches.length} órdenes agregadas.`);
+            
+            generateWorkPlan(); 
+            document.getElementById('planFilterInput').value = ''; 
+        });
+
+    } catch (error) {
+        console.error(error);
+        showCustomAlert('Error leyendo el archivo: ' + error.message, 'error');
+        hideLoading();
+    }
+}
+
 // ======================================================
 // ===== 15. COMPARACIÓN Y REPORTES =====
 // ======================================================
